@@ -2,14 +2,31 @@
 use ::array_init::array_init;
 use image::{RgbImage, Rgb, Pixel};
 
+#[derive(Debug)]
+enum SortingMethod {
+    Hue,
+    Brightness,
+    Saturation,
+}
+
 fn main() {
     let path: &str = "/home/xlein/Pictures/Wallpaper/proxy.png";
     let img: RgbImage = image::open(path).unwrap().into_rgb8();
-    
+ 
+    let sorted_img_h: RgbImage = mapsort(&img, img.width(), img.height(), SortingMethod::Hue);
+    let filename_out = format!("./out-h-{}.png", 0);
+    println!("saving as {}...", filename_out);
+//    sorted_img_h.save(filename_out);
 
-    let sorted_img: RgbImage = mapsort(&img, img.width(), img.height());
-    println!("saving...");
-    sorted_img.save(format!("./out-{}.png",2));
+    let sorted_img_b: RgbImage = mapsort(&img, img.width(), img.height(), SortingMethod::Brightness);
+    let filename_out = format!("./out-b-{}.png", 0);
+    println!("saving as {}...", filename_out);
+ //   sorted_img_b.save(filename_out);
+
+    let sorted_img_hb: RgbImage = mapsort(&sorted_img_b, img.width(), img.height(), SortingMethod::Hue);
+    let filename_out = format!("./out-hb-{}.png", 0);
+    println!("saving as {}...", filename_out);
+    sorted_img_hb.save(filename_out);
 }
 
 fn get_hue(&pixel: &Rgb<u8>) -> usize {
@@ -53,20 +70,28 @@ fn get_brightness(&p: &Rgb<u8>) -> usize {
     (0.2126*channels[0] as f32 + 0.7152*channels[1] as f32 + 0.0722*channels[2] as f32) as usize
 }
 
-fn mapsort(img:&RgbImage, width: u32, height: u32) -> RgbImage{
+
+fn mapsort(img:&RgbImage, width: u32, height: u32, method: SortingMethod) -> RgbImage{
     let pixels = img.pixels();
     let mut sorted: RgbImage = RgbImage::new(width, height);
-    let mut hue_map: [ Vec<&Rgb<u8>> ; 360] = array_init(|_| Vec::new());
-
-    println!("Mapping hue...");
+    let mut map_array: [ Vec<&Rgb<u8>> ; 360] = array_init(|_| Vec::new());
+   
+    use SortingMethod::*;
+    let get_pixel_value = match method {
+        Hue => get_hue,
+        Brightness => get_brightness,
+        Saturation => get_hue,
+    };
+ 
+    println!("Mapping pixel value by {:?}...", method);
     for p in pixels{
        //println!("{:?}: {}\t", &p, get_hue(&p));
-        hue_map[get_brightness(&p) as usize].push(&p);
+        map_array[get_pixel_value(&p)].push(&p);
     }
     
     println!("Writing pixels...");
     let mut ind = 0;
-    for h in hue_map {
+    for h in map_array {
         for p in h {
             sorted.put_pixel(ind%width, ind/width, *p);
             ind += 1;
@@ -76,5 +101,3 @@ fn mapsort(img:&RgbImage, width: u32, height: u32) -> RgbImage{
     println!("Done!");
     return sorted;
 }
-
-
