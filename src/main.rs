@@ -1,6 +1,8 @@
 #![allow(unused)]
 use ::array_init::array_init;
 use image::{RgbImage, Rgb, Pixel};
+use std::cmp::max;
+use std::cmp::min;
 
 #[derive(Debug)]
 enum SortingMethod {
@@ -27,6 +29,15 @@ fn main() {
     let filename_out = format!("./out-hb-{}.png", 0);
     println!("saving as {}...", filename_out);
     sorted_img_hb.save(filename_out);
+
+    let mut inv_img = img.clone();
+    invert(&mut inv_img, img.width(), img.height());
+
+    let filename_out = format!("./inverted-{}.png", 0);
+    println!("saving as {}...", filename_out);
+    inv_img.save(filename_out);
+
+
 }
 
 fn get_hue(&pixel: &Rgb<u8>) -> usize {
@@ -68,6 +79,14 @@ fn get_hue(&pixel: &Rgb<u8>) -> usize {
 fn get_brightness(&p: &Rgb<u8>) -> usize {
     let channels = p.channels();
     (0.2126*channels[0] as f32 + 0.7152*channels[1] as f32 + 0.0722*channels[2] as f32) as usize
+} 
+
+fn get_saturation(&p: &Rgb<u8>) -> usize{
+    let channels = &p.channels();
+    let maxrgb = max(channels[0], max(channels[1], channels[2]));
+    if maxrgb == 0 {return 0_usize}
+    let minrgb = min(channels[0], min(channels[1], channels[2]));
+    (255*( maxrgb - minrgb ) / maxrgb) as usize
 }
 
 
@@ -80,7 +99,7 @@ fn mapsort(img:&RgbImage, width: u32, height: u32, method: SortingMethod) -> Rgb
     let get_pixel_value = match method {
         Hue => get_hue,
         Brightness => get_brightness,
-        Saturation => get_hue,
+        Saturation => get_saturation,
     };
  
     println!("Mapping pixel value by {:?}...", method);
@@ -100,4 +119,17 @@ fn mapsort(img:&RgbImage, width: u32, height: u32, method: SortingMethod) -> Rgb
 
     println!("Done!");
     return sorted;
+}
+
+fn invert (img: &mut RgbImage, width: u32, height: u32){
+    let mut pixels = img.pixels_mut();
+    
+    for p in pixels {
+        p.invert();
+//       let channels = (*p).channels_mut();
+//       let temp: u8 = channels[0];
+//       channels[0] = channels[1];
+//       channels[1] = channels[2];
+//       channels[2] = temp;
+    }
 }
