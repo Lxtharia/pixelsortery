@@ -3,8 +3,9 @@ use ::array_init::array_init;
 use image::{RgbImage, Rgb, Pixel};
 use std::cmp::max;
 use std::cmp::min;
+use std::time::{Duration, Instant};
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 enum SortingMethod {
     Hue,
     Brightness,
@@ -13,32 +14,45 @@ enum SortingMethod {
 
 fn main() {
     let path: &str = "/home/xlein/Pictures/Wallpaper/proxy.png";
-    let img: RgbImage = image::open(path).unwrap().into_rgb8();
- 
-    let sorted_img_h: RgbImage = mapsort(&img, img.width(), img.height(), SortingMethod::Hue);
-    let filename_out = format!("./out-h-{}.png", 0);
-    println!("saving as {}...", filename_out);
-//    sorted_img_h.save(filename_out);
+    let mut img: RgbImage = image::open(path).unwrap().into_rgb8();
 
-    let sorted_img_b: RgbImage = mapsort(&img, img.width(), img.height(), SortingMethod::Brightness);
-    let filename_out = format!("./out-b-{}.png", 0);
-    println!("saving as {}...", filename_out);
- //   sorted_img_b.save(filename_out);
+//    let mut inv_img = img.clone();
+//    invert(&mut inv_img, img.width(), img.height());
+//    let filename_out = format!("./inverted-{}.png", 0);
+//    println!("saving as {}...", filename_out);
+//    inv_img.save(filename_out);
 
-    let sorted_img_hb: RgbImage = mapsort(&sorted_img_b, img.width(), img.height(), SortingMethod::Hue);
-    let filename_out = format!("./out-hb-{}.png", 0);
-    println!("saving as {}...", filename_out);
+let start = Instant::now();
+    let sorted_img_b: RgbImage = mapsort(&img, img.width(), img.height(), &SortingMethod::Brightness);
+    let sorted_img_hb: RgbImage = mapsort(&sorted_img_b, img.width(), img.height(), &SortingMethod::Hue);
+let duration = start.elapsed();
+println!("Time took to sort: {:?}", duration);
+
+println!("Sorting all the pixels...");
+let start = Instant::now();
+//    sort_img(&mut img, &SortingMethod::Saturation);
+    sort_whole_image(&mut img, &SortingMethod::Brightness);
+    sort_whole_image(&mut img, &SortingMethod::Hue);
+let duration = start.elapsed();
+println!("Time took to sort: {:?}", duration);
+    
+
+println!("Sorting every two pixels...");
+let start = Instant::now();
+//    sort_img(&mut img, &SortingMethod::Saturation);
+    sort_img(&mut img, &SortingMethod::Brightness);
+    sort_img(&mut img, &SortingMethod::Hue);
+let duration = start.elapsed();
+println!("Time took to sort: {:?}", duration);
+    
+    let serial_num = 12;
+    let filename_mut = format!("./muttest-{}.png", serial_num);
+    let filename_out = format!("./outtest-{}.png", serial_num);
+    img.save(filename_mut);
     sorted_img_hb.save(filename_out);
 
-    let mut inv_img = img.clone();
-    invert(&mut inv_img, img.width(), img.height());
-
-    let filename_out = format!("./inverted-{}.png", 0);
-    println!("saving as {}...", filename_out);
-    inv_img.save(filename_out);
-
-
 }
+
 
 fn get_hue(&pixel: &Rgb<u8>) -> usize {
     let channels = pixel.channels();
@@ -89,14 +103,75 @@ fn get_saturation(&p: &Rgb<u8>) -> usize{
     (255*( maxrgb - minrgb ) / maxrgb) as usize
 }
 
+fn sort_whole_image(img: &mut RgbImage, method: &SortingMethod){
+    let (width, height) = img.dimensions();
+    let mut pixels: Vec<&mut Rgb<u8>> = img.pixels_mut().collect();
+    mut_map_sort(&mut pixels, method);
+}
 
-fn mapsort(img:&RgbImage, width: u32, height: u32, method: SortingMethod) -> RgbImage{
+fn sort_img(img: &mut RgbImage, method: &SortingMethod){
+    let (width, height) = img.dimensions();
+    // a vector of pointers to the pixels
+    let mut pixels: Vec<&mut Rgb<u8>> = img.pixels_mut().collect();
+    // We are iterating through all lines.
+    // What if we want to iterate through pixels diagonally?
+    // Or in a hilbert curve?
+    // So we need an array of iterators
+    // each iterator needs to have mutable pixel pointers we can write to
+    // Glitching is another construction site
+    let mut k = 0;
+    let mut start = 0;
+    for y in 0..height {
+        for x in 0..width {
+            let index = y * width + x;
+
+            if k>=2 || x >= width-1 {
+                // we give mut_map_sort a mutable slice of RGB-pointers
+                mut_map_sort(&mut pixels[start..start+k], method);
+                start = 1+index as usize ;
+                k = 0;
+            } else {
+                k+=1;
+            }
+        }
+    }
+
+}
+
+fn mut_map_sort(pixels: &mut [&mut Rgb<u8>], method: &SortingMethod) {
+    use SortingMethod::*;
+    let get_pixel_value = match method {
+        Hue => get_hue,
+        Brightness => get_brightness,
+        Saturation => get_saturation,
+    };
+
+    let mut map_array: [ Vec<Rgb<u8>> ; 360 ] = array_init(|_| Vec::new());
+    
+    // we copy the pixels into the map array 
+    for p in 0..pixels.len(){
+        map_array[get_pixel_value(&pixels[p])].push(pixels[p].clone());
+        //map_array[get_pixel_value(&pixels[p])].push(Rgb {0: [255,0,0]});
+    }
+
+    // and then put them back at the pointer locations
+    let mut ind = 0;
+    for h in map_array {
+        for p in h {
+            *(pixels[ind]) = p; 
+            ind+=1;
+        }
+    }
+
+}
+
+fn mapsort(img:&RgbImage, width: u32, height: u32, method: &SortingMethod) -> RgbImage{
     let pixels = img.pixels();
     let mut sorted: RgbImage = RgbImage::new(width, height);
     let mut map_array: [ Vec<&Rgb<u8>> ; 360] = array_init(|_| Vec::new());
    
     use SortingMethod::*;
-    let get_pixel_value = match method {
+    let get_pixel_value = match *method {
         Hue => get_hue,
         Brightness => get_brightness,
         Saturation => get_saturation,
