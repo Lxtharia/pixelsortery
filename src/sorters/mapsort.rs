@@ -9,6 +9,7 @@ pub fn mut_map_sort(pixels: &mut [&mut Rgb<u8>], method: &SortingMethod) {
         Hue => get_hue,
         Brightness => get_brightness,
         Saturation => get_saturation,
+        _ => get_hue,
     };
 
     let mut map_array: [ Vec<Rgb<u8>> ; 360 ] = array_init(|_| Vec::new());
@@ -42,6 +43,7 @@ pub fn mapsort(img:&RgbImage, width: u32, height: u32, method: &SortingMethod) -
         Hue => get_hue,
         Brightness => get_brightness,
         Saturation => get_saturation,
+        _ => get_hue,
     };
  
     println!("Mapping pixel value by {:?}...", method);

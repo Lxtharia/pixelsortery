@@ -1,7 +1,8 @@
 mod mapsort;
+mod random_color;
 
 use image::{RgbImage, Rgb, Pixel};
-use crate::color_helpers;
+use crate::color_helpers::*;
 use mapsort::*;
 
 
@@ -10,6 +11,7 @@ pub enum SortingMethod {
     Hue,
     Brightness,
     Saturation,
+    Debug,
 }
 
 
@@ -24,6 +26,12 @@ pub fn sort_img(img: &mut RgbImage, method: &SortingMethod){
     let (width, height) = img.dimensions();
     // a vector of pointers to the pixels
     let mut pixels: Vec<&mut Rgb<u8>> = img.pixels_mut().collect();
+    
+    let sorting_function = match method {
+        SortingMethod::Debug => random_color::set_random_color,
+        _ => mut_map_sort,
+    };
+    println!("{:?}", method);
     // We are iterating through all lines.
     // What if we want to iterate through pixels diagonally?
     // Or in a hilbert curve?
@@ -33,15 +41,17 @@ pub fn sort_img(img: &mut RgbImage, method: &SortingMethod){
     let mut start = 0;
     for y in 0..height {
         for x in 0..width {
-            let index = y * width + x;
-
-            if k>=2 || x >= width-1 {
-                // we give mut_map_sort a mutable slice of RGB-pointers
-                mut_map_sort(&mut pixels[start..start+k], method);
-                start = 1+index as usize ;
-                k = 0;
-            } else {
+            let index = (y * width + x) as usize;
+            
+            if get_hue(pixels[index]) >= 180 && get_brightness(pixels[index]) < 130 && index != (width*height) as usize { // valid pixel
                 k+=1;
+            } else { 
+                if k> 0 { // if it's more than one pixel 
+                    // we give mut_map_sort a mutable slice of RGB-pointers
+                   sorting_function(&mut pixels[start..=start+k], method);
+                }
+                k = 0;
+                start = 1+index;
             }
         }
     }
