@@ -1,10 +1,8 @@
 #![allow(unused)]
-mod color_helpers;
-mod sorters;
 
 use image::RgbImage;
 use std::time::{Duration, Instant};
-use sorters::{SortingMethod, sort_img, sort_whole_image};
+use pixelsorter::sorters::{SortingMethod, sort_img, sort_whole_image};
 
 fn main() {
     let path: &str = "/home/xlein/Pictures/Wallpaper/landscape renatus.z wallpaper.jpg";

@@ -1,7 +1,7 @@
 use ::array_init::array_init;
 use image::{RgbImage, Rgb, Pixel};
-use crate::sorters::SortingMethod;
 use crate::color_helpers::*;
+use super::SortingMethod;
 
 pub fn mut_map_sort(pixels: &mut [&mut Rgb<u8>], method: &SortingMethod) {
     use SortingMethod::*;

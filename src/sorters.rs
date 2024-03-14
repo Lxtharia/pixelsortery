@@ -1,10 +1,13 @@
-mod mapsort;
-mod random_color;
-
 use image::{RgbImage, Rgb, Pixel};
-use crate::color_helpers::*;
+mod random_color;
+mod mapsort;
 use mapsort::*;
-
+use crate::color_helpers::*;
+// pub struct Sorter {
+//     opt: SortingOption,
+//     alg: SortingAlgorithm,
+//     inverse: bool,
+// }
 
 #[derive(Debug, Clone, Copy)]
 pub enum SortingMethod {
@@ -13,8 +16,6 @@ pub enum SortingMethod {
     Saturation,
     Debug,
 }
-
-
 
 pub fn sort_whole_image(img: &mut RgbImage, method: &SortingMethod){
     let mut pixels: Vec<&mut Rgb<u8>> = img.pixels_mut().collect();
