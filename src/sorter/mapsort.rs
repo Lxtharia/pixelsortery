@@ -16,7 +16,7 @@ pub fn mut_map_sort(pixels: &mut [&mut Rgb<u8>], method: &SortingMethod) {
     
     // we copy the pixels into the map array 
     for p in 0..pixels.len(){
-        map_array[get_pixel_value(&pixels[p])].push(pixels[p].clone());
+        map_array[get_pixel_value(&pixels[p]) as usize].push(pixels[p].clone());
         //map_array[get_pixel_value(&pixels[p])].push(Rgb {0: [255,0,0]});
     }
 
@@ -49,7 +49,7 @@ pub fn mapsort(img:&RgbImage, width: u32, height: u32, method: &SortingMethod) -
     println!("Mapping pixel value by {:?}...", method);
     for p in pixels{
        //println!("{:?}: {}\t", &p, get_hue(&p));
-        map_array[get_pixel_value(&p)].push(&p);
+        map_array[get_pixel_value(&p) as usize].push(&p);
     }
     
     println!("Writing pixels...");
