@@ -18,10 +18,7 @@ fn main() {
 //    sort_whole_image(&mut img, &SortingMethod::Saturation);
 //    sort_whole_image(&mut img, &SortingMethod::Brightness);
 //    sort_whole_image(&mut img, &SortingMethod::Hue);
-    let mut ps = pixelsorter::Pixelsorter{
-        img,
-        method: SortingMethod::Brightness
-    };
+    let mut ps = pixelsorter::Pixelsorter::new(img, SortingMethod::Saturation);
     ps.sort();
     ps.method = SortingMethod::Hue;
     ps.sort();
@@ -31,12 +28,12 @@ fn main() {
     let duration = start.elapsed();
     println!("Time took to sort: {:?}", duration);
     
-   // SAVING
+    /* SAVING */
     let serial_num = 6;
     let filename_mut = format!("./renatus-b-debug-{}.png", serial_num);
-//    let filename_out = format!("./outtest-{}.png", serial_num);
-    let _ = ps.img.save(filename_mut);
-//    sorted_img_hb.save(filename_out);
+    // let filename_out = format!("./outtest-{}.png", serial_num);
+    let _ = ps.save(filename_mut);
+    // sorted_img_hb.save(filename_out);
 }
 
 
