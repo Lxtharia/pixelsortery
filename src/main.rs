@@ -2,14 +2,14 @@
 
 use image::RgbImage;
 use std::time::{Duration, Instant};
-use pixelsorter::sorters::{SortingMethod, sort_img, sort_whole_image};
+use pixelsorter::sorters::{SortingMethod};
 
 fn main() {
     let path: &str = "/home/xlein/Pictures/Wallpaper/landscape renatus.z wallpaper.jpg";
 //    let path: &str = "/home/xlein/Pictures/Wallpaper/proxy.png";
     
     // OPEN IMAGE 
-    let mut img: RgbImage = image::open(path).unwrap().into_rgb8();
+    let img: RgbImage = image::open(path).unwrap().into_rgb8();
 
     // SORTING 
     println!("Sorting all the pixels...");
@@ -18,9 +18,15 @@ fn main() {
 //    sort_whole_image(&mut img, &SortingMethod::Saturation);
 //    sort_whole_image(&mut img, &SortingMethod::Brightness);
 //    sort_whole_image(&mut img, &SortingMethod::Hue);
-    sort_img(&mut img, &SortingMethod::Brightness);
-    sort_img(&mut img, &SortingMethod::Hue);
-    sort_img(&mut img, &SortingMethod::Debug);
+    let mut ps = pixelsorter::Pixelsorter{
+        img,
+        method: SortingMethod::Brightness
+    };
+    ps.sort();
+    ps.method = SortingMethod::Hue;
+    ps.sort();
+    ps.method = SortingMethod::Debug;
+    ps.sort();
 
     let duration = start.elapsed();
     println!("Time took to sort: {:?}", duration);
@@ -29,7 +35,7 @@ fn main() {
     let serial_num = 6;
     let filename_mut = format!("./renatus-b-debug-{}.png", serial_num);
 //    let filename_out = format!("./outtest-{}.png", serial_num);
-    let _ = img.save(filename_mut);
+    let _ = ps.img.save(filename_mut);
 //    sorted_img_hb.save(filename_out);
 }
 
