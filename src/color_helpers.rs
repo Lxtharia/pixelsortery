@@ -1,3 +1,4 @@
+#![allow(unused_parens)]
 use image::{Rgb, Pixel};
 use std::cmp::{min, max};
 
