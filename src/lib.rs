@@ -1,18 +1,18 @@
 use std::path::Path;
 
 use image::{ImageResult, RgbImage};
-pub mod sorters;
+pub mod sorter;
 mod color_helpers;
 
 pub struct Pixelsorter {
     img: RgbImage,
-    pub method: sorters::SortingMethod,
+    pub method: sorter::SortingMethod,
 //    sorter: sorters::Sorter,
 }
 
 impl Pixelsorter {
     // constructor
-    pub fn new(img: RgbImage, method: sorters::SortingMethod ) -> Pixelsorter {
+    pub fn new(img: RgbImage, method: sorter::SortingMethod ) -> Pixelsorter {
         Pixelsorter {
             img,
             method,

@@ -2,7 +2,7 @@
 
 use image::RgbImage;
 use std::time::{Duration, Instant};
-use pixelsorter::sorters::{SortingMethod};
+use pixelsorter::sorter::{SortingMethod};
 
 fn main() {
     let path: &str = "/home/xlein/Pictures/Wallpaper/landscape renatus.z wallpaper.jpg";

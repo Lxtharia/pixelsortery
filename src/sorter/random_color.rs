@@ -1,6 +1,6 @@
 use ::array_init::array_init;
 use image::{RgbImage, Rgb, Pixel};
-use crate::sorters::SortingMethod;
+use super::SortingMethod;
 use rand::Rng;
 
 pub fn set_random_color(pixels: &mut [&mut Rgb<u8>], method: &SortingMethod) {
