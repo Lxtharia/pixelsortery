@@ -2,7 +2,7 @@
 
 use image::RgbImage;
 use std::time::{Duration, Instant};
-use pixelsorter::sorter::{SortingMethod};
+use pixelsorter::sorter::{Sorter, SortingMethod};
 
 fn main() {
     let path: &str = "/home/xlein/Pictures/Wallpaper/landscape renatus.z wallpaper.jpg";
@@ -18,16 +18,17 @@ fn main() {
 //    sort_whole_image(&mut img, &SortingMethod::Saturation);
 //    sort_whole_image(&mut img, &SortingMethod::Brightness);
 //    sort_whole_image(&mut img, &SortingMethod::Hue);
-    let mut ps = pixelsorter::Pixelsorter::new(img, SortingMethod::Saturation);
+    let sorter = Sorter {method: SortingMethod::Saturation};
+    let mut ps = pixelsorter::Pixelsorter::new(img, sorter);
     ps.sort();
-    ps.method = SortingMethod::Hue;
+    ps.sorter.method = SortingMethod::Hue;
     ps.sort();
-    ps.method = SortingMethod::Debug;
+    ps.sorter.method = SortingMethod::Debug;
     ps.sort();
 
     let duration = start.elapsed();
     println!("Time took to sort: {:?}", duration);
-    
+
     /* SAVING */
     let serial_num = 6;
     let filename_mut = format!("./renatus-b-debug-{}.png", serial_num);
