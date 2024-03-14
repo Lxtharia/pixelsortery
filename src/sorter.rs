@@ -1,4 +1,4 @@
-use image::{RgbImage, Rgb, Pixel};
+use image::Rgb;
 mod random_color;
 mod mapsort;
 

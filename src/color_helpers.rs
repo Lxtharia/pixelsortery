@@ -1,8 +1,10 @@
 #![allow(unused_parens)]
 use image::{Rgb, Pixel};
-use std::{any::type_name, cmp::{max, min}};
+use std::cmp::{max, min};
 
+/// Returns the hue value of a pixel as an u16 number between 0 and 360.
 pub fn get_hue(&pixel: &Rgb<u8>) -> u16 {
+
     let channels = pixel.channels();
     let r: f32 =  channels[0] as f32 / 255.0;
     let g: f32 =  channels[1] as f32 / 255.0;

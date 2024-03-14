@@ -27,11 +27,13 @@ impl Pixelsorter {
     }
 
     pub fn sort(&mut self){
+
         let (width, height) = self.img.dimensions();
-        // a vector of pointers to the pixels
+        // a vector containing pointers to each pixel
         let mut pixels: Vec<&mut Rgb<u8>> = self.img.pixels_mut().collect();
 
-        println!("{:?}", self.sorter);
+        println!("Sorting with: {:?} ", self.sorter);
+
         // We are iterating through all lines.
         // What if we want to iterate through pixels diagonally?
         // Or in a hilbert curve?
