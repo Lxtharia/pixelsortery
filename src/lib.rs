@@ -1,18 +1,27 @@
+#![allow(unused)]
 use std::path::Path;
 use image::{ImageResult, Rgb, RgbImage};
-pub mod sorter;
-mod color_helpers;
+use crate::pixel_selector::PixelSelector;
 use color_helpers::*;
+
+mod color_helpers;
+pub mod pixel_selector;
+pub mod sorter;
+
 
 pub struct Pixelsorter {
     img: RgbImage,
     pub sorter: sorter::Sorter,
+    selector: pixel_selector::RandomSelector,
 }
+
+pub type Span = Vec<Rgb<u8>>;
 
 impl Pixelsorter {
     // constructor
     pub fn new(img: RgbImage, sorter: sorter::Sorter) -> Pixelsorter {
-        Pixelsorter { img, sorter, }
+        let random_selector = pixel_selector::RandomSelector{length: 40};
+        Pixelsorter { img, sorter, selector: random_selector}
     }
 
     // 1:1 wrapper for image save function
@@ -41,6 +50,7 @@ impl Pixelsorter {
         // each iterator needs to have mutable pixel pointers we can write to
         let mut k = 0;
         let mut start = 0;
+        let spans = self.selector.spans(&pixels);
         for y in 0..height {
             for x in 0..width {
                 let index = (y * width + x) as usize;
