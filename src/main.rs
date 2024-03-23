@@ -5,6 +5,7 @@ use image::RgbImage;
 use std::time::{Duration, Instant};
 use pixelsorter::sorter::{Sorter, SortingMethod};
 
+
 fn main() {
     let mut args: VecDeque<String> = env::args().collect();
     // shift
@@ -14,13 +15,10 @@ fn main() {
         Some(s) => s,
         None => {println!("[!] You need to specify the input and the output path"); exit(1);},
     };
-
     let output_path =  match args.get(1) {
         Some(s) => s,
         None => {println!("[!] You need to specify the output path"); exit(1);},
     };
-    
-    // let path: &str = "/home/xlein/Pictures/Wallpaper/proxy.png";
     
     // OPEN IMAGE 
     let img: RgbImage = image::open(path).unwrap().into_rgb8();
@@ -29,9 +27,6 @@ fn main() {
     println!("Sorting all the pixels...");
     let start = Instant::now();
 
-    // sort_whole_image(&mut img, &SortingMethod::Saturation);
-    // sort_whole_image(&mut img, &SortingMethod::Brightness);
-    // sort_whole_image(&mut img, &SortingMethod::Hue);
     let sorter = Sorter {method: SortingMethod::Saturation};
     let mut ps = pixelsorter::Pixelsorter::new(img, sorter);
     ps.sort();
@@ -39,6 +34,9 @@ fn main() {
     ps.sort();
     ps.sorter.method = SortingMethod::Debug;
     ps.sort();
+    ps.save(output_path);
+    ps.sort_all_pixels();
+    ps.save(format!("full-{}", output_path));
 
     let duration = start.elapsed();
     println!("Time took to sort: {:?}", duration);
