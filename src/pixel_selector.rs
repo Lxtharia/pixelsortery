@@ -4,7 +4,7 @@ use crate::Span;
 
 pub trait PixelSelector {
     /// Returns a list of pixel spans
-    fn spans(&self, pixels: &Vec<&mut Rgb<u8>>) -> Vec<Span>;
+    fn spans<'a>(&'a self, pixels: &Vec<&'a Rgb<u8>>) -> Vec<Vec<&Rgb<u8>>>;
 }
 
 #[derive(Debug)]
@@ -19,18 +19,19 @@ pub struct RandomSelector {
 }
 
 impl PixelSelector for RandomSelector {
-    fn spans(&self, pixels: &Vec<&mut Rgb<u8>>) -> Vec<Span> {
-        let spans: Vec<Span> = Vec::new();
-        let len = pixels.len() as i32;
+    fn spans<'a>(&'a self, pixels: &Vec<&'a Rgb<u8>>) -> Vec<Vec<&Rgb<u8>>> {
+        let mut spans: Vec<Vec<&Rgb<u8>>> = Vec::new();
+        let len = pixels.len() - 1;
         let mut rng = thread_rng();
-        let mut i = 0;
+        let mut i = 0usize;
         while i < len {
-            let r = rng.gen_range(0..self.length);
-            let mut end = i+r;
+            let r = rng.gen_range(0..self.length) as usize;
+            let mut end = i+r as usize;
             if end > len { end = len; }
-            println!("Range from {} to {}", i, i+r);
+            let mut span = pixels[i..=end].to_vec();
+            spans.push(span);
             i += r + 1;
         }
-       unimplemented!()
+        spans
     }
 }

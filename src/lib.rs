@@ -39,7 +39,9 @@ impl Pixelsorter {
 
         let (width, height) = self.img.dimensions();
         // a vector containing pointers to each pixel
-        let mut pixels: Vec<&mut Rgb<u8>> = self.img.pixels_mut().collect();
+        let mut mutimg = self.img.clone();
+        let mut mutpixels: Vec<&mut Rgb<u8>> = mutimg.pixels_mut().collect();
+        let mut pixels: Vec<&Rgb<u8>> = self.img.pixels().collect();
 
         println!("Sorting with: {:?} ", self.sorter);
 
@@ -51,16 +53,17 @@ impl Pixelsorter {
         let mut k = 0;
         let mut start = 0;
         let spans = self.selector.spans(&pixels);
+        println!("Amount of spans: {}", spans.len());
         for y in 0..height {
             for x in 0..width {
                 let index = (y * width + x) as usize;
 
-                if get_hue(pixels[index]) >= 180 && get_brightness(pixels[index]) < 130 && index != (width*height) as usize { // valid pixel
+                if get_hue(mutpixels[index]) >= 180 && get_brightness(mutpixels[index]) < 130 && index != (width*height) as usize { // valid pixel
                     k+=1;
                 } else {
                     if k> 0 { // if it's more than one pixel
                         // we give mut_map_sort a mutable slice of RGB-pointers
-                       self.sorter.sort(&mut pixels[start..=start+k]);
+                       self.sorter.sort(&mut mutpixels[start..=start+k]);
                     }
                     k = 0;
                     start = 1+index;
