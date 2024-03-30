@@ -3,6 +3,7 @@ use std::path::Path;
 use image::{ImageResult, Rgb, RgbImage};
 use crate::pixel_selector::PixelSelector;
 use color_helpers::*;
+use rand::{thread_rng, Rng};
 
 mod color_helpers;
 pub mod pixel_selector;
@@ -50,31 +51,34 @@ impl Pixelsorter {
         // each iterator needs to have mutable pixel pointers we can write to
 
         // Still very slow dividing of all pixels into spans
-        let mutspans = self.selector.mutspans(&mut mutpixels);
-        println!("Amount of spans: {}", &mutspans.len());
+        // let mutspans = self.selector.mutspans(&mut mutpixels);
+        // println!("Amount of spans: {}", &mutspans.len());
 
-        // Sort every span
-        for mut span in mutspans{
-            self.sorter.sort(&mut span);
+        // // Sort every span
+        // for mut span in mutspans{
+        //     self.sorter.sort(&mut span);
+        // }
+
+        let mut k = 0;
+        let mut start = 0;
+        let mut rng = thread_rng();
+        let mut r = rng.gen_range(0..40) as usize;
+        for y in 0..height {
+            for x in 0..width {
+                let index = (y * width + x) as usize;
+
+                if index < start+r && index != (width*height) as usize { // valid pixel
+                    k+=1;
+                } else {
+                    if k> 0 { // if it's more than one pixel
+                        // we give mut_map_sort a mutable slice of RGB-pointers
+                       self.sorter.sort(&mut mutpixels[start..=start+k]);
+                    }
+                    k = 0;
+                    start = 1+index;
+                    r = rng.gen_range(0..40) as usize;
+                }
+            }
         }
-
-       // let mut k = 0;
-       // let mut start = 0;
-       // for y in 0..height {
-       //     for x in 0..width {
-       //         let index = (y * width + x) as usize;
-
-       //         if get_hue(mutpixels[index]) >= 180 && get_brightness(mutpixels[index]) < 130 && index != (width*height) as usize { // valid pixel
-       //             k+=1;
-       //         } else {
-       //             if k> 0 { // if it's more than one pixel
-       //                 // we give mut_map_sort a mutable slice of RGB-pointers
-       //                self.sorter.sort(&mut mutpixels[start..=start+k]);
-       //             }
-       //             k = 0;
-       //             start = 1+index;
-       //         }
-       //     }
-       // }
     }
 }
