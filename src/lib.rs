@@ -1,14 +1,13 @@
 #![allow(unused)]
-use std::path::Path;
-use image::{ImageResult, Rgb, RgbImage};
 use crate::pixel_selector::PixelSelector;
 use color_helpers::*;
+use image::{ImageResult, Rgb, RgbImage};
 use rand::{thread_rng, Rng};
+use std::path::Path;
 
 mod color_helpers;
 pub mod pixel_selector;
 pub mod sorter;
-
 
 pub struct Pixelsorter {
     img: RgbImage,
@@ -21,8 +20,12 @@ pub type Span = Vec<Rgb<u8>>;
 impl Pixelsorter {
     // constructor
     pub fn new(img: RgbImage, sorter: sorter::Sorter) -> Pixelsorter {
-        let random_selector = pixel_selector::RandomSelector{max: 40};
-        Pixelsorter { img, sorter, selector: random_selector}
+        let random_selector = pixel_selector::RandomSelector { max: 40 };
+        Pixelsorter {
+            img,
+            sorter,
+            selector: random_selector,
+        }
     }
 
     // 1:1 wrapper for image save function
@@ -31,14 +34,12 @@ impl Pixelsorter {
     }
 
     // sorting without creating spans
-    pub fn sort_all_pixels(&mut self){
+    pub fn sort_all_pixels(&mut self) {
         let mut pixels: Vec<&mut Rgb<u8>> = self.img.pixels_mut().collect();
         self.sorter.sort(&mut pixels);
     }
 
-    pub fn sort(&mut self){
-
-        let (width, height) = self.img.dimensions();
+    pub fn sort(&mut self) {
         // a vector containing pointers to each pixel
         let mut mutpixels: Vec<&mut Rgb<u8>> = self.img.pixels_mut().collect();
 
@@ -49,36 +50,15 @@ impl Pixelsorter {
         // Or in a hilbert curve?
         // So we need an array of iterators (diagonal lines), or just one iterator
         // each iterator needs to have mutable pixel pointers we can write to
+        // for section in self.iterator.yieldIterators(mutpixels) { ... this stuff below ... }
 
-        // Still very slow dividing of all pixels into spans
-        // let mutspans = self.selector.mutspans(&mut mutpixels);
-        // println!("Amount of spans: {}", &mutspans.len());
+        //Still very slow dividing of all pixels into spans
+        let mutspans = self.selector.mutspans(&mut mutpixels);
+        println!("Amount of spans: {}", &mutspans.len());
 
-        // // Sort every span
-        // for mut span in mutspans{
-        //     self.sorter.sort(&mut span);
-        // }
-
-        let mut k = 0;
-        let mut start = 0;
-        let mut rng = thread_rng();
-        let mut r = rng.gen_range(0..40) as usize;
-        for y in 0..height {
-            for x in 0..width {
-                let index = (y * width + x) as usize;
-
-                if index < start+r && index != (width*height) as usize { // valid pixel
-                    k+=1;
-                } else {
-                    if k> 0 { // if it's more than one pixel
-                        // we give mut_map_sort a mutable slice of RGB-pointers
-                       self.sorter.sort(&mut mutpixels[start..=start+k]);
-                    }
-                    k = 0;
-                    start = 1+index;
-                    r = rng.gen_range(0..40) as usize;
-                }
-            }
+        // Sort every span
+        for mut span in mutspans {
+            self.sorter.sort(&mut span);
         }
     }
 }
