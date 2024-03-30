@@ -27,15 +27,15 @@ fn main() {
     println!("Sorting all the pixels...");
     let start = Instant::now();
 
-    let sorter = Sorter {method: SortingMethod::Saturation};
+    let sorter = Sorter {method: SortingMethod::Debug};
     let mut ps = pixelsorter::Pixelsorter::new(img, sorter);
-    ps.sort();
-    ps.sorter.method = SortingMethod::Hue;
-    ps.sort();
-    ps.sorter.method = SortingMethod::Debug;
+//    ps.sort();
+//    ps.sorter.method = SortingMethod::Hue;
+//    ps.sort();
+//    ps.sorter.method = SortingMethod::Debug;
     ps.sort();
     ps.save(output_path);
-    ps.sort_all_pixels();
+//    ps.sort_all_pixels();
     ps.save(format!("full-{}", output_path));
 
     let duration = start.elapsed();
