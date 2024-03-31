@@ -53,7 +53,7 @@ impl Pixelsorter {
         // for section in self.iterator.yieldIterators(mutpixels) { ... this stuff below ... }
 
         //Still very slow dividing of all pixels into spans
-        let mutspans = self.selector.mutspans(&mut mutpixels);
+        let mutspans = self.selector.mutspans(&mut mutpixels.into());
         println!("Amount of spans: {}", &mutspans.len());
 
         // Sort every span
