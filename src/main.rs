@@ -41,11 +41,12 @@ fn main() {
     //    ps.sort();
     //    ps.sorter.method = SortingMethod::Debug;
     ps.sort();
+    let duration = start.elapsed();
+
     ps.save(output_path);
     //    ps.sort_all_pixels();
     ps.save(format!("full-{}", output_path));
 
-    let duration = start.elapsed();
     println!("Time took to sort: {:?}", duration);
 
     /* SAVING */

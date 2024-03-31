@@ -3,7 +3,7 @@ use crate::pixel_selector::PixelSelector;
 use color_helpers::*;
 use image::{ImageResult, Rgb, RgbImage};
 use rand::{thread_rng, Rng};
-use std::path::Path;
+use std::{path::Path, time::Instant};
 
 mod color_helpers;
 pub mod pixel_selector;
@@ -53,12 +53,18 @@ impl Pixelsorter {
         // for section in self.iterator.yieldIterators(mutpixels) { ... this stuff below ... }
 
         //Still very slow dividing of all pixels into spans
+        let timestart = Instant::now();
         let mutspans = self.selector.mutspans(&mut mutpixels.into());
+        let timeend = timestart.elapsed();
+        println!("Time [Selector]: {:?}", timeend);
         println!("Amount of spans: {}", &mutspans.len());
 
+        let timestart = Instant::now();
         // Sort every span
         for mut span in mutspans {
             self.sorter.sort(&mut span);
         }
+        let timeend = timestart.elapsed();
+        println!("Time [Sort]: {:?}", timeend);
     }
 }
