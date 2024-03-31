@@ -1,5 +1,6 @@
 use std::collections::VecDeque;
 
+use crate::color_helpers::*;
 use crate::Span;
 use image::{Pixel, Rgb, RgbImage};
 use rand::{
@@ -7,16 +8,23 @@ use rand::{
     thread_rng, Rng,
 };
 
+#[derive(Debug, Clone, Copy)]
+pub enum PixelSelectMethod {
+    Hue,
+    Brightness,
+    Saturation,
+}
+
 pub trait PixelSelector {
     /// Returns a list of pixel spans
-    fn spans<'a>(&'a self, pixels: &Vec<&'a Rgb<u8>>) -> Vec<Vec<&Rgb<u8>>>;
     fn mutspans<'a>(&'a self, pixels: &mut VecDeque<&'a mut Rgb<u8>>) -> Vec<Vec<&'a mut Rgb<u8>>>;
 }
 
 #[derive(Debug)]
 pub struct ThresholdSelector {
-    min: f64,
-    max: f64,
+    min: u64,
+    max: u64,
+    method: PixelSelectMethod,
 }
 
 #[derive(Debug)]
@@ -25,24 +33,6 @@ pub struct RandomSelector {
 }
 
 impl PixelSelector for RandomSelector {
-    fn spans<'a>(&'a self, pixels: &Vec<&'a Rgb<u8>>) -> Vec<Vec<&Rgb<u8>>> {
-        let mut spans: Vec<Vec<&Rgb<u8>>> = Vec::new();
-        let len = pixels.len() - 1;
-        let mut rng = thread_rng();
-        let mut i = 0usize;
-        while i < len {
-            let r = rng.gen_range(0..self.max) as usize;
-            let mut end = i + r as usize;
-            if end > len {
-                end = len;
-            }
-            let mut span = pixels.to_vec();
-            spans.push(span);
-            i += r + 1;
-        }
-        spans
-    }
-
     fn mutspans<'a>(&'a self, pixels: &mut VecDeque<&'a mut Rgb<u8>>) -> Vec<Vec<&'a mut Rgb<u8>>> {
         let mut spans: Vec<Vec<&'a mut Rgb<u8>>> = Vec::new();
         let mut rng = thread_rng();
@@ -64,6 +54,35 @@ impl PixelSelector for RandomSelector {
             }
             // Append span to our list of spans
             spans.push(span);
+        }
+        spans
+    }
+}
+
+impl PixelSelector for ThresholdSelector {
+    fn mutspans<'a>(&'a self, pixels: &mut VecDeque<&'a mut Rgb<u8>>) -> Vec<Vec<&'a mut Rgb<u8>>> {
+        let mut spans: Vec<Vec<&'a mut Rgb<u8>>> = Vec::new();
+
+        let value_function = match self.method {
+            PixelSelectMethod::Hue => get_hue,
+            PixelSelectMethod::Brightness => get_brightness,
+            PixelSelectMethod::Saturation => get_saturation,
+        };
+
+        let start = 0usize;
+        let mut span: Vec<&mut Rgb<u8>> = Vec::new();
+        for _ in 0..pixels.len() {
+            let val = get_hue(pixels.get(0).unwrap());
+            let px = pixels.pop_front().unwrap();
+
+            if val as u64 >= self.min && val as u64 <= self.max {
+                // A valid pixel. Add to span
+                span.push(px);
+            } else {
+                // A invalid pixel, close the span and create a new one
+                spans.push(span);
+                span = Vec::new();
+            }
         }
         spans
     }

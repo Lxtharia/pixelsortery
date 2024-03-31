@@ -43,8 +43,8 @@ fn main() {
     ps.sort();
     let duration = start.elapsed();
 
-    ps.save(output_path);
     //    ps.sort_all_pixels();
+    ps.save(output_path);
     ps.save(format!("full-{}", output_path));
 
     println!("Time took to sort: {:?}", duration);
