@@ -1,4 +1,5 @@
 use std::path::Path;
+use std::env;
 use image::{ImageResult, Rgb, RgbImage};
 pub mod sorter;
 mod color_helpers;
@@ -6,12 +7,30 @@ use color_helpers::*;
 
 pub struct Pixelsorter {
     img: RgbImage,
-    pub sorter: sorter::Sorter,
+    pub sorter: sorter::SpanSorter,
 }
+
+
+/*
+Ah yes, notes:
+This should be the basic interaction
+
+ps = new(img) -> PS with default options
+ps = new(img, Options{})
+ps.sort()
+ps.sort(Options{}) // This should override only set options
+
+I want to animate/easily adjust paremeter & chain sorting calls (efficiently, so best to not copy image every time)
+ps.options.min = 130
+ps.options.max = 45
+
+*/
+
+
 
 impl Pixelsorter {
     // constructor
-    pub fn new(img: RgbImage, sorter: sorter::Sorter) -> Pixelsorter {
+    pub fn new(img: RgbImage, sorter: sorter::SpanSorter) -> Pixelsorter {
         Pixelsorter { img, sorter, }
     }
 
@@ -26,11 +45,17 @@ impl Pixelsorter {
         self.sorter.sort(&mut pixels);
     }
 
+    pub fn test(x: u8) -> u8 {
+        let y = x +123891;
+        return y
+    }
+
     pub fn sort(&mut self){
 
         let (width, height) = self.img.dimensions();
         // a vector containing pointers to each pixel
         let mut pixels: Vec<&mut Rgb<u8>> = self.img.pixels_mut().collect();
+        let x;
 
         println!("Sorting with: {:?} ", self.sorter);
 

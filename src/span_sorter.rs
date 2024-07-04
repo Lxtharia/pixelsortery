@@ -3,7 +3,7 @@ mod random_color;
 mod mapsort;
 
 #[derive(Debug)]
-pub struct Sorter {
+pub struct SpanSorter {
     pub method: SortingMethod,
     // alg: SortingAlgorithm,
     // inverse: bool,
@@ -17,7 +17,7 @@ pub enum SortingMethod {
     Debug,
 }
 
-impl Sorter {
+impl SpanSorter {
     // Sort slice of pixels
     pub fn sort(&self, pixels: &mut [&mut Rgb<u8>]) {
         // 

@@ -3,7 +3,7 @@
 use std::{collections::VecDeque, env, process::exit};
 use image::RgbImage;
 use std::time::{Duration, Instant};
-use pixelsorter::sorter::{Sorter, SortingMethod};
+use pixelsorter::sorter::{SpanSorter, SortingMethod};
 
 fn main() {
     let mut args: VecDeque<String> = env::args().collect();
@@ -14,7 +14,6 @@ fn main() {
         Some(s) => s,
         None => {println!("[!] You need to specify the input and the output path"); exit(1);},
     };
-
     let output_path =  match args.get(1) {
         Some(s) => s,
         None => {println!("[!] You need to specify the output path"); exit(1);},
@@ -32,8 +31,8 @@ fn main() {
     // sort_whole_image(&mut img, &SortingMethod::Saturation);
     // sort_whole_image(&mut img, &SortingMethod::Brightness);
     // sort_whole_image(&mut img, &SortingMethod::Hue);
-    let sorter = Sorter {method: SortingMethod::Saturation};
-    let mut ps = pixelsorter::Pixelsorter::new(img, sorter);
+    let sorting_options = SpanSorter {method: SortingMethod::Saturation};
+    let mut ps = pixelsorter::Pixelsorter::new(img, sorting_options);
     ps.sort();
     ps.sorter.method = SortingMethod::Hue;
     ps.sort();
