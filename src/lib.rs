@@ -11,7 +11,7 @@ pub mod sorter;
 
 pub struct Pixelsorter {
     img: RgbImage,
-    pub sorter: sorter::Sorter,
+    pub sorter: sorter::SpanSorter,
     selector: pixel_selector::RandomSelector,
 }
 
@@ -19,7 +19,7 @@ pub type Span = Vec<Rgb<u8>>;
 
 impl Pixelsorter {
     // constructor
-    pub fn new(img: RgbImage, sorter: sorter::Sorter) -> Pixelsorter {
+    pub fn new(img: RgbImage, sorter: sorter::SpanSorter) -> Pixelsorter {
         let random_selector = pixel_selector::RandomSelector { max: 40 };
         Pixelsorter {
             img,

@@ -1,7 +1,7 @@
 #![allow(unused)]
 
 use image::RgbImage;
-use pixelsorter::sorter::{Sorter, SortingMethod};
+use pixelsorter::span_sorter::{SpanSorter, SortingMethod};
 use std::time::{Duration, Instant};
 use std::{collections::VecDeque, env, process::exit};
 
@@ -32,7 +32,7 @@ fn main() {
     println!("Sorting all the pixels...");
     let start = Instant::now();
 
-    let sorter = Sorter {
+    let sorter = SpanSorter {
         method: SortingMethod::Debug,
     };
     let mut ps = pixelsorter::Pixelsorter::new(img, sorter);
