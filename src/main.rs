@@ -32,7 +32,7 @@ fn main() {
     println!("Sorting all the pixels...");
     let start = Instant::now();
 
-    let mut ps = pixelsorter::Pixelsorter::new(img, SpanSorter::new());
+    let mut ps = pixelsorter::Pixelsorter::new(img);
     //    ps.sort();
     //    ps.sorter.method = SortingMethod::Hue;
     //    ps.sort();
@@ -40,16 +40,16 @@ fn main() {
     ps.sort();
     let duration = start.elapsed();
 
-    //    ps.sort_all_pixels();
-    ps.save(output_path);
-    ps.save(format!("full-{}", output_path));
-
-    println!("Time took to sort: {:?}", duration);
-
     /* SAVING */
     // let serial_num = 6;
     // let filename_mut = format!("./renatus-b-debug-{}.png", serial_num);
     // let filename_out = format!("./outtest-{}.png", serial_num);
     let _ = ps.save(output_path);
     // sorted_img_hb.save(filename_out);
+    //    ps.sort_all_pixels();
+    ps.save(output_path);
+    ps.save(format!("full-{}", output_path));
+
+    println!("Time took to sort: {:?}", duration);
+
 }

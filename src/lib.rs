@@ -1,7 +1,8 @@
 #![allow(unused)]
-use crate::pixel_selector::PixelSelector;
 use color_helpers::*;
 use image::{ImageResult, Rgb, RgbImage};
+use pixel_selector::{RandomSelector};
+use span_sorter::{SortingMethod, SpanSorter};
 use rand::{thread_rng, Rng};
 use std::{path::Path, time::Instant};
 
@@ -12,19 +13,18 @@ pub mod span_sorter;
 pub struct Pixelsorter {
     img: RgbImage,
     pub sorter: span_sorter::SpanSorter,
-    selector: pixel_selector::RandomSelector,
+    selector: RandomSelector,
 }
 
 pub type Span = Vec<Rgb<u8>>;
 
 impl Pixelsorter {
     // constructor
-    pub fn new(img: RgbImage, sorter: span_sorter::SpanSorter) -> Pixelsorter {
-        let random_selector = pixel_selector::RandomSelector { max: 40 };
+    pub fn new(img: RgbImage) -> Pixelsorter {
         Pixelsorter {
             img,
-            sorter,
-            selector: random_selector,
+            sorter: SpanSorter::new(SortingMethod::Hue),
+            selector: RandomSelector { max: 40 },
         }
     }
 

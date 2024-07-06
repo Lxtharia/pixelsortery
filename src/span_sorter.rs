@@ -25,8 +25,8 @@ pub enum SortingAlgorithm {
 
 impl SpanSorter {
     // Create new SpanSorter with sorting criteria and algorithm
-    pub fn new() -> SpanSorter {
-        SpanSorter{method: SortingMethod::Hue, algorithm: SortingAlgorithm::Mapsort}
+    pub fn new(method: SortingMethod) -> SpanSorter {
+        SpanSorter{method, algorithm: SortingAlgorithm::Mapsort}
     }
     // Set method of SpanSorter
     pub fn set_method(&mut self, method: SortingMethod){
