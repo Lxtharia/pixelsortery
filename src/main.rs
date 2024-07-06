@@ -32,10 +32,7 @@ fn main() {
     println!("Sorting all the pixels...");
     let start = Instant::now();
 
-    let sorter = SpanSorter {
-        method: SortingMethod::Debug,
-    };
-    let mut ps = pixelsorter::Pixelsorter::new(img, sorter);
+    let mut ps = pixelsorter::Pixelsorter::new(img, SpanSorter::new());
     //    ps.sort();
     //    ps.sorter.method = SortingMethod::Hue;
     //    ps.sort();

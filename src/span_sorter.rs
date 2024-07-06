@@ -5,7 +5,7 @@ mod mapsort;
 #[derive(Debug)]
 pub struct SpanSorter {
     pub method: SortingMethod,
-    // alg: SortingAlgorithm,
+    pub algorithm: SortingAlgorithm,
     // inverse: bool,
 }
 
@@ -17,20 +17,47 @@ pub enum SortingMethod {
     Debug,
 }
 
-impl SpanSorter {
-    // Sort slice of pixels
-    pub fn sort(&self, pixels: &mut [&mut Rgb<u8>]) {
-        // 
-        let sorting_function = match self.method {
-            SortingMethod::Debug => random_color::set_random_color,
-            _ => mapsort::mut_map_sort,
-        };
-        // call sorting function
-        sorting_function(pixels, &self.method);
-    }
+pub enum SortingAlgorithm {
+    Mapsort,
+    DebugColor,
+}
 
+impl SpanSorter {
+    // Create new SpanSorter with sorting criteria and algorithm
+    pub fn new() -> SpanSorter {
+        SpanSorter{method: SortingMethod::Hue, algorithm: SortingAlgorithm::Mapsort}
+    }
+    pub fn new(method) -> SpanSorter{
+        let s = SpanSorter{method, algorithm: SortingAlgorithm::Mapsort};
+        s.determine_algorithm();
+    }
+    // Set method of SpanSorter
     pub fn set_method(&self, method: SortingMethod){
         self.method = method;
+    }
+
+    // Choose fitting algorithm for criteria
+    // Idk why. This is dumb.
+    pub fn determine_algorithm(&self){
+        self.algorithm = match self.method {
+            SortingMethod::Debug      => SortingAlgorithm::DebugColor,
+            SortingMethod::Hue        => SortingAlgorithm::Mapsort,
+            SortingMethod::Brightness => SortingAlgorithm::Mapsort,
+            SortingMethod::Saturation => SortingAlgorithm::Mapsort,
+            _ => SortingAlgorithm::Mapsort,
+        };
+    }
+
+    // Sort slice of pixels using set criteria and algorithm
+    pub fn sort(&self, pixels: &mut [&mut Rgb<u8>]) {
+        // Select function per algorithm
+        let sorting_function = match self.algorithm {
+            SortingMethod::DebugColor => random_color::set_random_color,
+            SortingAlgorithm::Mapsort => mapsort::mut_map_sort,
+            _ => random_color::set_random_color,
+        }
+        // call sorting function
+        sorting_function(pixels, &self.method);
     }
 }
 
