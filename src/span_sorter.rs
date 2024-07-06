@@ -17,6 +17,7 @@ pub enum SortingMethod {
     Debug,
 }
 
+#[derive(Debug, Clone, Copy)]
 pub enum SortingAlgorithm {
     Mapsort,
     DebugColor,
@@ -27,18 +28,14 @@ impl SpanSorter {
     pub fn new() -> SpanSorter {
         SpanSorter{method: SortingMethod::Hue, algorithm: SortingAlgorithm::Mapsort}
     }
-    pub fn new(method) -> SpanSorter{
-        let s = SpanSorter{method, algorithm: SortingAlgorithm::Mapsort};
-        s.determine_algorithm();
-    }
     // Set method of SpanSorter
-    pub fn set_method(&self, method: SortingMethod){
+    pub fn set_method(&mut self, method: SortingMethod){
         self.method = method;
     }
 
     // Choose fitting algorithm for criteria
     // Idk why. This is dumb.
-    pub fn determine_algorithm(&self){
+    pub fn determine_algorithm(&mut self){
         self.algorithm = match self.method {
             SortingMethod::Debug      => SortingAlgorithm::DebugColor,
             SortingMethod::Hue        => SortingAlgorithm::Mapsort,
@@ -52,10 +49,10 @@ impl SpanSorter {
     pub fn sort(&self, pixels: &mut [&mut Rgb<u8>]) {
         // Select function per algorithm
         let sorting_function = match self.algorithm {
-            SortingMethod::DebugColor => random_color::set_random_color,
+            SortingAlgorithm::DebugColor => random_color::set_random_color,
             SortingAlgorithm::Mapsort => mapsort::mut_map_sort,
             _ => random_color::set_random_color,
-        }
+        };
         // call sorting function
         sorting_function(pixels, &self.method);
     }

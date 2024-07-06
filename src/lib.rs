@@ -7,11 +7,11 @@ use std::{path::Path, time::Instant};
 
 mod color_helpers;
 pub mod pixel_selector;
-pub mod sorter;
+pub mod span_sorter;
 
 pub struct Pixelsorter {
     img: RgbImage,
-    pub sorter: sorter::SpanSorter,
+    pub sorter: span_sorter::SpanSorter,
     selector: pixel_selector::RandomSelector,
 }
 
@@ -19,7 +19,7 @@ pub type Span = Vec<Rgb<u8>>;
 
 impl Pixelsorter {
     // constructor
-    pub fn new(img: RgbImage, sorter: sorter::SpanSorter) -> Pixelsorter {
+    pub fn new(img: RgbImage, sorter: span_sorter::SpanSorter) -> Pixelsorter {
         let random_selector = pixel_selector::RandomSelector { max: 40 };
         Pixelsorter {
             img,
