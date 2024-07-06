@@ -1,7 +1,7 @@
 #![allow(unused)]
 
 use image::RgbImage;
-use pixelsorter::span_sorter::{SpanSorter, SortingMethod};
+use pixelsorter::span_sorter::{SpanSorter, SortingCriteria};
 use std::time::{Duration, Instant};
 use std::{collections::VecDeque, env, process::exit};
 
@@ -34,9 +34,9 @@ fn main() {
 
     let mut ps = pixelsorter::Pixelsorter::new(img);
     //    ps.sort();
-    //    ps.sorter.method = SortingMethod::Hue;
+    //    ps.sorter.criteria = SortingCriteria::Hue;
     //    ps.sort();
-    //    ps.sorter.method = SortingMethod::Debug;
+    //    ps.sorter.criteria = SortingCriteria::Debug;
     ps.sort();
     let duration = start.elapsed();
 

@@ -2,9 +2,11 @@
 use color_helpers::*;
 use image::{ImageResult, Rgb, RgbImage};
 use pixel_selector::{RandomSelector};
-use span_sorter::{SortingMethod, SpanSorter};
+use span_sorter::{SortingCriteria, SpanSorter};
 use rand::{thread_rng, Rng};
 use std::{path::Path, time::Instant};
+
+use crate::pixel_selector::PixelSelector;
 
 mod color_helpers;
 pub mod pixel_selector;
@@ -23,7 +25,7 @@ impl Pixelsorter {
     pub fn new(img: RgbImage) -> Pixelsorter {
         Pixelsorter {
             img,
-            sorter: SpanSorter::new(SortingMethod::Hue),
+            sorter: SpanSorter::new(SortingCriteria::Hue),
             selector: RandomSelector { max: 40 },
         }
     }

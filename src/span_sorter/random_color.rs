@@ -1,8 +1,8 @@
-use super::SortingMethod;
+use super::SortingCriteria;
 use image::Rgb;
 use rand::Rng;
 
-pub fn set_random_color(pixels: &mut [&mut Rgb<u8>], _: &SortingMethod) {
+pub fn set_random_color(pixels: &mut [&mut Rgb<u8>], _: &SortingCriteria) {
     // put them back at the pointer locations
     let mut rng = rand::thread_rng();
     let ran_col = Rgb {

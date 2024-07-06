@@ -4,13 +4,13 @@ mod mapsort;
 
 #[derive(Debug)]
 pub struct SpanSorter {
-    pub method: SortingMethod,
+    pub criteria: SortingCriteria,
     pub algorithm: SortingAlgorithm,
     // inverse: bool,
 }
 
 #[derive(Debug, Clone, Copy)]
-pub enum SortingMethod {
+pub enum SortingCriteria {
     Hue,
     Brightness,
     Saturation,
@@ -25,22 +25,22 @@ pub enum SortingAlgorithm {
 
 impl SpanSorter {
     // Create new SpanSorter with sorting criteria and algorithm
-    pub fn new(method: SortingMethod) -> SpanSorter {
-        SpanSorter{method, algorithm: SortingAlgorithm::Mapsort}
+    pub fn new(criteria: SortingCriteria) -> SpanSorter {
+        SpanSorter{criteria, algorithm: SortingAlgorithm::Mapsort}
     }
-    // Set method of SpanSorter
-    pub fn set_method(&mut self, method: SortingMethod){
-        self.method = method;
+    // Set criteria of SpanSorter
+    pub fn set_criteria(&mut self, criteria: SortingCriteria){
+        self.criteria = criteria;
     }
 
     // Choose fitting algorithm for criteria
     // Idk why. This is dumb.
     pub fn determine_algorithm(&mut self){
-        self.algorithm = match self.method {
-            SortingMethod::Debug      => SortingAlgorithm::DebugColor,
-            SortingMethod::Hue        => SortingAlgorithm::Mapsort,
-            SortingMethod::Brightness => SortingAlgorithm::Mapsort,
-            SortingMethod::Saturation => SortingAlgorithm::Mapsort,
+        self.algorithm = match self.criteria {
+            SortingCriteria::Debug      => SortingAlgorithm::DebugColor,
+            SortingCriteria::Hue        => SortingAlgorithm::Mapsort,
+            SortingCriteria::Brightness => SortingAlgorithm::Mapsort,
+            SortingCriteria::Saturation => SortingAlgorithm::Mapsort,
             _ => SortingAlgorithm::Mapsort,
         };
     }
@@ -54,7 +54,7 @@ impl SpanSorter {
             _ => random_color::set_random_color,
         };
         // call sorting function
-        sorting_function(pixels, &self.method);
+        sorting_function(pixels, &self.criteria);
     }
 }
 

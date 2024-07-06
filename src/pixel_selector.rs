@@ -9,7 +9,7 @@ use rand::{
 };
 
 #[derive(Debug, Clone, Copy)]
-pub enum PixelSelectMethod {
+pub enum PixelSelectCriteria {
     Hue,
     Brightness,
     Saturation,
@@ -24,7 +24,7 @@ pub trait PixelSelector {
 pub struct ThresholdSelector {
     min: u64,
     max: u64,
-    method: PixelSelectMethod,
+    criteria: PixelSelectCriteria,
 }
 
 #[derive(Debug)]
@@ -63,10 +63,10 @@ impl PixelSelector for ThresholdSelector {
     fn mutspans<'a>(&'a self, pixels: &mut VecDeque<&'a mut Rgb<u8>>) -> Vec<Vec<&'a mut Rgb<u8>>> {
         let mut spans: Vec<Vec<&'a mut Rgb<u8>>> = Vec::new();
 
-        let value_function = match self.method {
-            PixelSelectMethod::Hue => get_hue,
-            PixelSelectMethod::Brightness => get_brightness,
-            PixelSelectMethod::Saturation => get_saturation,
+        let value_function = match self.criteria {
+            PixelSelectCriteria::Hue => get_hue,
+            PixelSelectCriteria::Brightness => get_brightness,
+            PixelSelectCriteria::Saturation => get_saturation,
         };
 
         let start = 0usize;

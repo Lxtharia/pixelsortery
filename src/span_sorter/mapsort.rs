@@ -1,4 +1,4 @@
-use super::SortingMethod;
+use super::SortingCriteria;
 use crate::color_helpers::*;
 use ::array_init::array_init;
 use image::{Rgb, RgbImage};
@@ -6,8 +6,8 @@ use image::{Rgb, RgbImage};
 /// Sorts a slice of Pixels by either Hue, Brightness or Saturation.
 /// It uses an array with 360 elements to map the values.
 /// Probably panics if a compare function returns a value above 360
-pub fn mut_map_sort(pixels: &mut [&mut Rgb<u8>], method: &SortingMethod) {
-    use SortingMethod::*;
+pub fn mut_map_sort(pixels: &mut [&mut Rgb<u8>], method: &SortingCriteria) {
+    use SortingCriteria::*;
     let get_pixel_value = match method {
         Brightness => get_brightness,
         Saturation => get_saturation,
@@ -34,12 +34,12 @@ pub fn mut_map_sort(pixels: &mut [&mut Rgb<u8>], method: &SortingMethod) {
 /// Sorts all pixels of an image by either Hue, Brightness or Saturation.
 /// It uses an array with 360 elements to map the values.
 /// Probably panics if a compare function returns a value above 360
-pub fn mapsort(img: &RgbImage, width: u32, height: u32, method: &SortingMethod) -> RgbImage {
+pub fn mapsort(img: &RgbImage, width: u32, height: u32, method: &SortingCriteria) -> RgbImage {
     let pixels = img.pixels();
     let mut sorted: RgbImage = RgbImage::new(width, height);
     let mut map_array: [Vec<&Rgb<u8>>; 360] = array_init(|_| Vec::new());
 
-    use SortingMethod::*;
+    use SortingCriteria::*;
     let get_pixel_value = match *method {
         Brightness => get_brightness,
         Saturation => get_saturation,
