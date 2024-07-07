@@ -12,13 +12,30 @@ fn main() {
     // shift
     args.pop_front();
 
-    let path = match args.pop_front() {
-        Some(s) => s,
-        None => {
-            println!("[!] You need to specify the input and the output path");
-            exit(1);
-        }
-    };
+    let mut path = String::from("");
+    if let Some(s) = args.pop_front() {
+        match s.as_str() {
+            "--help" | "-h" | "" => {
+                println!("
+    =========== Pixelsorter ===========
+     Usage: pixelsort <infile> <outfile> [<options>]
+    ============= Options =============
+    --help | -h : Show this
+    ===== Sorting Options
+    --hue        : Sort Pixels by Hue
+    --saturation : Sort Pixels by Saturation
+    --brightness : Sort Pixels by Brightness
+    ===== Span-Selection options. Choose which pixels are valid to form a span
+    --thres [hue|bright|sat]:<min>:<max>  : Mark pixels as valid if [hue|bright|sat] is between <min> and <max>
+                ");
+                exit(0)
+            },
+            _ => path = s,
+        };
+    } else {
+        println!("[!] You need to specify the input and the output path");
+        exit(1);
+    }
     let output_path = match args.pop_front() {
         Some(s) => s,
         None => {
@@ -29,6 +46,7 @@ fn main() {
 
     // OPEN IMAGE
     let img: RgbImage = image::open(path).unwrap().into_rgb8();
+    // CREATE PIXELSORTER
     let mut ps = pixelsorter::Pixelsorter::new(img);
 
     // I should just use some argument library tbh
@@ -47,15 +65,26 @@ fn main() {
                 // parse the string after that: --thres hue:10:200
                 if let Some(arg2) = args.pop_front() {
                     let mut thres_opts: VecDeque<&str> = VecDeque::from_iter(arg2.split(":"));
-                    let (crit, defaultmin, defaultmax) = match thres_opts.pop_front().unwrap_or("hue") {
-                        "hue"    => (PixelSelectCriteria::Hue, 0, 360),
-                        "bright" => (PixelSelectCriteria::Brightness, 0, 100),
-                        "sat"    => (PixelSelectCriteria::Saturation, 0, 100),
-                        _ => (PixelSelectCriteria::Hue, 0, 360),
-                    };
-                    thres.min = thres_opts.pop_front().unwrap_or("").parse().unwrap_or(defaultmin);
-                    thres.max = thres_opts.pop_front().unwrap_or("").parse().unwrap_or(defaultmax);
-                } else {println!("[WARNING!][Flag Usage:] --thresh [hue|bright|sat]:<min>:<max> ");}
+                    let (crit, defaultmin, defaultmax) =
+                        match thres_opts.pop_front().unwrap_or("hue") {
+                            "hue" => (PixelSelectCriteria::Hue, 0, 360),
+                            "bright" => (PixelSelectCriteria::Brightness, 0, 100),
+                            "sat" => (PixelSelectCriteria::Saturation, 0, 100),
+                            _ => (PixelSelectCriteria::Hue, 0, 360),
+                        };
+                    thres.min = thres_opts
+                        .pop_front()
+                        .unwrap_or("")
+                        .parse()
+                        .unwrap_or(defaultmin);
+                    thres.max = thres_opts
+                        .pop_front()
+                        .unwrap_or("")
+                        .parse()
+                        .unwrap_or(defaultmax);
+                } else {
+                    println!("[WARNING!][Flag Usage:] --thresh [hue|bright|sat]:<min>:<max> ");
+                }
                 ps.selector = Box::new(thres);
             }
             _ => print!("Unrecognized argument: {}", arg),
