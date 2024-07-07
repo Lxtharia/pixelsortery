@@ -72,6 +72,7 @@ fn main() {
                             "sat" => (PixelSelectCriteria::Saturation, 0, 100),
                             _ => (PixelSelectCriteria::Hue, 0, 360),
                         };
+                    thres.criteria = crit;
                     thres.min = thres_opts
                         .pop_front()
                         .unwrap_or("")
