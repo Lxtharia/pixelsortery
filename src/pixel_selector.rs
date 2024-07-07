@@ -82,10 +82,10 @@ impl PixelSelector for ThresholdSelector {
         let start = 0usize;
         let mut span: Vec<&mut Rgb<u8>> = Vec::new();
         for _ in 0..pixels.len() {
-            let val = get_hue(pixels.get(0).unwrap());
+            let val = value_function(pixels.get(0).unwrap());
             let px = pixels.pop_front().unwrap();
 
-            if val as u64 >= self.min && val as u64 <= self.max {
+            if (val as u64) >= self.min && (val as u64) <= self.max {
                 // A valid pixel. Add to span
                 span.push(px);
             } else {
@@ -94,6 +94,7 @@ impl PixelSelector for ThresholdSelector {
                 span = Vec::new();
             }
         }
+        spans.push(span);
         spans
     }
 }
