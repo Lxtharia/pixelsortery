@@ -1,3 +1,4 @@
+use std::any::type_name;
 use std::collections::VecDeque;
 
 use crate::color_helpers::*;
@@ -8,23 +9,12 @@ use rand::{
     thread_rng, Rng,
 };
 
-#[derive(Debug, Clone, Copy)]
-pub enum PixelSelectCriteria {
-    Hue,
-    Brightness,
-    Saturation,
-}
-
-pub trait PixelSelector {
-    /// Returns a list of pixel spans
-    fn mutspans<'a>(&'a self, pixels: &mut VecDeque<&'a mut Rgb<u8>>) -> Vec<Vec<&'a mut Rgb<u8>>>;
-}
 
 #[derive(Debug)]
 pub struct ThresholdSelector {
-    min: u64,
-    max: u64,
-    criteria: PixelSelectCriteria,
+    pub min: u64,
+    pub max: u64,
+    pub criteria: PixelSelectCriteria,
 }
 
 #[derive(Debug)]
@@ -32,7 +22,24 @@ pub struct RandomSelector {
     pub max: i32,
 }
 
+/// Key criteria which a (Threshold-)Selector should use as a key
+#[derive(Debug, Clone, Copy)]
+pub enum PixelSelectCriteria {
+    Hue,
+    Brightness,
+    Saturation,
+}
+
+/// Returns a list of pixel spans
+pub trait PixelSelector {
+    fn mutspans<'a>(&'a self, pixels: &mut VecDeque<&'a mut Rgb<u8>>) -> Vec<Vec<&'a mut Rgb<u8>>>;
+    fn debug_info<'a>(&'a self,) -> String; // I bet this is no the rust way
+}
+
 impl PixelSelector for RandomSelector {
+    fn debug_info(&self) -> String {
+        format!("RandomSelector(max: {:?})", self.max)
+    }
     fn mutspans<'a>(&'a self, pixels: &mut VecDeque<&'a mut Rgb<u8>>) -> Vec<Vec<&'a mut Rgb<u8>>> {
         let mut spans: Vec<Vec<&'a mut Rgb<u8>>> = Vec::new();
         let mut rng = thread_rng();
@@ -60,6 +67,9 @@ impl PixelSelector for RandomSelector {
 }
 
 impl PixelSelector for ThresholdSelector {
+    fn debug_info(&self) -> String {
+        format!("ThresholdSelector(criteria: {:?}, min: {}, max:{})", self.criteria, self.min, self.max)
+    }
     fn mutspans<'a>(&'a self, pixels: &mut VecDeque<&'a mut Rgb<u8>>) -> Vec<Vec<&'a mut Rgb<u8>>> {
         let mut spans: Vec<Vec<&'a mut Rgb<u8>>> = Vec::new();
 
@@ -87,3 +97,4 @@ impl PixelSelector for ThresholdSelector {
         spans
     }
 }
+

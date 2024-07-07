@@ -4,7 +4,7 @@ use image::{ImageResult, Rgb, RgbImage};
 use pixel_selector::{RandomSelector};
 use span_sorter::{SortingCriteria, SpanSorter};
 use rand::{thread_rng, Rng};
-use std::{path::Path, time::Instant};
+use std::{any::{type_name, Any}, path::Path, time::Instant};
 
 use crate::pixel_selector::PixelSelector;
 
@@ -15,7 +15,7 @@ pub mod span_sorter;
 pub struct Pixelsorter {
     img: RgbImage,
     pub sorter: span_sorter::SpanSorter,
-    selector: RandomSelector,
+    pub selector: Box<dyn PixelSelector>,
 }
 
 pub type Span = Vec<Rgb<u8>>;
@@ -26,7 +26,7 @@ impl Pixelsorter {
         Pixelsorter {
             img,
             sorter: SpanSorter::new(SortingCriteria::Hue),
-            selector: RandomSelector { max: 40 },
+            selector: Box::new(RandomSelector { max: 40 }),
         }
     }
 
@@ -45,7 +45,7 @@ impl Pixelsorter {
         // a vector containing pointers to each pixel
         let mut mutpixels: Vec<&mut Rgb<u8>> = self.img.pixels_mut().collect();
 
-        println!("Sorting with: {:?} and {:?} ", self.selector, self.sorter);
+        println!("Sorting with: {:?} and {:?} ", self.selector.debug_info(), self.sorter);
 
         // We are iterating through all lines.
         // What if we want to iterate through pixels diagonally?
