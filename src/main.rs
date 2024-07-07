@@ -35,22 +35,27 @@ fn main() {
     while let Some(arg) = args.pop_front() {
         match arg.as_str() {
             "--hue" => ps.sorter.criteria = SortingCriteria::Hue,
+            "--brightness" => ps.sorter.criteria = SortingCriteria::Brightness,
+            "--saturation" => ps.sorter.criteria = SortingCriteria::Saturation,
+            "--debugcolors" => ps.sorter.criteria = SortingCriteria::Debug,
             "--thres" => {
                 let mut thres = ThresholdSelector {
-                    min: 100,
-                    max: 200,
+                    min: 0,
+                    max: 360,
                     criteria: PixelSelectCriteria::Hue,
                 };
                 // parse the string after that: --thres hue:10:200
                 if let Some(arg2) = args.pop_front() {
-                    let mut thres_opts: Vec<&str> = arg2.split(":").collect();
-                    thres.max = thres_opts.pop().unwrap_or("150").parse().unwrap_or(150);
-                    thres.min = thres_opts.pop().unwrap_or("50").parse().unwrap_or(50);
-                    thres.criteria = match thres_opts.pop().unwrap_or("hue") {
-                        "hue" => PixelSelectCriteria::Hue,
-                        _ => PixelSelectCriteria::Hue,
+                    let mut thres_opts: VecDeque<&str> = VecDeque::from_iter(arg2.split(":"));
+                    let (crit, defaultmin, defaultmax) = match thres_opts.pop_front().unwrap_or("hue") {
+                        "hue"    => (PixelSelectCriteria::Hue, 0, 360),
+                        "bright" => (PixelSelectCriteria::Brightness, 0, 100),
+                        "sat"    => (PixelSelectCriteria::Saturation, 0, 100),
+                        _ => (PixelSelectCriteria::Hue, 0, 360),
                     };
-                }
+                    thres.min = thres_opts.pop_front().unwrap_or("").parse().unwrap_or(defaultmin);
+                    thres.max = thres_opts.pop_front().unwrap_or("").parse().unwrap_or(defaultmax);
+                } else {println!("[WARNING!][Flag Usage:] --thresh [hue|bright|sat]:<min>:<max> ");}
                 ps.selector = Box::new(thres);
             }
             _ => print!("Unrecognized argument: {}", arg),
