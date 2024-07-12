@@ -1,10 +1,10 @@
 #![allow(unused)]
 use color_helpers::*;
-use image::{ImageResult, Rgb, RgbImage};
+use image::{GenericImageView, ImageResult, Rgb, RgbImage};
 use pixel_selector::{RandomSelector};
 use span_sorter::{SortingCriteria, SpanSorter};
 use rand::{thread_rng, Rng};
-use std::{any::{type_name, Any}, path::Path, time::Instant};
+use std::{any::{type_name, Any}, collections::VecDeque, path::Path, time::Instant};
 
 use crate::pixel_selector::PixelSelector;
 
@@ -41,10 +41,12 @@ impl Pixelsorter {
         self.sorter.sort(&mut pixels);
     }
 
+
     pub fn sort(&mut self) {
         // a vector containing pointers to each pixel
         let pixelcount= self.img.width() * self.img.height();
-        let mut mutpixels: Vec<&mut Rgb<u8>> = self.img.pixels_mut().collect();
+        let w: u64 = self.img.width().into();
+        let mut mutpixels: VecDeque<&mut Rgb<u8>> = self.img.pixels_mut().collect();
 
         println!("Sorting with: {:?} and {:?} ", self.selector.debug_info(), self.sorter);
 
@@ -54,11 +56,33 @@ impl Pixelsorter {
         // So we need an array of iterators (diagonal lines), or just one iterator
         // each iterator needs to have mutable pixel pointers we can write to
         // for section in self.iterator.yieldIterators(mutpixels) { ... this stuff below ... }
+        let mut prespans: Vec<Vec<&mut Rgb<u8>>> = Vec::new();
+        let mut prespan: Vec<&mut Rgb<u8>> = Vec::new();
+        for i in 0..mutpixels.len() {
+            let px = mutpixels.pop_front().unwrap();
+
+            if i as u64 % w != 0 {
+                // A valid pixel. Add to span
+                prespan.push(px);
+            } else {
+                // A invalid pixel, close the span and create a new one
+                prespans.push(prespan);
+                prespan = Vec::new();
+            }
+        }
+        prespans.push(prespan);
+
+
 
         //Still very slow dividing of all pixels into spans
             let timestart = Instant::now();
         // CREATE SPANS
-        let mutspans = self.selector.mutspans(&mut mutpixels.into());
+            let mut mutspans: Vec<Vec<&mut Rgb<u8>>> = Vec::new();
+        for prespan in prespans {
+            for span in self.selector.mutspans(&mut prespan.into()) {
+                mutspans.push(span);
+            }
+        }
             let timeend = timestart.elapsed();
             println!("Time [Selector]: {:?}", timeend);
             println!("Amount of pixels: {}", pixelcount);
