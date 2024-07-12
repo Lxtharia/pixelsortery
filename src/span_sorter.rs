@@ -1,6 +1,7 @@
 use image::Rgb;
 mod random_color;
 mod mapsort;
+mod glitchsort;
 
 #[derive(Debug)]
 pub struct SpanSorter {
@@ -20,6 +21,7 @@ pub enum SortingCriteria {
 #[derive(Debug, Clone, Copy)]
 pub enum SortingAlgorithm {
     Mapsort,
+    Glitchsort,
     DebugColor,
 }
 
@@ -51,6 +53,7 @@ impl SpanSorter {
         let sorting_function = match self.algorithm {
             SortingAlgorithm::DebugColor => random_color::set_random_color,
             SortingAlgorithm::Mapsort => mapsort::mapsort_mut,
+            SortingAlgorithm::Glitchsort => glitchsort::glitchsort_mut,
             _ => random_color::set_random_color,
         };
         // call sorting function

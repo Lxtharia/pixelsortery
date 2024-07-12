@@ -2,7 +2,7 @@
 
 use image::RgbImage;
 use pixelsorter::pixel_selector::{PixelSelectCriteria, ThresholdSelector};
-use pixelsorter::span_sorter::{SortingCriteria, SpanSorter};
+use pixelsorter::span_sorter::{SortingAlgorithm, SortingCriteria, SpanSorter};
 use std::fmt::Arguments;
 use std::time::{Duration, Instant};
 use std::{collections::VecDeque, env, process::exit};
@@ -91,6 +91,7 @@ fn main() {
             _ => print!("Unrecognized argument: {}", arg),
         }
     }
+    ps.sorter.algorithm = SortingAlgorithm::Glitchsort;
 
     // SORTING
     println!("Sorting all the pixels...");
