@@ -56,19 +56,19 @@ impl Pixelsorter {
         // for section in self.iterator.yieldIterators(mutpixels) { ... this stuff below ... }
 
         //Still very slow dividing of all pixels into spans
-        let timestart = Instant::now();
+            let timestart = Instant::now();
+        // CREATE SPANS
         let mutspans = self.selector.mutspans(&mut mutpixels.into());
-        let timeend = timestart.elapsed();
-        println!("Time [Selector]: {:?}", timeend);
-        println!("Amount of pixels: {}", pixelcount);
-        println!("Amount of spans: {}", &mutspans.len());
-
-        let timestart = Instant::now();
-        // Sort every span
+            let timeend = timestart.elapsed();
+            println!("Time [Selector]: {:?}", timeend);
+            println!("Amount of pixels: {}", pixelcount);
+            println!("Amount of spans: {}", &mutspans.len());
+            let timestart = Instant::now();
+        // SORT EVERY SPAN
         for mut span in mutspans {
             self.sorter.sort(&mut span);
         }
-        let timeend = timestart.elapsed();
-        println!("Time [Sort]: {:?}", timeend);
+            let timeend = timestart.elapsed();
+            println!("Time [Sort]: {:?}", timeend);
     }
 }
