@@ -50,7 +50,7 @@ impl SpanSorter {
         // Select function per algorithm
         let sorting_function = match self.algorithm {
             SortingAlgorithm::DebugColor => random_color::set_random_color,
-            SortingAlgorithm::Mapsort => mapsort::mut_map_sort,
+            SortingAlgorithm::Mapsort => mapsort::mapsort_mut,
             _ => random_color::set_random_color,
         };
         // call sorting function

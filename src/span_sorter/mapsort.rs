@@ -6,7 +6,7 @@ use image::{Rgb, RgbImage};
 /// Sorts a slice of Pixels by either Hue, Brightness or Saturation.
 /// It uses an array with 360 elements to map the values.
 /// Probably panics if a compare function returns a value above 360
-pub fn mut_map_sort(pixels: &mut [&mut Rgb<u8>], method: &SortingCriteria) {
+pub fn mapsort_mut(pixels: &mut [&mut Rgb<u8>], method: &SortingCriteria) {
     use SortingCriteria::*;
     let get_pixel_value = match method {
         Brightness => get_brightness,
