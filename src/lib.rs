@@ -43,6 +43,7 @@ impl Pixelsorter {
 
     pub fn sort(&mut self) {
         // a vector containing pointers to each pixel
+        let pixelcount= self.img.width() * self.img.height();
         let mut mutpixels: Vec<&mut Rgb<u8>> = self.img.pixels_mut().collect();
 
         println!("Sorting with: {:?} and {:?} ", self.selector.debug_info(), self.sorter);
@@ -59,6 +60,7 @@ impl Pixelsorter {
         let mutspans = self.selector.mutspans(&mut mutpixels.into());
         let timeend = timestart.elapsed();
         println!("Time [Selector]: {:?}", timeend);
+        println!("Amount of pixels: {}", pixelcount);
         println!("Amount of spans: {}", &mutspans.len());
 
         let timestart = Instant::now();
