@@ -68,8 +68,8 @@ fn main() {
                     let (crit, defaultmin, defaultmax) =
                         match thres_opts.pop_front().unwrap_or("hue") {
                             "hue" => (PixelSelectCriteria::Hue, 0, 360),
-                            "bright" => (PixelSelectCriteria::Brightness, 0, 100),
-                            "sat" => (PixelSelectCriteria::Saturation, 0, 100),
+                            "bright" => (PixelSelectCriteria::Brightness, 0, 255),
+                            "sat" => (PixelSelectCriteria::Saturation, 0, 255),
                             _ => (PixelSelectCriteria::Hue, 0, 360),
                         };
                     thres.criteria = crit;
