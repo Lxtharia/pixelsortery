@@ -94,7 +94,7 @@ fn main() {
             "--glitchsort" => algorithm = SortingAlgorithm::Glitchsort,
             "--shellsort" => algorithm = SortingAlgorithm::Shellsort,
             "--mapsort" => algorithm = SortingAlgorithm::Mapsort,
-            _ => print!("Unrecognized argument: {}", arg),
+            _ => {println!("Unrecognized argument: {}", arg); exit(-1)},
         }
     }
     ps.sorter.algorithm = algorithm;
