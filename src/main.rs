@@ -92,6 +92,7 @@ fn main() {
             "--debugcolors" => ps.sorter.criteria = SortingCriteria::Debug,
             "--thres" => ps.selector = parse_thres_selector_parameters(args.pop_front()),
             "--glitchsort" => algorithm = SortingAlgorithm::Glitchsort,
+            "--shellsort" => algorithm = SortingAlgorithm::Shellsort,
             "--mapsort" => algorithm = SortingAlgorithm::Mapsort,
             _ => print!("Unrecognized argument: {}", arg),
         }
