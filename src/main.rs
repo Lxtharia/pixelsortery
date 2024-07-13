@@ -1,11 +1,44 @@
 #![allow(unused)]
 
 use image::RgbImage;
-use pixelsorter::pixel_selector::{PixelSelectCriteria, ThresholdSelector};
+use pixelsorter::pixel_selector::{PixelSelectCriteria, PixelSelector, ThresholdSelector};
 use pixelsorter::span_sorter::{SortingAlgorithm, SortingCriteria, SpanSorter};
 use std::fmt::Arguments;
 use std::time::{Duration, Instant};
 use std::{collections::VecDeque, env, process::exit};
+
+fn parse_thres_selector_parameters(arg: Option<String>) -> Box<dyn PixelSelector> {
+    let mut thres = ThresholdSelector {
+        min: 0,
+        max: 360,
+        criteria: PixelSelectCriteria::Hue,
+    };
+    // parse the string after that: --thres hue:10:200
+    if let Some(arg2) = arg {
+        let mut thres_opts: VecDeque<&str> = VecDeque::from_iter(arg2.split(":"));
+        let (crit, defaultmin, defaultmax) =
+            match thres_opts.pop_front().unwrap_or("hue") {
+                "hue" => (PixelSelectCriteria::Hue, 0, 360),
+                "bright" => (PixelSelectCriteria::Brightness, 0, 255),
+                "sat" => (PixelSelectCriteria::Saturation, 0, 255),
+                _ => (PixelSelectCriteria::Hue, 0, 360),
+            };
+        thres.criteria = crit;
+        thres.min = thres_opts
+            .pop_front()
+            .unwrap_or("")
+            .parse()
+            .unwrap_or(defaultmin);
+        thres.max = thres_opts
+            .pop_front()
+            .unwrap_or("")
+            .parse()
+            .unwrap_or(defaultmax);
+    } else {
+        println!("[WARNING!][Flag Usage:] --thresh [hue|bright|sat]:<min>:<max> ");
+    }
+    Box::new(thres)
+}
 
 fn main() {
     let mut args: VecDeque<String> = env::args().collect();
@@ -49,6 +82,7 @@ fn main() {
     // CREATE PIXELSORTER
     let mut ps = pixelsorter::Pixelsorter::new(img);
 
+    let mut algorithm=pixelsorter::span_sorter::SortingAlgorithm::Mapsort;
     // I should just use some argument library tbh
     while let Some(arg) = args.pop_front() {
         match arg.as_str() {
@@ -56,52 +90,23 @@ fn main() {
             "--brightness" => ps.sorter.criteria = SortingCriteria::Brightness,
             "--saturation" => ps.sorter.criteria = SortingCriteria::Saturation,
             "--debugcolors" => ps.sorter.criteria = SortingCriteria::Debug,
-            "--thres" => {
-                let mut thres = ThresholdSelector {
-                    min: 0,
-                    max: 360,
-                    criteria: PixelSelectCriteria::Hue,
-                };
-                // parse the string after that: --thres hue:10:200
-                if let Some(arg2) = args.pop_front() {
-                    let mut thres_opts: VecDeque<&str> = VecDeque::from_iter(arg2.split(":"));
-                    let (crit, defaultmin, defaultmax) =
-                        match thres_opts.pop_front().unwrap_or("hue") {
-                            "hue" => (PixelSelectCriteria::Hue, 0, 360),
-                            "bright" => (PixelSelectCriteria::Brightness, 0, 255),
-                            "sat" => (PixelSelectCriteria::Saturation, 0, 255),
-                            _ => (PixelSelectCriteria::Hue, 0, 360),
-                        };
-                    thres.criteria = crit;
-                    thres.min = thres_opts
-                        .pop_front()
-                        .unwrap_or("")
-                        .parse()
-                        .unwrap_or(defaultmin);
-                    thres.max = thres_opts
-                        .pop_front()
-                        .unwrap_or("")
-                        .parse()
-                        .unwrap_or(defaultmax);
-                } else {
-                    println!("[WARNING!][Flag Usage:] --thresh [hue|bright|sat]:<min>:<max> ");
-                }
-                ps.selector = Box::new(thres);
-            }
+            "--thres" => ps.selector = parse_thres_selector_parameters(args.pop_front()),
+            "--glitchsort" => algorithm = SortingAlgorithm::Glitchsort,
+            "--mapsort" => algorithm = SortingAlgorithm::Mapsort,
             _ => print!("Unrecognized argument: {}", arg),
         }
     }
-    ps.sorter.algorithm = SortingAlgorithm::Glitchsort;
+    ps.sorter.algorithm = algorithm;
 
     // SORTING
     println!("Sorting all the pixels...");
     let start = Instant::now();
 
-    //    ps.sort();
-    //    ps.sorter.criteria = SortingCriteria::Hue;
-    //    ps.sort();
-    //    ps.sorter.criteria = SortingCriteria::Debug;
     ps.sort();
+    // ps.sorter.criteria = SortingCriteria::Saturation;
+    // ps.sort();
+    // ps.sorter.criteria = SortingCriteria::Brightness;
+    // ps.sort();
     let duration = start.elapsed();
 
     /* SAVING */
