@@ -4,21 +4,20 @@ use ::array_init::array_init;
 use image::{Rgb, RgbImage};
 
 #[derive(Debug)]
-struct PixelWrapper<'a> {
-    px: &'a mut Rgb<u8>,
+struct PixelWrapper{
+    px:  Rgb<u8>,
     val: u16,
 }
 
 fn glitch_swap(wrapper_vec: &mut Vec<PixelWrapper>, x: usize, y: usize){
     // "Just" swap the Wrapper Objects in the Array and then change the color of the objects pixels
     wrapper_vec.swap(x,y);
-    println!("Before: {:?} and {:?}", wrapper_vec[x], wrapper_vec[y]);
 
-    let temp_px = wrapper_vec[x].px.clone();
-    *wrapper_vec[x].px = wrapper_vec[y].px.clone();;
-    *wrapper_vec[y].px = temp_px;
+    let temp_val = wrapper_vec[x].px;
+    wrapper_vec[x].px = wrapper_vec[y].px;
+    wrapper_vec[y].px = temp_val;
 
-    println!(">After: {:?} and {:?}", wrapper_vec[x], wrapper_vec[y]);
+    // println!(">After: {:?} and {:?}", wrapper_vec[x], wrapper_vec[y]);
 
     // The glitch comes from the fact that
     // We switch wrap_x and wrap_y and then swap their colors
@@ -35,13 +34,11 @@ fn glitch_swap(wrapper_vec: &mut Vec<PixelWrapper>, x: usize, y: usize){
 pub fn glitchsort_mut(pixels: &mut [&mut Rgb<u8>], method: &SortingCriteria){
     let span_len = pixels.len();
     let mut fake_pixels = Vec::new();
-    for p in pixels {
-        let b = get_brightness(p);
-        let pw = PixelWrapper{px: p, val: b};
-        fake_pixels.push(pw);
-    }
-
-
+    // Wrap each pixel into a wrapper with a calculated value (TODO: from SortingCriteria)
+    pixels.into_iter().for_each(|px| {
+        let val = get_brightness(px);
+        fake_pixels.push(PixelWrapper{px: **px, val});
+    });
     let mut gap = span_len;
     let mut swapped = false;
     while ( (gap > 1) || swapped ) {
@@ -49,12 +46,15 @@ pub fn glitchsort_mut(pixels: &mut [&mut Rgb<u8>], method: &SortingCriteria){
         swapped = false;
         for i in 0..span_len {
             if (gap + i >= span_len){break;}
-            if (fake_pixels[i+gap].val < fake_pixels[i].val){
+            if ( fake_pixels[i+gap].val < fake_pixels[i].val ){
                 glitch_swap(&mut fake_pixels, i+gap, i);
                 swapped = true;
             }
         }
+    }
 
+    for i in 0..pixels.len() {
+        *pixels[i] = fake_pixels[i].px;
     }
 
 }
