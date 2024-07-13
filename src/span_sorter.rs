@@ -1,4 +1,6 @@
 use image::Rgb;
+
+use crate::color_helpers;
 mod random_color;
 mod mapsort;
 mod shellsort;
@@ -37,6 +39,17 @@ impl SpanSorter {
         self.criteria = criteria;
     }
 
+    /// Returns the function that extracts the value we sort by.
+    ///
+    /// For example when sorting by Hue, this returns the function that calculates the hue of a pixel.
+    pub fn get_value_function(criteria: SortingCriteria) -> for<'a> fn(&'a Rgb<u8>) -> u16 {
+        match criteria {
+            SortingCriteria::Brightness => color_helpers::get_brightness,
+            SortingCriteria::Saturation => color_helpers::get_saturation,
+            SortingCriteria::Hue | _ => color_helpers::get_hue,
+        }
+    }
+
     // Choose fitting algorithm for criteria
     // Idk why. This is dumb.
     pub fn determine_algorithm(&mut self){
@@ -49,7 +62,7 @@ impl SpanSorter {
         };
     }
 
-    // Sort slice of pixels using set criteria and algorithm
+    /// Sort a slice of pixels using set criteria and algorithm
     pub fn sort(&self, pixels: &mut [&mut Rgb<u8>]) {
         // Select function per algorithm
         let sorting_function = match self.algorithm {
@@ -60,7 +73,7 @@ impl SpanSorter {
             _ => random_color::set_random_color,
         };
         // call sorting function
-        sorting_function(pixels, &self.criteria);
+        sorting_function(pixels, SpanSorter::get_value_function(self.criteria) );
     }
 }
 

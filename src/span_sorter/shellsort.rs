@@ -9,14 +9,8 @@ struct PixelWrapper{
     val: u16,
 }
 
-pub fn shellsort_mut(pixels: &mut [&mut Rgb<u8>], method: &SortingCriteria){
+pub fn shellsort_mut(pixels: &mut [&mut Rgb<u8>], value_function: for<'a> fn(&'a Rgb<u8>) -> u16){
     // Stolen from some Stackoverflow Thread
-    use SortingCriteria::*;
-    let value_function = match method {
-        Brightness => get_brightness,
-        Saturation => get_saturation,
-        Hue | _ => get_hue,
-    };
 
     let span_len = pixels.len();
     let mut fake_pixels = Vec::new();

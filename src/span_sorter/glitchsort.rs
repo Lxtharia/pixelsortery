@@ -31,12 +31,12 @@ fn glitch_swap(wrapper_vec: &mut Vec<PixelWrapper>, x: usize, y: usize){
 	// I don't know how to write efficient comments, but this will help me understand when i forget again
 }
 
-pub fn glitchsort_mut(pixels: &mut [&mut Rgb<u8>], method: &SortingCriteria){
+pub fn glitchsort_mut(pixels: &mut [&mut Rgb<u8>], value_function: for<'a> fn(&'a Rgb<u8>) -> u16){
     let span_len = pixels.len();
     let mut fake_pixels = Vec::new();
     // Wrap each pixel into a wrapper with a calculated value (TODO: from SortingCriteria)
     pixels.into_iter().for_each(|px| {
-        let val = get_brightness(px);
+        let val = value_function(px);
         fake_pixels.push(PixelWrapper{px: **px, val});
     });
     let mut gap = span_len;
