@@ -21,7 +21,7 @@ fn parse_thres_selector_parameters(arg: Option<String>) -> Box<dyn PixelSelector
                 "hue" => (PixelSelectCriteria::Hue, 0, 360),
                 "bright" => (PixelSelectCriteria::Brightness, 0, 255),
                 "sat" => (PixelSelectCriteria::Saturation, 0, 255),
-                _ => (PixelSelectCriteria::Hue, 0, 360),
+                _ => {println!("[ERROR] Wrong syntax. try --thres <hue|bright|sat>:0:255"); exit(-1)},
             };
         thres.criteria = crit;
         thres.min = thres_opts
