@@ -17,6 +17,8 @@ fn glitch_swap(pixels: &mut [&mut Rgb<u8>], wrapper_vec: &mut Vec<PixelWrapper>,
     let i = wrapper_vec[x].ind;
     let j = wrapper_vec[y].ind;
 
+    // print!("  Swap: {:?} ({}) <-> {:?} ({})", pixels[i], wrapper_vec[x].val,pixels[j], wrapper_vec[y].val);
+
     wrapper_vec.swap(x,y);
     let tmp = pixels[i].clone() ;
     *pixels[i] = pixels[j].clone();
@@ -30,6 +32,7 @@ fn glitch_swap(pixels: &mut [&mut Rgb<u8>], wrapper_vec: &mut Vec<PixelWrapper>,
     // But they still point to their initial index
 }
 
+
 pub fn glitchsort_mut(pixels: &mut [&mut Rgb<u8>], value_function: for<'a> fn(&'a Rgb<u8>) -> u16){
     let span_len = pixels.len();
     let mut wrappers = Vec::new();
@@ -39,6 +42,7 @@ pub fn glitchsort_mut(pixels: &mut [&mut Rgb<u8>], value_function: for<'a> fn(&'
         wrappers.push(PixelWrapper{ind: i, val});
     }
 
+    println!("New span");
     let mut gap = span_len;
     let mut swapped = false;
     while ( (gap > 1) || swapped ) {
@@ -46,8 +50,9 @@ pub fn glitchsort_mut(pixels: &mut [&mut Rgb<u8>], value_function: for<'a> fn(&'
         swapped = false;
         for i in 0..span_len {
             if (gap + i >= span_len){break;}
-            if ( wrappers[i+gap].val > wrappers[i].val ){
+            if ( (wrappers[i+gap].val as i8) < wrappers[i].val as i8 ){
                 glitch_swap(pixels, &mut wrappers, i+gap, i);
+                println!();
                 swapped = true;
             }
         }
