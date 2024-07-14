@@ -61,11 +61,13 @@ impl Pixelsorter {
         for i in 0..mutpixels.len() {
             let px = mutpixels.pop_front().unwrap();
 
-            if i as u64 % w != 0 {
+            // When last pixel in the line
+            if i as u64 % w < w-1 {
                 // A valid pixel. Add to span
                 prespan.push(px);
             } else {
-                // A invalid pixel, close the span and create a new one
+                // Add last pixel, push span and create a new one
+                prespan.push(px);
                 prespans.push(prespan);
                 prespan = Vec::new();
             }

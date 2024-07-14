@@ -46,7 +46,7 @@ pub fn glitchsort_mut(pixels: &mut [&mut Rgb<u8>], value_function: for<'a> fn(&'
         swapped = false;
         for i in 0..span_len {
             if (gap + i >= span_len){break;}
-            if ( wrappers[i+gap].val < wrappers[i].val ){
+            if ( wrappers[i+gap].val > wrappers[i].val ){
                 glitch_swap(pixels, &mut wrappers, i+gap, i);
                 swapped = true;
             }
