@@ -90,8 +90,10 @@ impl PixelSelector for ThresholdSelector {
                 span.push(px);
             } else {
                 // A invalid pixel, close the span and create a new one
-                spans.push(span);
-                span = Vec::new();
+                if (span.len() > 0){
+                    spans.push(span);
+                    span = Vec::new();
+                }
             }
         }
         spans.push(span);
