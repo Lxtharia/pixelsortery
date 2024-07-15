@@ -100,7 +100,7 @@ fn main() {
     ps.sorter.algorithm = algorithm;
 
     // SORTING
-    println!("Sorting all the pixels...");
+    println!("Sorting image...");
     let start = Instant::now();
 
     ps.sort();
@@ -109,6 +109,8 @@ fn main() {
     // ps.sorter.criteria = SortingCriteria::Brightness;
     // ps.sort();
     let duration = start.elapsed();
+    println!("Total time: {:?}", duration);
+    println!("Saving to {}", output_path);
 
     /* SAVING */
     // let serial_num = 6;
@@ -120,5 +122,4 @@ fn main() {
     ps.save(&output_path);
     ps.save(format!("full-{}", &output_path));
 
-    println!("Time took to sort: {:?}", duration);
 }

@@ -39,10 +39,8 @@ pub fn get_hue(&pixel: &Rgb<u8>) -> u16 {
 /// returns the brightness of a pixel in the range [0, 255]
 pub fn get_brightness(&p: &Rgb<u8>) -> u16 {
     let channels = p.channels();
-    let (mut r, mut g, mut b) = (channels[0] as i8, channels[1] as i8, channels[2] as i8);
-    
-    let br: f32 = (0.2126 * r as f32 + 0.7152 * g as f32 + 0.0722 * b as f32);
-    return br as i8 as u8 as u16;
+    let (r, g, b) = (channels[0] as i8, channels[1] as i8, channels[2] as i8);
+    (0.2126 * r as f32 + 0.7152 * g as f32 + 0.0722 * b as f32) as i8 as u8 as u16
 }
 
 /// returns the saturation of a pixel in the range [0, 255]

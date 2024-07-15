@@ -42,7 +42,6 @@ pub fn glitchsort_mut(pixels: &mut [&mut Rgb<u8>], value_function: for<'a> fn(&'
         wrappers.push(PixelWrapper{ind: i, val});
     }
 
-    println!("New span");
     let mut gap = span_len;
     let mut swapped = false;
     while ( (gap > 1) || swapped ) {
@@ -52,7 +51,6 @@ pub fn glitchsort_mut(pixels: &mut [&mut Rgb<u8>], value_function: for<'a> fn(&'
             if (gap + i >= span_len){break;}
             if ( (wrappers[i+gap].val as i8) > wrappers[i].val as i8 ){
                 glitch_swap(pixels, &mut wrappers, i+gap, i);
-                println!();
                 swapped = true;
             }
         }
