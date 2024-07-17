@@ -92,7 +92,10 @@ impl Pixelsorter {
             let timestart = Instant::now();
         // SORT EVERY SPAN
         for mut span in mutspans {
-            self.sorter.sort(&mut span);
+            // Only sort if there is at least 2 pixels in there
+            if (span.len() > 1) {
+                self.sorter.sort(&mut span);
+            }
         }
             let timeend = timestart.elapsed();
             println!("Time [Sort]: {:?}", timeend);
