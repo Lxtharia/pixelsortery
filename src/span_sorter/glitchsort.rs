@@ -34,7 +34,7 @@ fn glitch_swap(pixels: &mut [&mut Rgb<u8>], wrapper_vec: &mut Vec<PixelWrapper>,
 
 
 pub fn glitchsort_mut(pixels: &mut [&mut Rgb<u8>], value_function: for<'a> fn(&'a Rgb<u8>) -> u16){
-    let span_len = pixels.len();
+    let span_len = pixels.len() - 1;
     let mut wrappers = Vec::new();
 
     for i in 0..pixels.len() {
