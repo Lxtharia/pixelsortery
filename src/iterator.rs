@@ -56,8 +56,19 @@ fn traverse_horizontal(all_pixels: Vec<&mut Rgb<u8>>, w: u64, h: u64) -> Vec<Vec
         return prespans;
 }
 
-fn traverse_vertical(all_pixels: Vec<&mut Rgb<u8>>, w :u64, h :u64) -> Vec<Vec<&mut Rgb<u8>>> {
-        let mut prespans: Vec<Vec<&mut Rgb<u8>>> = Vec::new();
-        todo!();
-        return prespans;
+fn traverse_vertical(all_pixels: Vec<&mut Rgb<u8>>, w: u64, h: u64) -> Vec<Vec<&mut Rgb<u8>>> {
+    let mut prespans: Vec<Vec<&mut Rgb<u8>>> = Vec::new();
+
+    let mut all_pixels: Vec<Option<&mut Rgb<u8>>> = all_pixels.into_iter().map(|p| Some(p)).collect();
+    for x in 0..w {
+        let mut prespan = Vec::new();
+        for y in 0..h {
+            let i = (y*w + x) as usize;
+            all_pixels.push(None);
+            if(all_pixels.get(i).is_some()){ prespan.push(all_pixels.swap_remove(i).unwrap());}
+        }
+        prespans.push(prespan);
+    }
+
+    return prespans;
 }
