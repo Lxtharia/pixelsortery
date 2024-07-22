@@ -3,6 +3,7 @@
 use image::RgbImage;
 use pixelsorter::pixel_selector::{PixelSelectCriteria, PixelSelector, ThresholdSelector};
 use pixelsorter::span_sorter::{SortingAlgorithm, SortingCriteria, SpanSorter};
+use pixelsorter::iterator::ImageIterator;
 use std::fmt::Arguments;
 use std::time::{Duration, Instant};
 use std::{collections::VecDeque, env, process::exit};
@@ -86,6 +87,10 @@ fn main() {
     // I should just use some argument library tbh
     while let Some(arg) = args.pop_front() {
         match arg.as_str() {
+
+            "--horizontal" => ps.iterator = ImageIterator::Horizontal,
+            "--vertical" | "--vert" => ps.iterator = ImageIterator::Vertical,
+
             "--hue" => ps.sorter.criteria = SortingCriteria::Hue,
             "--brightness" => ps.sorter.criteria = SortingCriteria::Brightness,
             "--saturation" => ps.sorter.criteria = SortingCriteria::Saturation,

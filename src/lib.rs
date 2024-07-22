@@ -1,6 +1,7 @@
 #![allow(unused)]
 use color_helpers::*;
 use image::{GenericImageView, ImageResult, Rgb, RgbImage};
+use iterator::ImageIterator;
 use pixel_selector::{RandomSelector};
 use span_sorter::{SortingCriteria, SpanSorter};
 use rand::{thread_rng, Rng};
@@ -11,11 +12,13 @@ use crate::pixel_selector::PixelSelector;
 mod color_helpers;
 pub mod pixel_selector;
 pub mod span_sorter;
+pub mod iterator;
 
 pub struct Pixelsorter {
     img: RgbImage,
     pub sorter: span_sorter::SpanSorter,
     pub selector: Box<dyn PixelSelector>,
+    pub iterator: iterator::ImageIterator,
 }
 
 pub type Span = Vec<Rgb<u8>>;
@@ -27,6 +30,7 @@ impl Pixelsorter {
             img,
             sorter: SpanSorter::new(SortingCriteria::Hue),
             selector: Box::new(RandomSelector { max: 40 }),
+            iterator: ImageIterator::All,
         }
     }
 
@@ -45,8 +49,6 @@ impl Pixelsorter {
     pub fn sort(&mut self) {
         // a vector containing pointers to each pixel
         let pixelcount= self.img.width() * self.img.height();
-        let w: u64 = self.img.width().into();
-        let mut mutpixels: VecDeque<&mut Rgb<u8>> = self.img.pixels_mut().collect();
 
         println!("Sorting with: {:?} and {:?} ", self.selector.debug_info(), self.sorter);
 
@@ -56,25 +58,7 @@ impl Pixelsorter {
         // So we need an array of iterators (diagonal lines), or just one iterator
         // each iterator needs to have mutable pixel pointers we can write to
         // for section in self.iterator.yieldIterators(mutpixels) { ... this stuff below ... }
-        let mut prespans: Vec<Vec<&mut Rgb<u8>>> = Vec::new();
-        let mut prespan: Vec<&mut Rgb<u8>> = Vec::new();
-        for i in 0..mutpixels.len() {
-            let px = mutpixels.pop_front().unwrap();
-
-            // When last pixel in the line
-            if i as u64 % w < w-1 {
-                // A valid pixel. Add to span
-                prespan.push(px);
-            } else {
-                // Add last pixel, push span and create a new one
-                prespan.push(px);
-                prespans.push(prespan);
-                prespan = Vec::new();
-            }
-        }
-        prespans.push(prespan);
-
-
+        let mut prespans = self.iterator.traverse(&mut self.img);
 
         //Still very slow dividing of all pixels into spans
             let timestart = Instant::now();
