@@ -18,7 +18,7 @@ pub struct ThresholdSelector {
 
 #[derive(Debug)]
 pub struct RandomSelector {
-    pub max: i32,
+    pub max: u32,
 }
 
 /// Key criteria which a (Threshold-)Selector should use as a key
@@ -42,7 +42,7 @@ impl PixelSelector for RandomSelector {
     fn mutspans<'a>(&'a self, pixels: &mut VecDeque<&'a mut Rgb<u8>>) -> Vec<Vec<&'a mut Rgb<u8>>> {
         let mut spans: Vec<Vec<&'a mut Rgb<u8>>> = Vec::new();
         let mut rng = thread_rng();
-        let rng_range = Uniform::from(0..40);
+        let rng_range = Uniform::from(0..self.max as usize);
 
         let len = pixels.len();
 
