@@ -39,41 +39,54 @@ fn traverse_all(all_pixels: Vec<&mut Rgb<u8>>, w: u64, h: u64) -> Vec<Vec<&mut R
 
 fn traverse_horizontal(all_pixels: Vec<&mut Rgb<u8>>, w: u64, h: u64) -> Vec<Vec<&mut Rgb<u8>>> {
     let mut all_pixels: VecDeque<&mut Rgb<u8>> = all_pixels.into();
-    let mut prespans: Vec<Vec<&mut Rgb<u8>>> = Vec::new();
+    let mut ranges: Vec<Vec<&mut Rgb<u8>>> = Vec::new();
 
-    let mut prespan = Vec::new();
-    for i in 0..all_pixels.len() {
-        let px = all_pixels.pop_front().unwrap();
-
-        // When last pixel in the line
-        if i as u64 % w < w - 1 {
-            // A valid pixel. Add to span
-            prespan.push(px);
-        } else {
-            // Add last pixel, push span and create a new one
-            prespan.push(px);
-            prespans.push(prespan);
-            prespan = Vec::new();
+    for _ in 0..h {
+        let mut range = Vec::new();
+        for _ in 0..w {
+            if let Some(p) = all_pixels.pop_front() {
+                range.push(p);
+            }
         }
+        ranges.push(range);
     }
-    prespans.push(prespan);
 
-    return prespans;
+    return ranges;
 }
 
 fn traverse_vertical(all_pixels: Vec<&mut Rgb<u8>>, w: u64, h: u64) -> Vec<Vec<&mut Rgb<u8>>> {
-    let mut prespans: Vec<Vec<&mut Rgb<u8>>> = Vec::new();
+    let mut ranges: Vec<Vec<usize>> = Vec::new();
 
-    let mut all_pixels: Vec<Option<&mut Rgb<u8>>> = all_pixels.into_iter().map(|p| Some(p)).collect();
     for x in 0..w {
-        let mut prespan = Vec::new();
+        let mut range = Vec::new();
         for y in 0..h {
-            let i = (y*w + x) as usize;
-            all_pixels.push(None);
-            if(all_pixels.get(i).is_some()){ prespan.push(all_pixels.swap_remove(i).unwrap());}
+            let i = (y * w + x) as usize;
+            range.push(i);
         }
-        prespans.push(prespan);
+        ranges.push(range);
     }
 
-    return prespans;
+    return pick_pixels(all_pixels, ranges);
+}
+
+
+/// Creates and returns ranges of mutable Pixels.
+/// The picked pixels and their order are determined by the given indices vector
+fn pick_pixels(all_pixels: Vec<&mut Rgb<u8>>, indices: Vec<Vec<usize>>) -> Vec<Vec<&mut Rgb<u8>>> {
+    let mut ranges: Vec<Vec<&mut Rgb<u8>>> = Vec::new();
+
+    let mut all_pixels: Vec<Option<&mut Rgb<u8>>> =
+        all_pixels.into_iter().map(|p| Some(p)).collect();
+    for li in indices {
+        let mut range = Vec::new();
+        for i in li {
+            all_pixels.push(None);
+            if (all_pixels.get(i).is_some()) {
+                range.push(all_pixels.swap_remove(i).unwrap());
+            }
+        }
+        ranges.push(range);
+    }
+
+    return ranges;
 }
