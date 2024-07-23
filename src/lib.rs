@@ -59,10 +59,10 @@ impl Pixelsorter {
         let pixelcount = self.img.width() * self.img.height();
 
         println!(
-            "Sorting with:\n\t{:?}\n\t{:?}\n\t{:?}",
+            "Sorting with:\n\t{}\n\t{}\n\t{}",
             self.iterator.info_string(),
             self.selector.info_string(),
-            self.sorter
+            self.sorter.info_string(),
         );
 
         if (BENCHMARK) {

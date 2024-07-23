@@ -37,6 +37,10 @@ impl SpanSorter {
             algorithm: SortingAlgorithm::Mapsort,
         }
     }
+    pub fn info_string(&self) -> String {
+        format!("Sorting selected pixel ranges by {:?} using {:?}", self.criteria, self.algorithm)
+    }
+
     // Set criteria of SpanSorter
     pub fn set_criteria(&mut self, criteria: SortingCriteria) {
         self.criteria = criteria;

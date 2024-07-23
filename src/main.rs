@@ -141,23 +141,15 @@ fn main() {
         }
     }
     
-
-    // SORTING
-    println!("Sorting image...");
     let start = Instant::now();
 
+    // SORTING
     ps.sort();
-    // ps.sorter.criteria = SortingCriteria::Saturation;
-    // ps.sort();
-    // ps.sorter.criteria = SortingCriteria::Brightness;
-    // ps.sort();
+
     let duration = start.elapsed();
     println!("Total time: {:?}", duration);
     println!("Saving to {}", output_path);
 
-    /* SAVING */
+    // SAVING
     ps.save(&output_path);
-    // sorted_img_hb.save(filename_out);
-    // ps.sort_all_pixels();
-    // ps.save(format!("full-{}", &output_path));
 }
