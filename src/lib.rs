@@ -25,6 +25,7 @@ pub struct Pixelsorter {
     pub sorter: span_sorter::SpanSorter,
     pub selector: Box<dyn PixelSelector>,
     pub iterator: iterator::ImageIterator,
+    pub reverse: bool,
 }
 
 pub type Span = Vec<Rgb<u8>>;
@@ -39,6 +40,7 @@ impl Pixelsorter {
             sorter: SpanSorter::new(SortingCriteria::Hue),
             selector: Box::new(RandomSelector { max: 40 }),
             iterator: ImageIterator::All,
+            reverse: false
         }
     }
 
@@ -69,7 +71,7 @@ impl Pixelsorter {
             let timestart = Instant::now();
         }
 
-        let mut ranges = self.iterator.traverse(&mut self.img);
+        let mut ranges = self.iterator.traverse(&mut self.img, self.reverse);
 
         if (BENCHMARK) {
             let timeend = timestart.elapsed();

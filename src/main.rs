@@ -81,6 +81,7 @@ fn main() {
      --vert
      --vertical   : Sort all columns of pixels
      --horizontal : Sort all lines of pixels
+     --reverse    : Sort in the opposite direction
     ===== Sorting Options
      --hue        : Sort Pixels by Hue
      --saturation : Sort Pixels by Saturation
@@ -124,6 +125,7 @@ fn main() {
             "--horizontal" => ps.iterator = ImageIterator::Horizontal,
             "--vertical"
                 | "--vert" => ps.iterator = ImageIterator::Vertical,
+            "--reverse"    => ps.reverse = true,
 
             "--hue"         => ps.sorter.criteria = SortingCriteria::Hue,
             "--brightness"  => ps.sorter.criteria = SortingCriteria::Brightness,

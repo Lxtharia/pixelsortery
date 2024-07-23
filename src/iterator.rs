@@ -10,7 +10,7 @@ pub enum ImageIterator {
 }
 
 impl ImageIterator {
-    pub fn traverse(self, img: &mut RgbImage) -> Vec<Vec<&mut Rgb<u8>>> {
+    pub fn traverse(self, img: &mut RgbImage, reverse: bool) -> Vec<Vec<&mut Rgb<u8>>> {
         let w: u64 = img.width().into();
         let h: u64 = img.height().into();
         let pixelcount = w * h;
@@ -26,6 +26,9 @@ impl ImageIterator {
             ImageIterator::Horizontal => traverse_horizontal,
             ImageIterator::Vertical => traverse_vertical,
         };
+        if(reverse) {
+            all_pixels.reverse();
+        }
         traversing_function(all_pixels, w, h)
     }
     pub fn info_string(self) -> String {
