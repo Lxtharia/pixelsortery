@@ -1,11 +1,11 @@
 #![allow(unused)]
 
 use image::RgbImage;
-use pixelsorter::iterator::ImageIterator;
-use pixelsorter::pixel_selector::{
+use pixelsortery::iterator::ImageIterator;
+use pixelsortery::pixel_selector::{
     PixelSelectCriteria, PixelSelector, RandomSelector, ThresholdSelector,
 };
-use pixelsorter::span_sorter::{SortingAlgorithm, SortingCriteria, SpanSorter};
+use pixelsortery::span_sorter::{SortingAlgorithm, SortingCriteria, SpanSorter};
 use std::fmt::Arguments;
 use std::time::{Duration, Instant};
 use std::{collections::VecDeque, env, process::exit};
@@ -113,7 +113,7 @@ fn main() {
     // OPEN IMAGE
     let img: RgbImage = image::open(path).unwrap().into_rgb8();
     // CREATE DEFAULT PIXELSORTER
-    let mut ps = pixelsorter::Pixelsorter::new(img);
+    let mut ps = pixelsortery::Pixelsorter::new(img);
 
     // I should just use some argument library tbh
     while let Some(arg) = args.pop_front() {

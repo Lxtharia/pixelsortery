@@ -246,8 +246,8 @@ dependencies = [
 ]
 
 [[package]]
-name = "pixelsorter"
-version = "0.1.0"
+name = "pixelsortery"
+version = "0.2.0"
 dependencies = [
  "array-init",
  "image",
