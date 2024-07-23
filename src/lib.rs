@@ -3,7 +3,7 @@
 use color_helpers::*;
 use image::{GenericImageView, ImageResult, Rgb, RgbImage};
 use iterator::ImageIterator;
-use pixel_selector::RandomSelector;
+use pixel_selector::{RandomSelector, ThresholdSelector};
 use rand::{thread_rng, Rng};
 use span_sorter::{SortingCriteria, SpanSorter};
 use std::{
@@ -37,8 +37,8 @@ impl Pixelsorter {
     pub fn new(img: RgbImage) -> Pixelsorter {
         Pixelsorter {
             img,
-            sorter: SpanSorter::new(SortingCriteria::Hue),
-            selector: Box::new(RandomSelector { max: 40 }),
+            sorter: SpanSorter::new(SortingCriteria::Brightness),
+            selector: Box::new(RandomSelector{max:9999999}),
             iterator: ImageIterator::All,
             reverse: false
         }
