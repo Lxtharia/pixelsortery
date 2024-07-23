@@ -1,18 +1,24 @@
 #![allow(unused)]
+
 use color_helpers::*;
 use image::{GenericImageView, ImageResult, Rgb, RgbImage};
 use iterator::ImageIterator;
-use pixel_selector::{RandomSelector};
-use span_sorter::{SortingCriteria, SpanSorter};
+use pixel_selector::RandomSelector;
 use rand::{thread_rng, Rng};
-use std::{any::{type_name, Any}, collections::VecDeque, path::Path, time::Instant};
+use span_sorter::{SortingCriteria, SpanSorter};
+use std::{
+    any::{type_name, Any},
+    collections::VecDeque,
+    path::Path,
+    time::Instant,
+};
 
 use crate::pixel_selector::PixelSelector;
 
 mod color_helpers;
+pub mod iterator;
 pub mod pixel_selector;
 pub mod span_sorter;
-pub mod iterator;
 
 pub struct Pixelsorter {
     img: RgbImage,
@@ -22,6 +28,8 @@ pub struct Pixelsorter {
 }
 
 pub type Span = Vec<Rgb<u8>>;
+
+const BENCHMARK: bool = false;
 
 impl Pixelsorter {
     // constructor
@@ -45,43 +53,70 @@ impl Pixelsorter {
         self.sorter.sort(&mut pixels);
     }
 
-
     pub fn sort(&mut self) {
+        let (mut timestart, mut timeend) = (Instant::now(), 0);
         // a vector containing pointers to each pixel
-        let pixelcount= self.img.width() * self.img.height();
+        let pixelcount = self.img.width() * self.img.height();
 
-        println!("Sorting with: {:?} and {:?} ", self.selector.debug_info(), self.sorter);
+        println!(
+            "Sorting with:\n\t{:?}\n\t{:?}\n\t{:?}",
+            self.iterator.info_string(),
+            self.selector.info_string(),
+            self.sorter
+        );
 
-        // We are iterating through all lines.
-        // What if we want to iterate through pixels diagonally?
-        // Or in a hilbert curve?
-        // So we need an array of iterators (diagonal lines), or just one iterator
-        // each iterator needs to have mutable pixel pointers we can write to
-        // for section in self.iterator.yieldIterators(mutpixels) { ... this stuff below ... }
-        let mut prespans = self.iterator.traverse(&mut self.img);
-
-        //Still very slow dividing of all pixels into spans
+        if (BENCHMARK) {
             let timestart = Instant::now();
+        }
+
+        let mut ranges = self.iterator.traverse(&mut self.img);
+
+        if (BENCHMARK) {
+            let timeend = timestart.elapsed();
+        }
+        if (BENCHMARK) {
+            println!("Time [Selector]: {:?}", timeend);
+        }
+        if (BENCHMARK) {
+            let timestart = Instant::now();
+        }
+
         // CREATE SPANS
-            let mut mutspans: Vec<Vec<&mut Rgb<u8>>> = Vec::new();
-        for prespan in prespans {
-            for span in self.selector.mutspans(&mut prespan.into()) {
-                mutspans.push(span);
+        let mut spans: Vec<Vec<&mut Rgb<u8>>> = Vec::new();
+        for r in ranges {
+            for span in self.selector.mutspans(&mut r.into()) {
+                spans.push(span);
             }
         }
+        if (BENCHMARK) {
             let timeend = timestart.elapsed();
+        }
+        if (BENCHMARK) {
             println!("Time [Selector]: {:?}", timeend);
+        }
+        if (BENCHMARK) {
             println!("Amount of pixels: {}", pixelcount);
-            println!("Amount of spans: {}", &mutspans.len());
+        }
+        if (BENCHMARK) {
+            println!("Amount of spans: {}", &spans.len());
+        }
+        if (BENCHMARK) {
             let timestart = Instant::now();
+        }
+
         // SORT EVERY SPAN
-        for mut span in mutspans {
+        for mut span in spans {
             // Only sort if there is at least 2 pixels in there
             if (span.len() > 1) {
                 self.sorter.sort(&mut span);
             }
         }
+
+        if (BENCHMARK) {
             let timeend = timestart.elapsed();
+        }
+        if (BENCHMARK) {
             println!("Time [Sort]: {:?}", timeend);
+        }
     }
 }

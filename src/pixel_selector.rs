@@ -9,7 +9,6 @@ use rand::{
     thread_rng, Rng,
 };
 
-
 #[derive(Debug)]
 pub struct ThresholdSelector {
     pub min: u64,
@@ -33,12 +32,12 @@ pub enum PixelSelectCriteria {
 /// Returns a list of pixel spans
 pub trait PixelSelector {
     fn mutspans<'a>(&'a self, pixels: &mut VecDeque<&'a mut Rgb<u8>>) -> Vec<Vec<&'a mut Rgb<u8>>>;
-    fn debug_info<'a>(&'a self,) -> String; // I bet this is no the rust way
+    fn info_string<'a>(&'a self) -> String; // I bet this is no the rust way
 }
 
 impl PixelSelector for RandomSelector {
-    fn debug_info(&self) -> String {
-        format!("RandomSelector(max: {:?})", self.max)
+    fn info_string(&self) -> String {
+        format!("Random Selector with max length: {})", self.max)
     }
     fn mutspans<'a>(&'a self, pixels: &mut VecDeque<&'a mut Rgb<u8>>) -> Vec<Vec<&'a mut Rgb<u8>>> {
         let mut spans: Vec<Vec<&'a mut Rgb<u8>>> = Vec::new();
@@ -67,8 +66,11 @@ impl PixelSelector for RandomSelector {
 }
 
 impl PixelSelector for ThresholdSelector {
-    fn debug_info(&self) -> String {
-        format!("ThresholdSelector(criteria: {:?}, min: {}, max:{})", self.criteria, self.min, self.max)
+    fn info_string(&self) -> String {
+        format!(
+            "Selecting Pixels with: {} < {:?} < {})",
+            self.min, self.criteria, self.max
+        )
     }
     fn mutspans<'a>(&'a self, pixels: &mut VecDeque<&'a mut Rgb<u8>>) -> Vec<Vec<&'a mut Rgb<u8>>> {
         let mut spans: Vec<Vec<&'a mut Rgb<u8>>> = Vec::new();
@@ -91,7 +93,7 @@ impl PixelSelector for ThresholdSelector {
             } else {
                 // A invalid pixel, close the span and create a new one
                 // Only do that when the current span isn't empty anyway
-                if (span.len() > 0){
+                if (span.len() > 0) {
                     spans.push(span);
                     span = Vec::new();
                 }
@@ -101,4 +103,3 @@ impl PixelSelector for ThresholdSelector {
         spans
     }
 }
-
