@@ -38,29 +38,22 @@ fn traverse_all(all_pixels: Vec<&mut Rgb<u8>>, w: u64, h: u64) -> Vec<Vec<&mut R
 }
 
 fn traverse_horizontal(all_pixels: Vec<&mut Rgb<u8>>, w: u64, h: u64) -> Vec<Vec<&mut Rgb<u8>>> {
-    let mut all_pixels: VecDeque<&mut Rgb<u8>> = all_pixels.into();
-    let mut ranges: Vec<Vec<&mut Rgb<u8>>> = Vec::new();
+    let mut ranges: Vec<Vec<u64>> = Vec::new();
 
-    for _ in 0..h {
-        let mut range = Vec::new();
-        for _ in 0..w {
-            if let Some(p) = all_pixels.pop_front() {
-                range.push(p);
-            }
-        }
-        ranges.push(range);
+    for y in 0..h {
+        ranges.push((y*w..y*w+w).collect());
     }
 
-    return ranges;
+    return pick_pixels(all_pixels, ranges);
 }
 
 fn traverse_vertical(all_pixels: Vec<&mut Rgb<u8>>, w: u64, h: u64) -> Vec<Vec<&mut Rgb<u8>>> {
-    let mut ranges: Vec<Vec<usize>> = Vec::new();
+    let mut ranges: Vec<Vec<u64>> = Vec::new();
 
     for x in 0..w {
         let mut range = Vec::new();
         for y in 0..h {
-            let i = (y * w + x) as usize;
+            let i = (y * w + x);
             range.push(i);
         }
         ranges.push(range);
@@ -72,7 +65,7 @@ fn traverse_vertical(all_pixels: Vec<&mut Rgb<u8>>, w: u64, h: u64) -> Vec<Vec<&
 
 /// Creates and returns ranges of mutable Pixels.
 /// The picked pixels and their order are determined by the given indices vector
-fn pick_pixels(all_pixels: Vec<&mut Rgb<u8>>, indices: Vec<Vec<usize>>) -> Vec<Vec<&mut Rgb<u8>>> {
+fn pick_pixels(all_pixels: Vec<&mut Rgb<u8>>, indices: Vec<Vec<u64>>) -> Vec<Vec<&mut Rgb<u8>>> {
     let mut ranges: Vec<Vec<&mut Rgb<u8>>> = Vec::new();
 
     let mut all_pixels: Vec<Option<&mut Rgb<u8>>> =
@@ -81,8 +74,8 @@ fn pick_pixels(all_pixels: Vec<&mut Rgb<u8>>, indices: Vec<Vec<usize>>) -> Vec<V
         let mut range = Vec::new();
         for i in li {
             all_pixels.push(None);
-            if (all_pixels.get(i).is_some()) {
-                range.push(all_pixels.swap_remove(i).unwrap());
+            if (all_pixels.get(i as usize).is_some()) {
+                range.push(all_pixels.swap_remove(i as usize).unwrap());
             }
         }
         ranges.push(range);
