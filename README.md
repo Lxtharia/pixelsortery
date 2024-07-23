@@ -1,9 +1,12 @@
 # Pixelsortery - A Pixelsorter Tool written in Rust!
 
 Inspired by [ASDFPixelSort](https://github.com/kimasendorf/ASDFPixelSort) by [Kim Asendorf](https://kimasendorf.com/) I've written a few Pixelsorters before.
-My first one became a simple Java Swing Application using the modified original processing code: [Pixel-Sorter-App](https://github.com/Lxtharia/pixel-sorter-app).
-My second implementation was in C. I may or may not be faster but it's usable from the command line.
-But now I have _engineered THIS pixelsorter_ with _far greater goals_, created as a rust practice project, straiving to be THE BEST and FASTEST FOSS-Pixelsorter of them all!!!
+
+My first one originated from modifying the original processing code until it became a little Java Swing Application: [Pixel-Sorter-App](https://github.com/Lxtharia/pixel-sorter-app).
+
+My second implementation was in C. It may or may not have been faster but it's usable from the command line!
+
+But now I have _engineered THIS pixelsorter_ with _far greater goals_, created as a rust practice project, striving to be THE BEST and FASTEST FOSS-Pixelsorter of them all!!!
 
 ## Installation
 ```
@@ -20,7 +23,7 @@ pixelsorter --help
 ```
 Just experiment with it and read the explanation below, you'll get it! :)
 
-## Explanation
+## Explanation (How it works)
 
 This is a very MODULAR sorter.
 There are multiple stages to allow for easy (future) customization:
@@ -46,28 +49,30 @@ There are multiple stages to allow for easy (future) customization:
     - Brightness looks the most smooth
     - Also allows to change the sorting algorithm, which can create different results (see [Sorting algorithm stability](https://en.wikipedia.org/wiki/Sorting_algorithm#Stability))
 
+- I will create such a great visualisation graphic at some point and add it here (it's gonna be so good)
+
 ## Features
 
-- Choose to sort lines in all 4 directions
-- Choose to select spans of random length
-- Choose to select spans based on their hue/brightness/saturation
-- Sorts pixel with MAPSORT, HELL YEAH!!
-- Also allows to sort pixels COMPLETELY BROKEN creating a super rad glitch effect
-- A Super Cool CLI interface! (it's ok)
+- [x] Choose to sort lines in all 4 directions
+- [x] Choose to select spans of random length
+- [x] Choose to select spans based on their hue/brightness/saturation
+- [x] Sorts pixel with MAPSORT, HELL YEAH!!
+- [x] Also allows to sort pixels COMPLETELY BROKEN creating a super rad glitch effect
+- [x] A Super Cool CLI interface! (it's ok)
 
 ## Planned Features
 
-- a GUI (holy damn)
-- a really good GUI (damn holy)
-- a godlike GUI where you can draw in real time (god damn holy jesus)
-- Sort by more advanced patterns (Round/square spiral, diagonally by any angle, hilbert curve)
-- Allow to read iteration data from file
-- Allow to use MASKS
-- _Combine_ masks with the normal
-- Allow to combine selectors (sort pixels that are bright _and_ red)
-- Sort _multiple_ times (With same selectors)
-- Internal chain sorting (low prio)
-- Internal sorting animation (low prio)
+-[ ] a GUI (holy damn)
+-[ ] a really good GUI (damn holy)
+-[ ] a godlike GUI where you can draw in real time (god damn holy jesus)
+-[ ] Sort by more advanced patterns (Round/square spiral, diagonally by any angle, hilbert curve)
+-[ ] Allow to read iteration data from file
+-[ ] Allow to use MASKS
+-[ ] _Combine_ masks with the normal
+-[ ] Allow to combine selectors (sort pixels that are bright _and_ red)
+-[ ] Sort _multiple_ times (With same selectors)
+-[ ] Internal chain sorting (low prio)
+-[ ] Internal sorting animation (low prio)
 
 ## Yeah
 yeah
@@ -76,3 +81,6 @@ Yeah!!
 ```
 > yeah
 
+| yeah |
+| ---- |
+| _yeah_ |
