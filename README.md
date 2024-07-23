@@ -62,17 +62,17 @@ There are multiple stages to allow for easy (future) customization:
 
 ## Planned Features
 
--[ ] a GUI (holy damn)
--[ ] a really good GUI (damn holy)
--[ ] a godlike GUI where you can draw in real time (god damn holy jesus)
--[ ] Sort by more advanced patterns (Round/square spiral, diagonally by any angle, hilbert curve)
--[ ] Allow to read iteration data from file
--[ ] Allow to use MASKS
--[ ] _Combine_ masks with the normal
--[ ] Allow to combine selectors (sort pixels that are bright _and_ red)
--[ ] Sort _multiple_ times (With same selectors)
--[ ] Internal chain sorting (low prio)
--[ ] Internal sorting animation (low prio)
+- [ ] a GUI (holy damn)
+- [ ] a really good GUI (damn holy)
+- [ ] a godlike GUI where you can draw in real time (god damn holy jesus)
+- [ ] Sort by more advanced patterns (Round/square spiral, diagonally by any angle, hilbert curve)
+- [ ] Allow to read iteration data from file
+- [ ] Allow to use MASKS
+- [ ] _Combine_ masks with the normal
+- [ ] Allow to combine selectors (sort pixels that are bright _and_ red)
+- [ ] Sort _multiple_ times (With same selectors)
+- [ ] Internal chain sorting (low prio)
+- [ ] Internal sorting animation (low prio)
 
 ## Yeah
 yeah
