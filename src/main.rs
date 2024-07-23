@@ -2,24 +2,26 @@
 
 use image::RgbImage;
 use pixelsorter::iterator::ImageIterator;
-use pixelsorter::pixel_selector::{PixelSelectCriteria, PixelSelector, RandomSelector, ThresholdSelector};
+use pixelsorter::pixel_selector::{
+    PixelSelectCriteria, PixelSelector, RandomSelector, ThresholdSelector,
+};
 use pixelsorter::span_sorter::{SortingAlgorithm, SortingCriteria, SpanSorter};
 use std::fmt::Arguments;
 use std::time::{Duration, Instant};
 use std::{collections::VecDeque, env, process::exit};
 
 fn parse_random_selector_parameters(arg: Option<String>) -> Box<dyn PixelSelector> {
-    let mut rand = RandomSelector {
-        max: 80,
-    };
+    let mut rand = RandomSelector { max: 80 };
     if let Some(s) = arg {
         if let Ok(n) = s.parse::<u32>() {
             rand.max = n;
         } else {
-            println!("[WARNING] wrong syntax, using --random 80");
+            println!("[ERROR] Wrong syntax, usage --random <max>");
+            exit(-1);
         }
     } else {
-        println!("[WARNING], wrong syntax] using --random 80");
+        println!("[ERROR] Wrong syntax, usage: --random <max>");
+        exit(-1);
     }
     Box::new(rand)
 }
@@ -38,7 +40,7 @@ fn parse_thres_selector_parameters(arg: Option<String>) -> Box<dyn PixelSelector
             "bright" => (PixelSelectCriteria::Brightness, 0, 255),
             "sat" => (PixelSelectCriteria::Saturation, 0, 255),
             _ => {
-                println!("[ERROR] Wrong syntax. try --thres <hue|bright|sat>:0:255");
+                println!("[ERROR] Wrong syntax, usage: --thres <hue|bright|sat>:0:255");
                 exit(-1)
             }
         };
@@ -54,7 +56,8 @@ fn parse_thres_selector_parameters(arg: Option<String>) -> Box<dyn PixelSelector
             .parse()
             .unwrap_or(defaultmax);
     } else {
-        println!("[WARNING] using default. Flag Usage: | --thresh [hue|bright|sat]:<min>:<max> ");
+        println!("[ERROR] Wrong syntax, usage: --thres <hue|bright|sat>:0:255");
+        exit(-1)
     }
     Box::new(thres)
 }
@@ -74,8 +77,10 @@ fn main() {
     ============= Options =============
      --help | -h : Show this
     ===== Direction Options
-     --horizontal
-     --vertical   | --vert
+     --all        : Sort all pixels
+     --vert
+     --vertical   : Sort all columns of pixels
+     --horizontal : Sort all lines of pixels
     ===== Sorting Options
      --hue        : Sort Pixels by Hue
      --saturation : Sort Pixels by Saturation
@@ -106,27 +111,28 @@ fn main() {
 
     // OPEN IMAGE
     let img: RgbImage = image::open(path).unwrap().into_rgb8();
-    // CREATE PIXELSORTER
+    // CREATE DEFAULT PIXELSORTER
     let mut ps = pixelsorter::Pixelsorter::new(img);
 
-    let mut algorithm = pixelsorter::span_sorter::SortingAlgorithm::Mapsort;
     // I should just use some argument library tbh
     while let Some(arg) = args.pop_front() {
         match arg.as_str() {
             "--random" => ps.selector = parse_random_selector_parameters(args.pop_front()),
-            "--thres" => ps.selector = parse_thres_selector_parameters(args.pop_front()),
+            "--thres"  => ps.selector = parse_thres_selector_parameters(args.pop_front()),
 
+            "--all"        => ps.iterator = ImageIterator::All,
             "--horizontal" => ps.iterator = ImageIterator::Horizontal,
-            "--vertical" | "--vert" => ps.iterator = ImageIterator::Vertical,
+            "--vertical"
+                | "--vert" => ps.iterator = ImageIterator::Vertical,
 
-            "--hue" => ps.sorter.criteria = SortingCriteria::Hue,
-            "--brightness" => ps.sorter.criteria = SortingCriteria::Brightness,
-            "--saturation" => ps.sorter.criteria = SortingCriteria::Saturation,
+            "--hue"         => ps.sorter.criteria = SortingCriteria::Hue,
+            "--brightness"  => ps.sorter.criteria = SortingCriteria::Brightness,
+            "--saturation"  => ps.sorter.criteria = SortingCriteria::Saturation,
             "--debugcolors" => ps.sorter.criteria = SortingCriteria::Debug,
 
-            "--glitchsort" => algorithm = SortingAlgorithm::Glitchsort,
-            "--shellsort" => algorithm = SortingAlgorithm::Shellsort,
-            "--mapsort" => algorithm = SortingAlgorithm::Mapsort,
+            "--glitchsort" => ps.sorter.algorithm = SortingAlgorithm::Glitchsort,
+            "--shellsort"  => ps.sorter.algorithm = SortingAlgorithm::Shellsort,
+            "--mapsort"    => ps.sorter.algorithm = SortingAlgorithm::Mapsort,
 
             _ => {
                 println!("Unrecognized argument: {}", arg);
@@ -134,7 +140,7 @@ fn main() {
             }
         }
     }
-    ps.sorter.algorithm = algorithm;
+    
 
     // SORTING
     println!("Sorting image...");

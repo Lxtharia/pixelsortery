@@ -73,11 +73,7 @@ impl Pixelsorter {
 
         if (BENCHMARK) {
             let timeend = timestart.elapsed();
-        }
-        if (BENCHMARK) {
             println!("Time [Selector]: {:?}", timeend);
-        }
-        if (BENCHMARK) {
             let timestart = Instant::now();
         }
 
@@ -90,17 +86,9 @@ impl Pixelsorter {
         }
         if (BENCHMARK) {
             let timeend = timestart.elapsed();
-        }
-        if (BENCHMARK) {
             println!("Time [Selector]: {:?}", timeend);
-        }
-        if (BENCHMARK) {
             println!("Amount of pixels: {}", pixelcount);
-        }
-        if (BENCHMARK) {
             println!("Amount of spans: {}", &spans.len());
-        }
-        if (BENCHMARK) {
             let timestart = Instant::now();
         }
 
@@ -114,8 +102,6 @@ impl Pixelsorter {
 
         if (BENCHMARK) {
             let timeend = timestart.elapsed();
-        }
-        if (BENCHMARK) {
             println!("Time [Sort]: {:?}", timeend);
         }
     }
