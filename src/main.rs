@@ -2,11 +2,27 @@
 
 use image::RgbImage;
 use pixelsorter::iterator::ImageIterator;
-use pixelsorter::pixel_selector::{PixelSelectCriteria, PixelSelector, ThresholdSelector};
+use pixelsorter::pixel_selector::{PixelSelectCriteria, PixelSelector, RandomSelector, ThresholdSelector};
 use pixelsorter::span_sorter::{SortingAlgorithm, SortingCriteria, SpanSorter};
 use std::fmt::Arguments;
 use std::time::{Duration, Instant};
 use std::{collections::VecDeque, env, process::exit};
+
+fn parse_random_selector_parameters(arg: Option<String>) -> Box<dyn PixelSelector> {
+    let mut rand = RandomSelector {
+        max: 80,
+    };
+    if let Some(s) = arg {
+        if let Ok(n) = s.parse::<u32>() {
+            rand.max = n;
+        } else {
+            println!("[WARNING] wrong syntax, using --random 80");
+        }
+    } else {
+        println!("[WARNING], wrong syntax] using --random 80");
+    }
+    Box::new(rand)
+}
 
 fn parse_thres_selector_parameters(arg: Option<String>) -> Box<dyn PixelSelector> {
     let mut thres = ThresholdSelector {
@@ -17,7 +33,7 @@ fn parse_thres_selector_parameters(arg: Option<String>) -> Box<dyn PixelSelector
     // parse the string after that: --thres hue:10:200
     if let Some(arg2) = arg {
         let mut thres_opts: VecDeque<&str> = VecDeque::from_iter(arg2.split(":"));
-        let (crit, defaultmin, defaultmax) = match thres_opts.pop_front().unwrap_or("hue") {
+        let (crit, defaultmin, defaultmax) = match thres_opts.pop_front().unwrap_or("") {
             "hue" => (PixelSelectCriteria::Hue, 0, 360),
             "bright" => (PixelSelectCriteria::Brightness, 0, 255),
             "sat" => (PixelSelectCriteria::Saturation, 0, 255),
@@ -38,7 +54,7 @@ fn parse_thres_selector_parameters(arg: Option<String>) -> Box<dyn PixelSelector
             .parse()
             .unwrap_or(defaultmax);
     } else {
-        println!("[WARNING!][Flag Usage:] --thresh [hue|bright|sat]:<min>:<max> ");
+        println!("[WARNING] using default. Flag Usage: | --thresh [hue|bright|sat]:<min>:<max> ");
     }
     Box::new(thres)
 }
@@ -54,15 +70,23 @@ fn main() {
             "--help" | "-h" | "" => {
                 println!("
     =========== Pixelsorter ===========
-     Usage: pixelsort <infile> <outfile> [<options>]
+       Usage: pixelsort <infile> <outfile> [<options>]
     ============= Options =============
-    --help | -h : Show this
+     --help | -h : Show this
+    ===== Direction Options
+     --horizontal
+     --vertical   | --vert
     ===== Sorting Options
-    --hue        : Sort Pixels by Hue
-    --saturation : Sort Pixels by Saturation
-    --brightness : Sort Pixels by Brightness
+     --hue        : Sort Pixels by Hue
+     --saturation : Sort Pixels by Saturation
+     --brightness : Sort Pixels by Brightness
+    ===== Algorithm Options
+     --mapsort    : Default. O(n)
+     --shellsort  : Also cool.
+     --glitchsort : Creates a glitch effect (Extremly cool)
     ===== Span-Selection options. Choose which pixels are valid to form a span
-    --thres [hue|bright|sat]:<min>:<max>  : Mark pixels as valid if [hue|bright|sat] is between <min> and <max>
+     --random <max>                        : Sort spans of random length between 0 and <max>
+     --thres [hue|bright|sat]:<min>:<max>  : Mark pixels as valid if [hue|bright|sat] is between <min> and <max>
                 ");
                 exit(0)
             }
@@ -89,6 +113,7 @@ fn main() {
     // I should just use some argument library tbh
     while let Some(arg) = args.pop_front() {
         match arg.as_str() {
+            "--random" => ps.selector = parse_random_selector_parameters(args.pop_front()),
             "--thres" => ps.selector = parse_thres_selector_parameters(args.pop_front()),
 
             "--horizontal" => ps.iterator = ImageIterator::Horizontal,
