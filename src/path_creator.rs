@@ -7,6 +7,7 @@ pub enum PathCreator {
     HorizontalLines,
     VerticalLines,
     SquareSpiral,
+    RectSpiral,
 }
 
 impl PathCreator {
@@ -30,6 +31,7 @@ impl PathCreator {
             PathCreator::HorizontalLines => path_horizontal_lines,
             PathCreator::VerticalLines => path_vertical_lines,
             PathCreator::SquareSpiral => path_square_spiral,
+            PathCreator::RectSpiral => path_rect_spiral,
         };
         let mut all_paths = pathing_function(all_pixels, w, h);
         if reverse {
@@ -82,10 +84,15 @@ fn path_vertical_lines(all_pixels: Vec<&mut Rgb<u8>>, w: u64, h: u64) -> Vec<Vec
 
     return pick_pixels(all_pixels, paths);
 }
-
+fn path_rect_spiral(all_pixels: Vec<&mut Rgb<u8>>, w: u64, h: u64) -> Vec<Vec<&mut Rgb<u8>>> {
+    rect_spiral(all_pixels, w, h, false)
+}
 fn path_square_spiral(all_pixels: Vec<&mut Rgb<u8>>, w: u64, h: u64) -> Vec<Vec<&mut Rgb<u8>>> {
+    rect_spiral(all_pixels, w, h, true)
+}
+
+fn rect_spiral(all_pixels: Vec<&mut Rgb<u8>>, w: u64, h: u64, square: bool) -> Vec<Vec<&mut Rgb<u8>>> {
     let mut paths: Vec<Vec<u64>> = Vec::new();
-    // Ints will get floored
     let mut x = w / 2;
     let mut y = h / 2;
     let pixelcount = w*h;
@@ -101,30 +108,43 @@ fn path_square_spiral(all_pixels: Vec<&mut Rgb<u8>>, w: u64, h: u64) -> Vec<Vec<
 
     // Add pixel in the middle
     add_pixel_at(x, y);
-    let mut reach = 1;
+    let mut reach_x = 1;
+    let mut reach_y = 1;
+    if !square {
+        if w>h {reach_x = std::cmp::max(1, w-h);}
+        else {reach_y = std::cmp::max(1, h-w);}
+        x -= reach_x/2;
+        y -= reach_y/2;
+    }
+
+
+    println!("DEBUG: {} {}", reach_x, reach_y);
+
     loop {
-        for _ in 0..reach {
+        for _ in 0..reach_x {
             x += 1;
             add_pixel_at(x, y);
         }
-        for _ in 0..reach {
+        for _ in 0..reach_y {
             y += 1;
             add_pixel_at(x, y);
         }
-        reach += 1;
-        if reach >= max_size {
+        reach_x += 1;
+        reach_y += 1;
+        if reach_y >= max_size || reach_x >= max_size {
             break;
         };
-        for _ in 0..reach {
+        for _ in 0..reach_x {
             x -= 1;
             add_pixel_at(x, y);
         }
-        for _ in 0..reach {
+        for _ in 0..reach_y {
             y -= 1;
             add_pixel_at(x, y);
         }
-        reach += 1;
-        if reach >= max_size {
+        reach_x += 1;
+        reach_y += 1;
+        if reach_y >= max_size || reach_x >= max_size {
             break;
         };
     }
@@ -132,6 +152,8 @@ fn path_square_spiral(all_pixels: Vec<&mut Rgb<u8>>, w: u64, h: u64) -> Vec<Vec<
 
     return pick_pixels(all_pixels, paths);
 }
+
+
 
 /// Creates and returns ranges of mutable Pixels.
 /// The picked pixels and their order are determined by the given vector of indices

@@ -89,6 +89,8 @@ fn print_help() {
      --left       : Sort horizontal lines of pixels to the left
      --down       : Sort vertical lines of pixels downwards
      --up         : Sort vertical lines of pixels upwards
+     --spiral-square : Sort in a squared spiral
+     --spiral-rect   : Sort in a rectangular spiral
      --reverse    : Sort in the opposite direction
     ===== Sorting Options
      --hue        : Sort Pixels by Hue
@@ -148,7 +150,8 @@ fn main() {
             "--left"       => { ps.path_creator = PathCreator::HorizontalLines; ps.reverse = true},
             "--down"       =>   ps.path_creator = PathCreator::VerticalLines,
             "--up"         => { ps.path_creator = PathCreator::VerticalLines;   ps.reverse = true},
-            "--spiral"     =>   ps.path_creator = PathCreator::SquareSpiral,
+            "--spiral-square"     =>   ps.path_creator = PathCreator::SquareSpiral,
+            "--spiral-rect"       =>   ps.path_creator = PathCreator::RectSpiral,
             "--reverse"    => do_reverse = true,
 
             "--hue"         => ps.sorter.criteria = SortingCriteria::Hue,
