@@ -1,11 +1,27 @@
 use image::RgbImage;
 use pixelsortery::path_creator::PathCreator;
 use pixelsortery::pixel_selector::{
-    PixelSelectCriteria, PixelSelector, RandomSelector, ThresholdSelector,
+    FixedSelector, PixelSelectCriteria, PixelSelector, RandomSelector, ThresholdSelector
 };
 use pixelsortery::span_sorter::{SortingAlgorithm, SortingCriteria};
 use std::time::Instant;
 use std::{collections::VecDeque, env, process::exit};
+
+fn parse_fixed_selector_parameters(arg: Option<String>) -> Box<dyn PixelSelector> {
+    let mut fixed = FixedSelector { len: 200 };
+    if let Some(s) = arg {
+        if let Ok(n) = s.parse::<u64>() {
+            fixed.len = n;
+        } else {
+            println!("[ERROR] Wrong syntax, usage --fixed <max>");
+            exit(-1);
+        }
+    } else {
+        println!("[ERROR] Wrong syntax, usage: --fixed <max>");
+        exit(-1);
+    }
+    Box::new(fixed)
+}
 
 fn parse_random_selector_parameters(arg: Option<String>) -> Box<dyn PixelSelector> {
     let mut rand = RandomSelector { max: 80 };
@@ -116,6 +132,7 @@ fn main() {
     while let Some(arg) = args.pop_front() {
         match arg.as_str() {
             "--random" => ps.selector = parse_random_selector_parameters(args.pop_front()),
+            "--fixed"  => ps.selector = parse_fixed_selector_parameters(args.pop_front()),
             "--thres"  => ps.selector = parse_thres_selector_parameters(args.pop_front()),
 
             "--all"        => ps.path_creator = PathCreator::All,

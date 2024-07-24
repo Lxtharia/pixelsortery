@@ -1,4 +1,4 @@
-use std::collections::VecDeque;
+use std::{cmp::min, collections::VecDeque};
 use crate::color_helpers::*;
 use image::Rgb;
 use rand::{
@@ -18,6 +18,10 @@ pub struct RandomSelector {
     pub max: u32,
 }
 
+pub struct FixedSelector {
+    pub len: u64,
+}
+
 /// Key criteria which a (Threshold-)Selector should use as a key
 #[derive(Debug, Clone, Copy)]
 pub enum PixelSelectCriteria {
@@ -30,6 +34,26 @@ pub enum PixelSelectCriteria {
 pub trait PixelSelector {
     fn mutspans<'a>(&'a self, pixels: &mut VecDeque<&'a mut Rgb<u8>>) -> Vec<Vec<&'a mut Rgb<u8>>>;
     fn info_string<'a>(&'a self) -> String; // I bet this is no the rust way
+}
+
+impl PixelSelector for FixedSelector {
+    fn info_string(&self) -> String {
+        format!("Selecting ranges of fixed length {})", self.len)
+    }
+    fn mutspans<'a>(&'a self, pixels: &mut VecDeque<&'a mut Rgb<u8>>) -> Vec<Vec<&'a mut Rgb<u8>>> {
+        let mut spans: Vec<Vec<&'a mut Rgb<u8>>> = Vec::new();
+
+        while !pixels.is_empty() {
+            // Take r pixels and put into new span
+            let mut span: Vec<&mut Rgb<u8>> = Vec::new();
+            for _ in 0..min(self.len, pixels.len() as u64) {
+                span.push(pixels.pop_front().unwrap());
+            }
+            // Append span to our list of spans
+            spans.push(span);
+        }
+        spans
+    }
 }
 
 impl PixelSelector for RandomSelector {
@@ -97,3 +121,4 @@ impl PixelSelector for ThresholdSelector {
         spans
     }
 }
+

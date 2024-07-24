@@ -32,7 +32,7 @@ impl Pixelsorter {
         Pixelsorter {
             img,
             sorter: SpanSorter::new(SortingCriteria::Brightness),
-            selector: Box::new(pixel_selector::RandomSelector{max:9999999}),
+            selector: Box::new(pixel_selector::FixedSelector{len: std::u64::MAX}),
             path_creator: PathCreator::All,
             reverse: false
         }
