@@ -65,7 +65,6 @@ impl SpanSorter {
             SortingCriteria::Hue => SortingAlgorithm::Mapsort,
             SortingCriteria::Brightness => SortingAlgorithm::Mapsort,
             SortingCriteria::Saturation => SortingAlgorithm::Mapsort,
-            _ => SortingAlgorithm::Mapsort,
         };
     }
 
@@ -77,7 +76,6 @@ impl SpanSorter {
             SortingAlgorithm::Mapsort => mapsort::mapsort_mut,
             SortingAlgorithm::Shellsort => shellsort::shellsort_mut,
             SortingAlgorithm::Glitchsort => glitchsort::glitchsort_mut,
-            _ => random_color::set_random_color,
         };
         // call sorting function
         sorting_function(pixels, SpanSorter::get_value_function(self.criteria));

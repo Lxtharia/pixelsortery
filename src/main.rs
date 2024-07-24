@@ -1,13 +1,10 @@
-#![allow(unused)]
-
 use image::RgbImage;
 use pixelsortery::path_creator::PathCreator;
 use pixelsortery::pixel_selector::{
     PixelSelectCriteria, PixelSelector, RandomSelector, ThresholdSelector,
 };
-use pixelsortery::span_sorter::{SortingAlgorithm, SortingCriteria, SpanSorter};
-use std::fmt::Arguments;
-use std::time::{Duration, Instant};
+use pixelsortery::span_sorter::{SortingAlgorithm, SortingCriteria};
+use std::time::Instant;
 use std::{collections::VecDeque, env, process::exit};
 
 fn parse_random_selector_parameters(arg: Option<String>) -> Box<dyn PixelSelector> {
@@ -67,7 +64,7 @@ fn main() {
     // shift
     args.pop_front();
 
-    let mut path = String::from("");
+    let path;
     if let Some(s) = args.pop_front() {
         match s.as_str() {
             "--help" | "-h" | "" => {
@@ -153,5 +150,5 @@ fn main() {
     println!("Saving to {}", output_path);
 
     // SAVING
-    ps.save(&output_path);
+    let _ = ps.save(&output_path);
 }

@@ -1,5 +1,3 @@
-use std::collections::VecDeque;
-
 use image::{Rgb, RgbImage};
 
 #[derive(Debug, Clone, Copy)]
@@ -13,7 +11,6 @@ impl PathCreator {
     pub fn create_paths(self, img: &mut RgbImage, reverse: bool) -> Vec<Vec<&mut Rgb<u8>>> {
         let w: u64 = img.width().into();
         let h: u64 = img.height().into();
-        let pixelcount = w * h;
 
         let mut all_pixels: Vec<&mut Rgb<u8>> = img.pixels_mut().collect();
 
@@ -27,7 +24,7 @@ impl PathCreator {
             PathCreator::Horizontal => path_horizontal,
             PathCreator::Vertical => path_vertical,
         };
-        if(reverse) {
+        if reverse {
             all_pixels.reverse();
         }
         pathing_function(all_pixels, w, h)
@@ -37,7 +34,7 @@ impl PathCreator {
     }
 }
 
-fn path_all(all_pixels: Vec<&mut Rgb<u8>>, w: u64, h: u64) -> Vec<Vec<&mut Rgb<u8>>> {
+fn path_all(all_pixels: Vec<&mut Rgb<u8>>, _: u64, _: u64) -> Vec<Vec<&mut Rgb<u8>>> {
     vec![all_pixels]
 }
 
@@ -57,7 +54,7 @@ fn path_vertical(all_pixels: Vec<&mut Rgb<u8>>, w: u64, h: u64) -> Vec<Vec<&mut 
     for x in 0..w {
         let mut path = Vec::new();
         for y in 0..h {
-            let i = (y * w + x);
+            let i = y * w + x;
             path.push(i);
         }
         paths.push(path);
@@ -78,7 +75,7 @@ fn pick_pixels(all_pixels: Vec<&mut Rgb<u8>>, indices: Vec<Vec<u64>>) -> Vec<Vec
         let mut path = Vec::new();
         for i in li {
             all_pixels.push(None);
-            if (all_pixels.get(i as usize).is_some()) {
+            if all_pixels.get(i as usize).is_some() {
                 path.push(all_pixels.swap_remove(i as usize).unwrap());
             }
         }

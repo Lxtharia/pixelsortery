@@ -1,9 +1,4 @@
-use std::mem;
-
-use super::SortingCriteria;
-use crate::color_helpers::*;
-use ::array_init::array_init;
-use image::{Rgb, RgbImage};
+use image::Rgb;
 
 #[derive(Debug)]
 struct PixelWrapper {
@@ -48,7 +43,7 @@ pub fn glitchsort_mut(pixels: &mut [&mut Rgb<u8>], value_function: for<'a> fn(&'
 
     let mut gap = span_len;
     let mut swapped = false;
-    while ((gap > 1) || swapped) {
+    while (gap > 1 || swapped) {
         if (gap > 1) {
             gap = (gap as f64 / 1.247330950103979) as usize;
         }
@@ -57,7 +52,7 @@ pub fn glitchsort_mut(pixels: &mut [&mut Rgb<u8>], value_function: for<'a> fn(&'
             if (gap + i >= span_len) {
                 break;
             }
-            if ((wrappers[i + gap].val as i8) > wrappers[i].val as i8) {
+            if (wrappers[i + gap].val as i8) > wrappers[i].val as i8 {
                 glitch_swap(pixels, &mut wrappers, i + gap, i);
                 swapped = true;
             }

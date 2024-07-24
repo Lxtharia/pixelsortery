@@ -1,5 +1,3 @@
-use super::SortingCriteria;
-use crate::color_helpers::*;
 use ::array_init::array_init;
 use image::{Rgb, RgbImage};
 

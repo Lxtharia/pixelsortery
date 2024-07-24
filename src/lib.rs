@@ -1,14 +1,8 @@
-#![allow(unused)]
-
-use color_helpers::*;
-use image::{GenericImageView, ImageResult, Rgb, RgbImage};
+#![allow(unused_parens, unused)]
+use image::{ImageResult, Rgb, RgbImage};
 use path_creator::PathCreator;
-use pixel_selector::{RandomSelector, ThresholdSelector};
-use rand::{thread_rng, Rng};
 use span_sorter::{SortingCriteria, SpanSorter};
 use std::{
-    any::{type_name, Any},
-    collections::VecDeque,
     path::Path,
     time::Instant,
 };
@@ -38,7 +32,7 @@ impl Pixelsorter {
         Pixelsorter {
             img,
             sorter: SpanSorter::new(SortingCriteria::Brightness),
-            selector: Box::new(RandomSelector{max:9999999}),
+            selector: Box::new(pixel_selector::RandomSelector{max:9999999}),
             path_creator: PathCreator::All,
             reverse: false
         }
@@ -56,7 +50,7 @@ impl Pixelsorter {
     }
 
     pub fn sort(&mut self) {
-        let (mut timestart, mut timeend) = (Instant::now(), 0);
+        let mut timestart = Instant::now();
         // a vector containing pointers to each pixel
         let pixelcount = self.img.width() * self.img.height();
 
@@ -67,16 +61,15 @@ impl Pixelsorter {
             self.sorter.info_string(),
         );
 
-        if (BENCHMARK) {
-            let timestart = Instant::now();
+        if BENCHMARK {
+            timestart = Instant::now();
         }
 
-        let mut ranges = self.path_creator.create_paths(&mut self.img, self.reverse);
+        let ranges = self.path_creator.create_paths(&mut self.img, self.reverse);
 
-        if (BENCHMARK) {
-            let timeend = timestart.elapsed();
-            println!("Time [Selector]: {:?}", timeend);
-            let timestart = Instant::now();
+        if BENCHMARK {
+            println!("Time [Selector]: {:?}", timestart.elapsed());
+            timestart = Instant::now();
         }
 
         // CREATE SPANS
@@ -86,23 +79,22 @@ impl Pixelsorter {
                 spans.push(span);
             }
         }
-        if (BENCHMARK) {
-            let timeend = timestart.elapsed();
-            println!("Time [Selector]: {:?}", timeend);
+        if BENCHMARK {
+            println!("Time [Selector]: {:?}", timestart.elapsed());
             println!("Amount of pixels: {}", pixelcount);
             println!("Amount of spans: {}", &spans.len());
-            let timestart = Instant::now();
+            timestart = Instant::now();
         }
 
         // SORT EVERY SPAN
         for mut span in spans {
             // Only sort if there is at least 2 pixels in there
-            if (span.len() > 1) {
+            if span.len() > 1 {
                 self.sorter.sort(&mut span);
             }
         }
 
-        if (BENCHMARK) {
+        if BENCHMARK {
             let timeend = timestart.elapsed();
             println!("Time [Sort]: {:?}", timeend);
         }

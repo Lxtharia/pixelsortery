@@ -1,4 +1,3 @@
-use super::SortingCriteria;
 use image::Rgb;
 use rand::Rng;
 

@@ -1,12 +1,9 @@
-use std::any::type_name;
 use std::collections::VecDeque;
-
 use crate::color_helpers::*;
-use crate::Span;
-use image::{Pixel, Rgb, RgbImage};
+use image::Rgb;
 use rand::{
     distributions::{Distribution, Uniform},
-    thread_rng, Rng,
+    thread_rng
 };
 
 #[derive(Debug)]
@@ -44,8 +41,6 @@ impl PixelSelector for RandomSelector {
         let mut rng = thread_rng();
         let rng_range = Uniform::from(0..self.max as usize);
 
-        let len = pixels.len();
-
         while !pixels.is_empty() {
             // Random amount of pixels we want to take
             let mut r = rng_range.sample(&mut rng);
@@ -55,7 +50,7 @@ impl PixelSelector for RandomSelector {
             }
             // Take r pixels and put into new span
             let mut span: Vec<&mut Rgb<u8>> = Vec::new();
-            for i in 0..r {
+            for _ in 0..r {
                 span.push(pixels.pop_front().unwrap());
             }
             // Append span to our list of spans
@@ -81,7 +76,6 @@ impl PixelSelector for ThresholdSelector {
             PixelSelectCriteria::Saturation => get_saturation,
         };
 
-        let start = 0usize;
         let mut span: Vec<&mut Rgb<u8>> = Vec::new();
         for _ in 0..pixels.len() {
             let val = value_function(pixels.get(0).unwrap());
@@ -93,7 +87,7 @@ impl PixelSelector for ThresholdSelector {
             } else {
                 // A invalid pixel, close the span and create a new one
                 // Only do that when the current span isn't empty anyway
-                if (span.len() > 0) {
+                if span.len() > 0 {
                     spans.push(span);
                     span = Vec::new();
                 }
