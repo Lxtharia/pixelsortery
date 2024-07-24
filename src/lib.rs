@@ -2,7 +2,7 @@
 
 use color_helpers::*;
 use image::{GenericImageView, ImageResult, Rgb, RgbImage};
-use iterator::ImageIterator;
+use path_creator::PathCreator;
 use pixel_selector::{RandomSelector, ThresholdSelector};
 use rand::{thread_rng, Rng};
 use span_sorter::{SortingCriteria, SpanSorter};
@@ -16,7 +16,7 @@ use std::{
 use crate::pixel_selector::PixelSelector;
 
 mod color_helpers;
-pub mod iterator;
+pub mod path_creator;
 pub mod pixel_selector;
 pub mod span_sorter;
 
@@ -24,7 +24,7 @@ pub struct Pixelsorter {
     img: RgbImage,
     pub sorter: span_sorter::SpanSorter,
     pub selector: Box<dyn PixelSelector>,
-    pub iterator: iterator::ImageIterator,
+    pub path_creator: path_creator::PathCreator,
     pub reverse: bool,
 }
 
@@ -39,7 +39,7 @@ impl Pixelsorter {
             img,
             sorter: SpanSorter::new(SortingCriteria::Brightness),
             selector: Box::new(RandomSelector{max:9999999}),
-            iterator: ImageIterator::All,
+            path_creator: PathCreator::All,
             reverse: false
         }
     }
@@ -62,7 +62,7 @@ impl Pixelsorter {
 
         println!(
             "Sorting with:\n\t{}\n\t{}\n\t{}",
-            self.iterator.info_string(),
+            self.path_creator.info_string(),
             self.selector.info_string(),
             self.sorter.info_string(),
         );
@@ -71,7 +71,7 @@ impl Pixelsorter {
             let timestart = Instant::now();
         }
 
-        let mut ranges = self.iterator.traverse(&mut self.img, self.reverse);
+        let mut ranges = self.path_creator.create_paths(&mut self.img, self.reverse);
 
         if (BENCHMARK) {
             let timeend = timestart.elapsed();

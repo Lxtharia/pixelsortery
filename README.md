@@ -28,11 +28,11 @@ Just experiment with it and read the explanation below, you'll get it! :)
 This is a very MODULAR sorter.
 There are multiple stages to allow for easy (future) customization:
 
-1. **Iterating**
-    - The sorting direction, but can be much more
-    - Allows to traverse the pixels in reverse
-    - Allows to sort in vertical or horizontal lines
-    - But also in different shapes
+1. **Creating Paths**
+    - Usually determines the sorting direction, but can be much more
+    - Defines the order in which pixels are processed
+    - Allows to sort in horizontal or vertical lines
+    - Allows to sort in different shapes like spirals
 2. **Selecting**
     - The magic behind the cool pixelsort-effect: we only sort _intervals_ of pixels (calling them spans)
     - We are iterating pixels in whatever order the iteration has yielded to us

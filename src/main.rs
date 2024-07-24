@@ -1,7 +1,7 @@
 #![allow(unused)]
 
 use image::RgbImage;
-use pixelsortery::iterator::ImageIterator;
+use pixelsortery::path_creator::PathCreator;
 use pixelsortery::pixel_selector::{
     PixelSelectCriteria, PixelSelector, RandomSelector, ThresholdSelector,
 };
@@ -121,10 +121,10 @@ fn main() {
             "--random" => ps.selector = parse_random_selector_parameters(args.pop_front()),
             "--thres"  => ps.selector = parse_thres_selector_parameters(args.pop_front()),
 
-            "--all"        => ps.iterator = ImageIterator::All,
-            "--horizontal" => ps.iterator = ImageIterator::Horizontal,
+            "--all"        => ps.path_creator = PathCreator::All,
+            "--horizontal" => ps.path_creator = PathCreator::Horizontal,
             "--vertical"
-                | "--vert" => ps.iterator = ImageIterator::Vertical,
+                | "--vert" => ps.path_creator = PathCreator::Vertical,
             "--reverse"    => ps.reverse = true,
 
             "--hue"         => ps.sorter.criteria = SortingCriteria::Hue,
