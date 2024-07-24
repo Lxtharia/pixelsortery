@@ -38,7 +38,7 @@ pub trait PixelSelector {
 
 impl PixelSelector for FixedSelector {
     fn info_string(&self) -> String {
-        format!("Selecting ranges of fixed length {})", self.len)
+        format!("Selecting ranges of fixed length {}", self.len)
     }
     fn mutspans<'a>(&'a self, pixels: &mut VecDeque<&'a mut Rgb<u8>>) -> Vec<Vec<&'a mut Rgb<u8>>> {
         let mut spans: Vec<Vec<&'a mut Rgb<u8>>> = Vec::new();
@@ -58,7 +58,7 @@ impl PixelSelector for FixedSelector {
 
 impl PixelSelector for RandomSelector {
     fn info_string(&self) -> String {
-        format!("Random Selector with max length: {})", self.max)
+        format!("Random Selector with max length {}", self.max)
     }
     fn mutspans<'a>(&'a self, pixels: &mut VecDeque<&'a mut Rgb<u8>>) -> Vec<Vec<&'a mut Rgb<u8>>> {
         let mut spans: Vec<Vec<&'a mut Rgb<u8>>> = Vec::new();
@@ -87,7 +87,7 @@ impl PixelSelector for RandomSelector {
 impl PixelSelector for ThresholdSelector {
     fn info_string(&self) -> String {
         format!(
-            "Selecting Pixels with: {} < {:?} < {})",
+            "Selecting Pixels with: [{} < {:?} < {}]",
             self.min, self.criteria, self.max
         )
     }

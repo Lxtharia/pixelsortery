@@ -38,7 +38,7 @@ impl SpanSorter {
         }
     }
     pub fn info_string(&self) -> String {
-        format!("Sorting selected pixel ranges by {:?} using {:?}", self.criteria, self.algorithm)
+        format!("Sorting pixel intervals by [{:?}] using [{:?}]", self.criteria, self.algorithm)
     }
 
     // Set criteria of SpanSorter

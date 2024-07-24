@@ -163,6 +163,7 @@ fn main() {
     ps.sort();
 
     let duration = start.elapsed();
+    println!();
     println!("Total time: {:?}", duration);
     println!("Saving to {}", output_path);
 

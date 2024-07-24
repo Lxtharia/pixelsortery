@@ -8,6 +8,9 @@ pub enum PathCreator {
 }
 
 impl PathCreator {
+    pub fn info_string(self) -> String {
+        format!("Direction/Order: [{:?}]", self)
+    }
     pub fn create_paths(self, img: &mut RgbImage, reverse: bool) -> Vec<Vec<&mut Rgb<u8>>> {
         let w: u64 = img.width().into();
         let h: u64 = img.height().into();
@@ -28,9 +31,6 @@ impl PathCreator {
             all_pixels.reverse();
         }
         pathing_function(all_pixels, w, h)
-    }
-    pub fn info_string(self) -> String {
-        format!("Direction/Order: {:?}", self)
     }
 }
 

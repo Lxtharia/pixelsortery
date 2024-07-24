@@ -24,7 +24,7 @@ pub struct Pixelsorter {
 
 pub type Span = Vec<Rgb<u8>>;
 
-const BENCHMARK: bool = false;
+const BENCHMARK: bool = true;
 
 impl Pixelsorter {
     // constructor
@@ -53,9 +53,10 @@ impl Pixelsorter {
         let mut timestart = Instant::now();
         // a vector containing pointers to each pixel
         let pixelcount = self.img.width() * self.img.height();
+        println!("Image information: {} x {} ({} pixels)", self.img.width(), self.img.height(), pixelcount);
 
         println!(
-            "Sorting with:\n\t{}\n\t{}\n\t{}",
+            "Sorting with:\n  > {}\n  > {}\n  > {}",
             self.path_creator.info_string(),
             self.selector.info_string(),
             self.sorter.info_string(),
@@ -68,7 +69,7 @@ impl Pixelsorter {
         let ranges = self.path_creator.create_paths(&mut self.img, self.reverse);
 
         if BENCHMARK {
-            println!("Time [Selector]: {:?}", timestart.elapsed());
+            println!("TIME [Creating Paths]:\t{:?}", timestart.elapsed());
             timestart = Instant::now();
         }
 
@@ -80,9 +81,8 @@ impl Pixelsorter {
             }
         }
         if BENCHMARK {
-            println!("Time [Selector]: {:?}", timestart.elapsed());
-            println!("Amount of pixels: {}", pixelcount);
-            println!("Amount of spans: {}", &spans.len());
+            println!("TIME [Selector]:\t{:?}", timestart.elapsed());
+            println!("Amount of spans:\t{}", &spans.len());
             timestart = Instant::now();
         }
 
@@ -96,7 +96,7 @@ impl Pixelsorter {
 
         if BENCHMARK {
             let timeend = timestart.elapsed();
-            println!("Time [Sort]: {:?}", timeend);
+            println!("TIME [Sorting]: \t{:?}", timeend);
         }
     }
 }
