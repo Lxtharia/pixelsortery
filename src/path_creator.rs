@@ -93,9 +93,9 @@ fn path_diagonal_lines(all_pixels: Vec<&mut Rgb<u8>>, w: u64, h: u64, angle: f32
     for x in 0..w {
         let mut path = Vec::new();
         for y in 0..h {
-            let xf = y as f32 * angle.to_radians().cos();
-            let i = y * w + x + xf.round() as u64;
-            path.push(i);
+            let xf = ( y as f32 * angle.to_radians().tan() ).round() as i32;
+            let i = (y * w + x) as i32 + xf;
+            path.push(i as u64);
         }
         paths.push(path);
     }
