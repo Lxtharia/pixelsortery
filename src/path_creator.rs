@@ -31,10 +31,13 @@ impl PathCreator {
             PathCreator::VerticalLines => path_vertical_lines,
             PathCreator::SquareSpiral => path_square_spiral,
         };
+        let mut all_paths = pathing_function(all_pixels, w, h);
         if reverse {
-            all_pixels.reverse();
+            all_paths.iter_mut().for_each(|p| {
+                p.reverse();
+            });
         }
-        pathing_function(all_pixels, w, h)
+        return all_paths;
     }
 }
 
@@ -59,7 +62,7 @@ fn path_horizontal_lines(all_pixels: Vec<&mut Rgb<u8>>, w: u64, h: u64) -> Vec<V
     let mut paths: Vec<Vec<u64>> = Vec::new();
 
     for y in 0..h {
-        paths.push((y*w..y*w+w).collect());
+        paths.push((y * w..y * w + w).collect());
     }
 
     return pick_pixels(all_pixels, paths);
