@@ -92,6 +92,9 @@ impl PixelSelector for RandomSelector {
             if pixels.len() < r {
                 r = pixels.len();
             }
+            if self.max <= 1 {
+                r = 1;
+            }
             // Take r pixels and put into new span
             let mut span: Vec<&mut Rgb<u8>> = Vec::new();
             for _ in 0..r {

@@ -89,13 +89,6 @@ fn path_square_spiral(all_pixels: Vec<&mut Rgb<u8>>, w: u64, h: u64) -> Vec<Vec<
     let mut x = w / 2;
     let mut y = h / 2;
     let pixelcount = w*h;
-    // fn outofbounds_x(x: u64,y: u64, w: u64, h: u64) -> bool { x > w || x < 0}
-    // let outofbounds_y = |x,y| y > h || y < 0;
-    // let limit_condition = match w > h {
-    //     true =>  outofbounds_x,
-    //     false => outofbounds_x,
-    // };
-
     let max_size = std::cmp::max(w, h);
 
     let mut path = Vec::new();
