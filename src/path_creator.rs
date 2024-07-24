@@ -6,6 +6,7 @@ pub enum PathCreator {
     AllVertically,
     HorizontalLines,
     VerticalLines,
+    SquareSpiral,
 }
 
 impl PathCreator {
@@ -28,6 +29,7 @@ impl PathCreator {
             PathCreator::AllVertically => path_all_vertically,
             PathCreator::HorizontalLines => path_horizontal_lines,
             PathCreator::VerticalLines => path_vertical_lines,
+            PathCreator::SquareSpiral => path_square_spiral,
         };
         if reverse {
             all_pixels.reverse();
@@ -78,6 +80,62 @@ fn path_vertical_lines(all_pixels: Vec<&mut Rgb<u8>>, w: u64, h: u64) -> Vec<Vec
     return pick_pixels(all_pixels, paths);
 }
 
+fn path_square_spiral(all_pixels: Vec<&mut Rgb<u8>>, w: u64, h: u64) -> Vec<Vec<&mut Rgb<u8>>> {
+    let mut paths: Vec<Vec<u64>> = Vec::new();
+    // Ints will get floored
+    let mut x = w / 2;
+    let mut y = h / 2;
+    let pixelcount = w*h;
+    // fn outofbounds_x(x: u64,y: u64, w: u64, h: u64) -> bool { x > w || x < 0}
+    // let outofbounds_y = |x,y| y > h || y < 0;
+    // let limit_condition = match w > h {
+    //     true =>  outofbounds_x,
+    //     false => outofbounds_x,
+    // };
+
+    let max_size = std::cmp::max(w, h);
+
+    let mut path = Vec::new();
+    let mut add_pixel_at = |x: u64, y: u64| {
+        let i = y * w + x;
+        if i < pixelcount {
+            path.push(i)
+        }
+    };
+
+    // Add pixel in the middle
+    add_pixel_at(x, y);
+    let mut reach = 1;
+    loop {
+        for _ in 0..reach {
+            x += 1;
+            add_pixel_at(x, y);
+        }
+        for _ in 0..reach {
+            y += 1;
+            add_pixel_at(x, y);
+        }
+        reach += 1;
+        if reach >= max_size {
+            break;
+        };
+        for _ in 0..reach {
+            x -= 1;
+            add_pixel_at(x, y);
+        }
+        for _ in 0..reach {
+            y -= 1;
+            add_pixel_at(x, y);
+        }
+        reach += 1;
+        if reach >= max_size {
+            break;
+        };
+    }
+    paths.push(path);
+
+    return pick_pixels(all_pixels, paths);
+}
 
 /// Creates and returns ranges of mutable Pixels.
 /// The picked pixels and their order are determined by the given vector of indices
@@ -90,8 +148,12 @@ fn pick_pixels(all_pixels: Vec<&mut Rgb<u8>>, indices: Vec<Vec<u64>>) -> Vec<Vec
         let mut path = Vec::new();
         for i in li {
             all_pixels.push(None);
+            // Check if the index is valid
             if all_pixels.get(i as usize).is_some() {
-                path.push(all_pixels.swap_remove(i as usize).unwrap());
+                // Check if the pixel at index i is still available (not None)
+                if let Some(px) = all_pixels.swap_remove(i as usize) {
+                    path.push(px);
+                }
             }
         }
         paths.push(path);
