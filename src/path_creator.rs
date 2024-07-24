@@ -8,6 +8,7 @@ pub enum PathCreator {
     VerticalLines,
     SquareSpiral,
     RectSpiral,
+    Diagonally(f32),
 }
 
 impl PathCreator {
@@ -25,15 +26,16 @@ impl PathCreator {
         // Diagonally
         // In a Spiral
         // In circles
-        let pathing_function = match self {
-            PathCreator::AllHorizontally => path_all_horizontally,
-            PathCreator::AllVertically => path_all_vertically,
-            PathCreator::HorizontalLines => path_horizontal_lines,
-            PathCreator::VerticalLines => path_vertical_lines,
-            PathCreator::SquareSpiral => path_square_spiral,
-            PathCreator::RectSpiral => path_rect_spiral,
+        let mut all_paths = match self {
+            PathCreator::AllHorizontally => path_all_horizontally(all_pixels, w, h),
+            PathCreator::AllVertically => path_all_vertically(all_pixels, w, h),
+            PathCreator::HorizontalLines => path_horizontal_lines(all_pixels, w, h),
+            PathCreator::VerticalLines => path_vertical_lines(all_pixels, w, h),
+            PathCreator::SquareSpiral => path_rect_spiral(all_pixels, w, h, true),
+            PathCreator::RectSpiral => path_rect_spiral(all_pixels, w, h, false),
+            PathCreator::Diagonally(angle) => path_diagonal_lines(all_pixels, w, h, angle),
         };
-        let mut all_paths = pathing_function(all_pixels, w, h);
+
         if reverse {
             all_paths.iter_mut().for_each(|p| {
                 p.reverse();
@@ -84,14 +86,24 @@ fn path_vertical_lines(all_pixels: Vec<&mut Rgb<u8>>, w: u64, h: u64) -> Vec<Vec
 
     return pick_pixels(all_pixels, paths);
 }
-fn path_rect_spiral(all_pixels: Vec<&mut Rgb<u8>>, w: u64, h: u64) -> Vec<Vec<&mut Rgb<u8>>> {
-    rect_spiral(all_pixels, w, h, false)
-}
-fn path_square_spiral(all_pixels: Vec<&mut Rgb<u8>>, w: u64, h: u64) -> Vec<Vec<&mut Rgb<u8>>> {
-    rect_spiral(all_pixels, w, h, true)
+
+fn path_diagonal_lines(all_pixels: Vec<&mut Rgb<u8>>, w: u64, h: u64, angle: f32) -> Vec<Vec<&mut Rgb<u8>>> {
+    let mut paths: Vec<Vec<u64>> = Vec::new();
+
+    for x in 0..w {
+        let mut path = Vec::new();
+        for y in 0..h {
+            let xf = y as f32 * angle.to_radians().cos();
+            let i = y * w + x + xf.round() as u64;
+            path.push(i);
+        }
+        paths.push(path);
+    }
+
+    return pick_pixels(all_pixels, paths);
 }
 
-fn rect_spiral(all_pixels: Vec<&mut Rgb<u8>>, w: u64, h: u64, square: bool) -> Vec<Vec<&mut Rgb<u8>>> {
+fn path_rect_spiral(all_pixels: Vec<&mut Rgb<u8>>, w: u64, h: u64, square: bool) -> Vec<Vec<&mut Rgb<u8>>> {
     let mut paths: Vec<Vec<u64>> = Vec::new();
     let mut x = w / 2;
     let mut y = h / 2;

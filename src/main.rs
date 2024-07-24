@@ -7,36 +7,34 @@ use pixelsortery::span_sorter::{SortingAlgorithm, SortingCriteria};
 use std::time::Instant;
 use std::{collections::VecDeque, env, process::exit};
 
+fn parse_diagonal_path_parameters(arg: Option<String>) -> PathCreator {
+    if let Some(s) = arg {
+        if let Ok(n) = s.parse::<f32>() {
+            return PathCreator::Diagonally(n);
+        }
+    }
+    println!("[ERROR] Wrong syntax, usage --diagonal <angle>");
+    exit(-1);
+}
+
 fn parse_fixed_selector_parameters(arg: Option<String>) -> Box<dyn PixelSelector> {
-    let mut fixed = FixedSelector { len: 200 };
     if let Some(s) = arg {
         if let Ok(n) = s.parse::<u64>() {
-            fixed.len = n;
-        } else {
-            println!("[ERROR] Wrong syntax, usage --fixed <max>");
-            exit(-1);
+            return Box::new(FixedSelector { len: n });
         }
-    } else {
-        println!("[ERROR] Wrong syntax, usage: --fixed <max>");
-        exit(-1);
     }
-    Box::new(fixed)
+    println!("[ERROR] Wrong syntax, usage --fixed <max>");
+    exit(-1);
 }
 
 fn parse_random_selector_parameters(arg: Option<String>) -> Box<dyn PixelSelector> {
-    let mut rand = RandomSelector { max: 80 };
     if let Some(s) = arg {
         if let Ok(n) = s.parse::<u32>() {
-            rand.max = n;
-        } else {
-            println!("[ERROR] Wrong syntax, usage --random <max>");
-            exit(-1);
+            return Box::new(RandomSelector {max: n } );
         }
-    } else {
-        println!("[ERROR] Wrong syntax, usage: --random <max>");
-        exit(-1);
     }
-    Box::new(rand)
+    println!("[ERROR] Wrong syntax, usage --random <max>");
+    exit(-1);
 }
 
 fn parse_thres_selector_parameters(arg: Option<String>) -> Box<dyn PixelSelector> {
@@ -91,6 +89,7 @@ fn print_help() {
      --up         : Sort vertical lines of pixels upwards
      --spiral-square : Sort in a squared spiral
      --spiral-rect   : Sort in a rectangular spiral
+     --diagonal <angle> : Sort lines in an angle
      --reverse    : Sort in the opposite direction
     ===== Sorting Options
      --hue        : Sort Pixels by Hue
@@ -152,6 +151,7 @@ fn main() {
             "--up"         => { ps.path_creator = PathCreator::VerticalLines;   ps.reverse = true},
             "--spiral-square"     =>   ps.path_creator = PathCreator::SquareSpiral,
             "--spiral-rect"       =>   ps.path_creator = PathCreator::RectSpiral,
+            "--diagonal"   => ps.path_creator = parse_diagonal_path_parameters(args.pop_front()),
             "--reverse"    => do_reverse = true,
 
             "--hue"         => ps.sorter.criteria = SortingCriteria::Hue,
