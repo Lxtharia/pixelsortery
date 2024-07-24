@@ -146,9 +146,9 @@ fn main() {
                 | "--vert" => ps.path_creator = PathCreator::AllVertically,
             "--right"      => ps.path_creator = PathCreator::HorizontalLines,
             "--left"       => { ps.path_creator = PathCreator::HorizontalLines; ps.reverse = true},
-            "--down"       => ps.path_creator = PathCreator::VerticalLines,
-            "--up"         => { ps.path_creator = PathCreator::VerticalLines; ps.reverse = true},
-            "--spiral"       => ps.path_creator = PathCreator::SquareSpiral,
+            "--down"       =>   ps.path_creator = PathCreator::VerticalLines,
+            "--up"         => { ps.path_creator = PathCreator::VerticalLines;   ps.reverse = true},
+            "--spiral"     =>   ps.path_creator = PathCreator::SquareSpiral,
             "--reverse"    => do_reverse = true,
 
             "--hue"         => ps.sorter.criteria = SortingCriteria::Hue,

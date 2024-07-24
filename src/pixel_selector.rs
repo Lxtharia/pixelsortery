@@ -22,6 +22,9 @@ pub struct FixedSelector {
     pub len: u64,
 }
 
+pub struct FullSelector {
+}
+
 /// Key criteria which a (Threshold-)Selector should use as a key
 #[derive(Debug, Clone, Copy)]
 pub enum PixelSelectCriteria {
@@ -35,6 +38,23 @@ pub trait PixelSelector {
     fn mutspans<'a>(&'a self, pixels: &mut VecDeque<&'a mut Rgb<u8>>) -> Vec<Vec<&'a mut Rgb<u8>>>;
     fn info_string<'a>(&'a self) -> String; // I bet this is no the rust way
 }
+
+impl PixelSelector for FullSelector {
+    fn info_string(&self) -> String {
+        format!("Selecting all pixels")
+    }
+    fn mutspans<'a>(&'a self, pixels: &mut VecDeque<&'a mut Rgb<u8>>) -> Vec<Vec<&'a mut Rgb<u8>>> {
+        let mut spans: Vec<Vec<&'a mut Rgb<u8>>> = Vec::new();
+
+        let mut span: Vec<&mut Rgb<u8>> = Vec::new();
+        while !pixels.is_empty() {
+            span.push(pixels.pop_front().unwrap());
+        }
+        spans.push(span);
+        spans
+    }
+}
+
 
 impl PixelSelector for FixedSelector {
     fn info_string(&self) -> String {
