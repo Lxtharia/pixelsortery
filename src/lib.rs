@@ -32,7 +32,7 @@ impl Pixelsorter {
         Pixelsorter {
             img,
             sorter: SpanSorter::new(SortingCriteria::Brightness),
-            selector: Box::new(pixel_selector::FullSelector),
+            selector: Box::new(pixel_selector::FullSelector{}),
             path_creator: PathCreator::AllHorizontally,
             reverse: false
         }
