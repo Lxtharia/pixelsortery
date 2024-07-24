@@ -131,6 +131,7 @@ fn main() {
     let img: RgbImage = image::open(path).unwrap().into_rgb8();
     // CREATE DEFAULT PIXELSORTER
     let mut ps = pixelsortery::Pixelsorter::new(img);
+    let mut do_reverse = false;
 
     // I should just use some argument library tbh
     while let Some(arg) = args.pop_front() {
@@ -148,7 +149,7 @@ fn main() {
             "--down"       => ps.path_creator = PathCreator::VerticalLines,
             "--up"         => { ps.path_creator = PathCreator::VerticalLines; ps.reverse = true},
             "--spiral"       => ps.path_creator = PathCreator::SquareSpiral,
-            "--reverse"    => ps.reverse = true,
+            "--reverse"    => do_reverse = true,
 
             "--hue"         => ps.sorter.criteria = SortingCriteria::Hue,
             "--brightness"  => ps.sorter.criteria = SortingCriteria::Brightness,
@@ -164,6 +165,9 @@ fn main() {
                 exit(-1)
             }
         }
+    }
+    if do_reverse {
+        ps.reverse = ! ps.reverse;
     }
     
     let start = Instant::now();
