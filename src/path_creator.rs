@@ -2,9 +2,10 @@ use image::{Rgb, RgbImage};
 
 #[derive(Debug, Clone, Copy)]
 pub enum PathCreator {
-    All,
-    Horizontal,
-    Vertical,
+    AllHorizontally,
+    AllVertically,
+    HorizontalLines,
+    VerticalLines,
 }
 
 impl PathCreator {
@@ -23,9 +24,10 @@ impl PathCreator {
         // In a Spiral
         // In circles
         let pathing_function = match self {
-            PathCreator::All => path_all,
-            PathCreator::Horizontal => path_horizontal,
-            PathCreator::Vertical => path_vertical,
+            PathCreator::AllHorizontally => path_all_horizontally,
+            PathCreator::AllVertically => path_all_vertically,
+            PathCreator::HorizontalLines => path_horizontal_lines,
+            PathCreator::VerticalLines => path_vertical_lines,
         };
         if reverse {
             all_pixels.reverse();
@@ -34,11 +36,24 @@ impl PathCreator {
     }
 }
 
-fn path_all(all_pixels: Vec<&mut Rgb<u8>>, _: u64, _: u64) -> Vec<Vec<&mut Rgb<u8>>> {
+fn path_all_horizontally(all_pixels: Vec<&mut Rgb<u8>>, _: u64, _: u64) -> Vec<Vec<&mut Rgb<u8>>> {
     vec![all_pixels]
 }
 
-fn path_horizontal(all_pixels: Vec<&mut Rgb<u8>>, w: u64, h: u64) -> Vec<Vec<&mut Rgb<u8>>> {
+fn path_all_vertically(all_pixels: Vec<&mut Rgb<u8>>, w: u64, h: u64) -> Vec<Vec<&mut Rgb<u8>>> {
+    let mut paths: Vec<Vec<u64>> = Vec::new();
+    let mut path = Vec::new();
+    for x in 0..w {
+        for y in 0..h {
+            let i = y * w + x;
+            path.push(i);
+        }
+    }
+    paths.push(path);
+    return pick_pixels(all_pixels, paths);
+}
+
+fn path_horizontal_lines(all_pixels: Vec<&mut Rgb<u8>>, w: u64, h: u64) -> Vec<Vec<&mut Rgb<u8>>> {
     let mut paths: Vec<Vec<u64>> = Vec::new();
 
     for y in 0..h {
@@ -48,7 +63,7 @@ fn path_horizontal(all_pixels: Vec<&mut Rgb<u8>>, w: u64, h: u64) -> Vec<Vec<&mu
     return pick_pixels(all_pixels, paths);
 }
 
-fn path_vertical(all_pixels: Vec<&mut Rgb<u8>>, w: u64, h: u64) -> Vec<Vec<&mut Rgb<u8>>> {
+fn path_vertical_lines(all_pixels: Vec<&mut Rgb<u8>>, w: u64, h: u64) -> Vec<Vec<&mut Rgb<u8>>> {
     let mut paths: Vec<Vec<u64>> = Vec::new();
 
     for x in 0..w {

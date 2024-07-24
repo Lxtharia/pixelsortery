@@ -75,25 +75,20 @@ fn parse_thres_selector_parameters(arg: Option<String>) -> Box<dyn PixelSelector
     Box::new(thres)
 }
 
-fn main() {
-    let mut args: VecDeque<String> = env::args().collect();
-    // shift
-    args.pop_front();
-
-    let path;
-    if let Some(s) = args.pop_front() {
-        match s.as_str() {
-            "--help" | "-h" | "" => {
-                println!("
+fn print_help() {
+    println!("
     =========== Pixelsorter ===========
        Usage: pixelsort <infile> <outfile> [<options>]
     ============= Options =============
      --help | -h : Show this
     ===== Direction Options
-     --all        : Sort all pixels
      --vert
-     --vertical   : Sort all columns of pixels
-     --horizontal : Sort all lines of pixels
+     --vertical   : Sort all pixels top to bottom, left to right
+     --horizontal : Sort all pixels left to right, top to bottom
+     --right      : Sort horizontal lines of pixels to the right
+     --left       : Sort horizontal lines of pixels to the left
+     --down       : Sort vertical lines of pixels downwards
+     --up         : Sort vertical lines of pixels upwards
      --reverse    : Sort in the opposite direction
     ===== Sorting Options
      --hue        : Sort Pixels by Hue
@@ -106,9 +101,18 @@ fn main() {
     ===== Span-Selection options. Choose which pixels are valid to form a span
      --random <max>                        : Sort spans of random length between 0 and <max>
      --thres [hue|bright|sat]:<min>:<max>  : Mark pixels as valid if [hue|bright|sat] is between <min> and <max>
-                ");
-                exit(0)
-            }
+    ");
+}
+
+fn main() {
+    let mut args: VecDeque<String> = env::args().collect();
+    // shift
+    args.pop_front();
+
+    let path;
+    if let Some(s) = args.pop_front() {
+        match s.as_str() {
+            "--help" | "-h" | "" => { print_help(); exit(0); }
             _ => path = s,
         };
     } else {
@@ -131,14 +135,18 @@ fn main() {
     // I should just use some argument library tbh
     while let Some(arg) = args.pop_front() {
         match arg.as_str() {
+            "-h" | "--help" => { print_help(); exit(0); }
             "--random" => ps.selector = parse_random_selector_parameters(args.pop_front()),
             "--fixed"  => ps.selector = parse_fixed_selector_parameters(args.pop_front()),
             "--thres"  => ps.selector = parse_thres_selector_parameters(args.pop_front()),
 
-            "--all"        => ps.path_creator = PathCreator::All,
-            "--horizontal" => ps.path_creator = PathCreator::Horizontal,
+            "--horizontal" => ps.path_creator = PathCreator::AllHorizontally,
             "--vertical"
-                | "--vert" => ps.path_creator = PathCreator::Vertical,
+                | "--vert" => ps.path_creator = PathCreator::AllVertically,
+            "--right"      => ps.path_creator = PathCreator::HorizontalLines,
+            "--left"       => { ps.path_creator = PathCreator::HorizontalLines; ps.reverse = true},
+            "--down"       => ps.path_creator = PathCreator::VerticalLines,
+            "--up"         => { ps.path_creator = PathCreator::VerticalLines; ps.reverse = true},
             "--reverse"    => ps.reverse = true,
 
             "--hue"         => ps.sorter.criteria = SortingCriteria::Hue,
