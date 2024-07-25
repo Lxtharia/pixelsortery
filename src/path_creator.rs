@@ -1,6 +1,8 @@
-use std::f64::consts::PI;
+use std::{f64::consts::PI, time::Instant};
 
 use image::{Rgb, RgbImage};
+
+use crate::BENCHMARK;
 
 #[derive(Debug, Clone, Copy)]
 pub enum PathCreator {
@@ -23,8 +25,15 @@ impl PathCreator {
         let w: u64 = img.width().into();
         let h: u64 = img.height().into();
 
+        let mut timestart = Instant::now();
+        if BENCHMARK {
+            timestart = Instant::now();
+        }
         let mut all_pixels: Vec<&mut Rgb<u8>> = img.pixels_mut().collect();
-
+        if BENCHMARK {
+            eprintln!("TIME | [Loading image]:\t{:?}", timestart.elapsed());
+            timestart = Instant::now();
+        }
         // Ideas/missing:
         // Hilbert Curve
         // Diagonally
@@ -243,6 +252,7 @@ fn path_circles(all_pixels: Vec<&mut Rgb<u8>>, w: u64, h: u64) -> Vec<Vec<&mut R
 /// Creates and returns ranges of mutable Pixels.
 /// The picked pixels and their order are determined by the given vector of indices
 fn pick_pixels(all_pixels: Vec<&mut Rgb<u8>>, indices: Vec<Vec<u64>>) -> Vec<Vec<&mut Rgb<u8>>> {
+    let timestart = Instant::now();
     let mut paths: Vec<Vec<&mut Rgb<u8>>> = Vec::new();
 
     let mut all_pixels: Vec<Option<&mut Rgb<u8>>> =
@@ -260,6 +270,9 @@ fn pick_pixels(all_pixels: Vec<&mut Rgb<u8>>, indices: Vec<Vec<u64>>) -> Vec<Vec
             }
         }
         paths.push(path);
+    }
+    if BENCHMARK {
+        eprintln!("TIME | [Pickin pixels]:\t{:?}", timestart.elapsed());
     }
 
     return paths;

@@ -60,8 +60,9 @@ impl Pixelsorter {
         eprintln!("Image information: {} x {} ({} pixels)", self.img.width(), self.img.height(), pixelcount);
 
         eprintln!(
-            "Sorting with:\n  > {}\n  > {}\n  > {}",
+            "Sorting with:\n  > {}{}\n  > {}\n  > {}",
             self.path_creator.info_string(),
+            if self.reverse {" [Reversed]"} else {""},
             self.selector.info_string(),
             self.sorter.info_string(),
         );

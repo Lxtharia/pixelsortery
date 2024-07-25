@@ -196,8 +196,8 @@ fn main() {
     ps.sort();
 
     let duration = start.elapsed();
+    eprintln!("=> TIME [Total]:\t{:?}", duration);
     eprintln!();
-    eprintln!("Total time: {:?}", duration);
 
     // SAVING
     match output_path.as_str() {
