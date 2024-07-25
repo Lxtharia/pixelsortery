@@ -182,16 +182,22 @@ fn path_ellipses(all_pixels: Vec<&mut Rgb<u8>>, w: u64, h: u64, circle: bool) ->
     // TODO: Allow to set center
 
     while r <= max_size / 2 {
-        let mut path = Vec::new();
+        let mut path_left = Vec::new();
+        let mut path_right = Vec::new();
         let step_amounts = 8 * r as u64;
-        let circ_step_size: f64 = 2.0*PI / step_amounts as f64;
+        let circ_step_size: f64 = PI / step_amounts as f64;
         for step in 0..=step_amounts {
             let angle = angle_offset + circ_step_size * step as f64;
             let xi = x + angle.cos() * r as f64;
             let yi = y + angle.sin() * r as f64;
-            path.push(yi as u64 * w + xi as u64)
+            path_left.push(yi as u64 * w + xi as u64);
+            let angle = angle_offset - circ_step_size * step as f64;
+            let xi = x + angle.cos() * r as f64;
+            let yi = y + angle.sin() * r as f64;
+            path_right.push(yi as u64 * w + xi as u64);
         }
-        paths.push(path);
+        paths.push(path_left);
+        paths.push(path_right);
         r += 1;
     }
 
