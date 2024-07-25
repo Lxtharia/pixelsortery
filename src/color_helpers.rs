@@ -39,6 +39,14 @@ pub fn get_hue(&pixel: &Rgb<u8>) -> u16 {
 /// returns the brightness of a pixel in the range [0, 255]
 pub fn get_brightness(&p: &Rgb<u8>) -> u16 {
     let channels = p.channels();
+    let (r, g, b) = (channels[0] as f32, channels[1] as f32, channels[2] as f32);
+    (0.2126 * r + 0.7152 * g + 0.0722 * b) as u16
+}
+
+/// tries to calculate the brightness of a pixel but with added casting and overflowing issues added into the mix.
+/// Used for glitchsorting
+pub fn get_brightness_flawed(&p: &Rgb<u8>) -> u16 {
+    let channels = p.channels();
     let (r, g, b) = (channels[0] as i8, channels[1] as i8, channels[2] as i8);
     (0.2126 * r as f32 + 0.7152 * g as f32 + 0.0722 * b as f32) as i8 as u8 as u16
 }

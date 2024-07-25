@@ -74,7 +74,12 @@ impl SpanSorter {
             SortingAlgorithm::Shellsort => shellsort::shellsort_mut,
             SortingAlgorithm::Glitchsort => glitchsort::glitchsort_mut,
         };
+        // Use a special, flawed brightness function for glitchsorting
+        let criteria_function = match (self.algorithm, self.criteria) {
+            (SortingAlgorithm::Glitchsort, SortingCriteria::Brightness) => color_helpers::get_brightness_flawed,
+            _ => SpanSorter::get_value_function(self.criteria),
+        };
         // call sorting function
-        sorting_function(pixels, SpanSorter::get_value_function(self.criteria));
+        sorting_function(pixels, criteria_function);
     }
 }
