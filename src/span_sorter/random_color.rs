@@ -6,12 +6,12 @@ pub fn set_random_color(pixels: &mut [&mut Rgb<u8>], _: for<'a> fn(&'a Rgb<u8>) 
     let mut rng = rand::thread_rng();
     let ran_col = Rgb {
         0: [
-            rng.gen_range(130..=255),
-            rng.gen_range(130..=255),
-            rng.gen_range(130..=255),
+            rng.gen_range(80..=240),
+            rng.gen_range(80..=240),
+            rng.gen_range(80..=240),
         ],
     };
-    for pp in pixels {
-        **(pp) = ran_col;
+    for p in pixels {
+        **(p) = ran_col;
     }
 }

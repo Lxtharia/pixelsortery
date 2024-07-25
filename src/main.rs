@@ -157,11 +157,11 @@ fn main() {
             "--hue"         => ps.sorter.criteria = SortingCriteria::Hue,
             "--brightness"  => ps.sorter.criteria = SortingCriteria::Brightness,
             "--saturation"  => ps.sorter.criteria = SortingCriteria::Saturation,
-            "--debugcolors" => ps.sorter.criteria = SortingCriteria::Debug,
 
-            "--glitchsort" => ps.sorter.algorithm = SortingAlgorithm::Glitchsort,
-            "--shellsort"  => ps.sorter.algorithm = SortingAlgorithm::Shellsort,
-            "--mapsort"    => ps.sorter.algorithm = SortingAlgorithm::Mapsort,
+            "--debugcolors" => ps.sorter.algorithm = SortingAlgorithm::DebugColor,
+            "--glitchsort"  => ps.sorter.algorithm = SortingAlgorithm::Glitchsort,
+            "--shellsort"   => ps.sorter.algorithm = SortingAlgorithm::Shellsort,
+            "--mapsort"     => ps.sorter.algorithm = SortingAlgorithm::Mapsort,
 
             _ => {
                 println!("Unrecognized argument: {}", arg);

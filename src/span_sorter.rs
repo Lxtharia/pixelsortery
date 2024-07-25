@@ -10,7 +10,6 @@ mod shellsort;
 pub struct SpanSorter {
     pub criteria: SortingCriteria,
     pub algorithm: SortingAlgorithm,
-    // inverse: bool,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -18,7 +17,6 @@ pub enum SortingCriteria {
     Hue,
     Brightness,
     Saturation,
-    Debug,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -61,7 +59,6 @@ impl SpanSorter {
     // Idk why. This is dumb.
     pub fn determine_algorithm(&mut self) {
         self.algorithm = match self.criteria {
-            SortingCriteria::Debug => SortingAlgorithm::DebugColor,
             SortingCriteria::Hue => SortingAlgorithm::Mapsort,
             SortingCriteria::Brightness => SortingAlgorithm::Mapsort,
             SortingCriteria::Saturation => SortingAlgorithm::Mapsort,
