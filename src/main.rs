@@ -4,6 +4,7 @@ use pixelsortery::pixel_selector::{
     FixedSelector, PixelSelectCriteria, PixelSelector, RandomSelector, ThresholdSelector
 };
 use pixelsortery::span_sorter::{SortingAlgorithm, SortingCriteria};
+use std::io::Read;
 use std::time::Instant;
 use std::{collections::VecDeque, env, process::exit};
 
@@ -129,8 +130,17 @@ fn main() {
         }
     };
 
-    // OPEN IMAGE
-    let img: RgbImage = image::open(path).unwrap().into_rgb8();
+    // OPEN IMAGE OR READ FROM STDIN
+    let img: RgbImage = match path.as_str() {
+        "-" => {
+            let mut buf = Vec::new();
+            std::io::stdin().read_to_end(&mut buf).unwrap();
+            image::load_from_memory(&buf).unwrap().into_rgb8()
+        },
+        _ => image::open(path).unwrap().into_rgb8(),
+    };
+
+
     // CREATE DEFAULT PIXELSORTER
     let mut ps = pixelsortery::Pixelsorter::new(img);
     let mut do_reverse = false;
