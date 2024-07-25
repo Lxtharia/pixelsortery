@@ -38,8 +38,8 @@ impl PathCreator {
             PathCreator::SquareSpiral => path_rect_spiral(all_pixels, w, h, true),
             PathCreator::RectSpiral => path_rect_spiral(all_pixels, w, h, false),
             PathCreator::Diagonally(angle) => path_diagonal_lines(all_pixels, w, h, angle),
-            PathCreator::Circles => path_ellipses(all_pixels, w, h, true),
-            PathCreator::Spiral => path_ellipse_spiral(all_pixels, w, h, true),
+            PathCreator::Circles => path_circles(all_pixels, w, h),
+            PathCreator::Spiral => path_round_spiral(all_pixels, w, h),
         };
 
         if reverse {
@@ -168,7 +168,7 @@ fn path_rect_spiral(all_pixels: Vec<&mut Rgb<u8>>, w: u64, h: u64, square: bool)
     return pick_pixels(all_pixels, paths);
 }
 
-fn path_ellipse_spiral(all_pixels: Vec<&mut Rgb<u8>>, w: u64, h: u64, circle: bool) -> Vec<Vec<&mut Rgb<u8>>> {
+fn path_round_spiral(all_pixels: Vec<&mut Rgb<u8>>, w: u64, h: u64) -> Vec<Vec<&mut Rgb<u8>>> {
     let mut paths: Vec<Vec<u64>> = Vec::new();
     let mut x = w as f64 / 2.0;
     let mut y = h as f64 / 2.0;
@@ -201,7 +201,7 @@ fn path_ellipse_spiral(all_pixels: Vec<&mut Rgb<u8>>, w: u64, h: u64, circle: bo
 }
 
 
-fn path_ellipses(all_pixels: Vec<&mut Rgb<u8>>, w: u64, h: u64, circle: bool) -> Vec<Vec<&mut Rgb<u8>>> {
+fn path_circles(all_pixels: Vec<&mut Rgb<u8>>, w: u64, h: u64) -> Vec<Vec<&mut Rgb<u8>>> {
     let mut paths: Vec<Vec<u64>> = Vec::new();
     let mut x = w as f64 / 2.0;
     let mut y = h as f64 / 2.0;
