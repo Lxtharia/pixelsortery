@@ -76,7 +76,7 @@ impl Pixelsorter {
         // CREATE SPANS
         let mut spans: Vec<Vec<&mut Rgb<u8>>> = Vec::new();
         for r in ranges {
-            for span in self.selector.mutspans(&mut r.into()) {
+            for span in self.selector.create_spans(&mut r.into()) {
                 spans.push(span);
             }
         }

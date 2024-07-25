@@ -87,9 +87,9 @@ fn print_help() {
      --left       : Sort horizontal lines of pixels to the left
      --down       : Sort vertical lines of pixels downwards
      --up         : Sort vertical lines of pixels upwards
-     --spiral-square : Sort in a squared spiral
-     --spiral-rect   : Sort in a rectangular spiral
-     --diagonal <angle> : Sort lines in an angle
+     --spiral-square    : Sort in a squared spiral
+     --spiral-rect      : Sort in a rectangular spiral
+     --diagonal <angle> : Sort lines tilted by an angle
      --reverse    : Sort in the opposite direction
     ===== Sorting Options
      --hue        : Sort Pixels by Hue
@@ -98,9 +98,10 @@ fn print_help() {
     ===== Algorithm Options
      --mapsort    : Default. O(n)
      --shellsort  : Also cool.
-     --glitchsort : Creates a glitch effect (Extremly cool)
+     --glitchsort : May creates a glitch effect (extremly cool) or noise
     ===== Span-Selection options. Choose which pixels are valid to form a span
      --random <max>                        : Sort spans of random length between 0 and <max>
+     --fixed  <max>                        : Sort spans of a fixed length <max>
      --thres [hue|bright|sat]:<min>:<max>  : Mark pixels as valid if [hue|bright|sat] is between <min> and <max>
     ");
 }

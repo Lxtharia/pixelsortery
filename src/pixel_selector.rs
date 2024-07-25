@@ -35,7 +35,7 @@ pub enum PixelSelectCriteria {
 
 /// Returns a list of pixel spans
 pub trait PixelSelector {
-    fn mutspans<'a>(&'a self, pixels: &mut VecDeque<&'a mut Rgb<u8>>) -> Vec<Vec<&'a mut Rgb<u8>>>;
+    fn create_spans<'a>(&'a self, pixels: &mut VecDeque<&'a mut Rgb<u8>>) -> Vec<Vec<&'a mut Rgb<u8>>>;
     fn info_string<'a>(&'a self) -> String; // I bet this is no the rust way
 }
 
@@ -43,7 +43,7 @@ impl PixelSelector for FullSelector {
     fn info_string(&self) -> String {
         format!("Selecting all pixels")
     }
-    fn mutspans<'a>(&'a self, pixels: &mut VecDeque<&'a mut Rgb<u8>>) -> Vec<Vec<&'a mut Rgb<u8>>> {
+    fn create_spans<'a>(&'a self, pixels: &mut VecDeque<&'a mut Rgb<u8>>) -> Vec<Vec<&'a mut Rgb<u8>>> {
         let mut spans: Vec<Vec<&'a mut Rgb<u8>>> = Vec::new();
 
         let mut span: Vec<&mut Rgb<u8>> = Vec::new();
@@ -60,7 +60,7 @@ impl PixelSelector for FixedSelector {
     fn info_string(&self) -> String {
         format!("Selecting ranges of fixed length {}", self.len)
     }
-    fn mutspans<'a>(&'a self, pixels: &mut VecDeque<&'a mut Rgb<u8>>) -> Vec<Vec<&'a mut Rgb<u8>>> {
+    fn create_spans<'a>(&'a self, pixels: &mut VecDeque<&'a mut Rgb<u8>>) -> Vec<Vec<&'a mut Rgb<u8>>> {
         let mut spans: Vec<Vec<&'a mut Rgb<u8>>> = Vec::new();
 
         while !pixels.is_empty() {
@@ -80,7 +80,7 @@ impl PixelSelector for RandomSelector {
     fn info_string(&self) -> String {
         format!("Random Selector with max length {}", self.max)
     }
-    fn mutspans<'a>(&'a self, pixels: &mut VecDeque<&'a mut Rgb<u8>>) -> Vec<Vec<&'a mut Rgb<u8>>> {
+    fn create_spans<'a>(&'a self, pixels: &mut VecDeque<&'a mut Rgb<u8>>) -> Vec<Vec<&'a mut Rgb<u8>>> {
         let mut spans: Vec<Vec<&'a mut Rgb<u8>>> = Vec::new();
         let mut rng = thread_rng();
         let rng_range = Uniform::from(0..self.max as usize);
@@ -114,7 +114,7 @@ impl PixelSelector for ThresholdSelector {
             self.min, self.criteria, self.max
         )
     }
-    fn mutspans<'a>(&'a self, pixels: &mut VecDeque<&'a mut Rgb<u8>>) -> Vec<Vec<&'a mut Rgb<u8>>> {
+    fn create_spans<'a>(&'a self, pixels: &mut VecDeque<&'a mut Rgb<u8>>) -> Vec<Vec<&'a mut Rgb<u8>>> {
         let mut spans: Vec<Vec<&'a mut Rgb<u8>>> = Vec::new();
 
         let value_function = match self.criteria {
