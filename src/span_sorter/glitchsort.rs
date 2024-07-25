@@ -17,7 +17,7 @@ fn glitch_swap(
     let i = wrapper_vec[x].ind;
     let j = wrapper_vec[y].ind;
 
-    // print!("  Swap: {:?} ({}) <-> {:?} ({})", pixels[i], wrapper_vec[x].val,pixels[j], wrapper_vec[y].val);
+    // eprint!("  Swap: {:?} ({}) <-> {:?} ({})", pixels[i], wrapper_vec[x].val,pixels[j], wrapper_vec[y].val);
 
     wrapper_vec.swap(x, y);
     let tmp = pixels[i].clone();

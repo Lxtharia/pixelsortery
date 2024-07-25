@@ -1,5 +1,5 @@
 #![allow(unused_parens, unused)]
-use image::{ImageResult, Rgb, RgbImage};
+use image::{codecs::png::PngEncoder, ImageResult, Rgb, RgbImage};
 use path_creator::PathCreator;
 use span_sorter::{SortingCriteria, SpanSorter};
 use std::{
@@ -43,6 +43,10 @@ impl Pixelsorter {
         self.img.save(path)
     }
 
+    pub fn save_to_stdout(&self) -> ImageResult<()> {
+        self.img.write_with_encoder(PngEncoder::new(std::io::stdout()))
+    }
+
     // sorting without creating spans
     pub fn sort_all_pixels(&mut self) {
         let mut pixels: Vec<&mut Rgb<u8>> = self.img.pixels_mut().collect();
@@ -53,9 +57,9 @@ impl Pixelsorter {
         let mut timestart = Instant::now();
         // a vector containing pointers to each pixel
         let pixelcount = self.img.width() * self.img.height();
-        println!("Image information: {} x {} ({} pixels)", self.img.width(), self.img.height(), pixelcount);
+        eprintln!("Image information: {} x {} ({} pixels)", self.img.width(), self.img.height(), pixelcount);
 
-        println!(
+        eprintln!(
             "Sorting with:\n  > {}\n  > {}\n  > {}",
             self.path_creator.info_string(),
             self.selector.info_string(),
@@ -69,7 +73,7 @@ impl Pixelsorter {
         let ranges = self.path_creator.create_paths(&mut self.img, self.reverse);
 
         if BENCHMARK {
-            println!("TIME [Creating Paths]:\t{:?}", timestart.elapsed());
+            eprintln!("TIME [Creating Paths]:\t{:?}", timestart.elapsed());
             timestart = Instant::now();
         }
 
@@ -81,8 +85,8 @@ impl Pixelsorter {
             }
         }
         if BENCHMARK {
-            println!("TIME [Selector]:\t{:?}", timestart.elapsed());
-            println!("Amount of spans:\t{}", &spans.len());
+            eprintln!("TIME [Selector]:\t{:?}", timestart.elapsed());
+            eprintln!("Amount of spans:\t{}", &spans.len());
             timestart = Instant::now();
         }
 
@@ -96,7 +100,7 @@ impl Pixelsorter {
 
         if BENCHMARK {
             let timeend = timestart.elapsed();
-            println!("TIME [Sorting]: \t{:?}", timeend);
+            eprintln!("TIME [Sorting]: \t{:?}", timeend);
         }
     }
 }

@@ -31,13 +31,10 @@ pub fn mapsort(img: &RgbImage, width: u32, height: u32, get_pixel_value: for<'a>
     let mut sorted: RgbImage = RgbImage::new(width, height);
     let mut map_array: [Vec<&Rgb<u8>>; 360] = array_init(|_| Vec::new());
 
-    println!("Mapping pixel value by {:?}...", get_pixel_value);
     for p in pixels {
-        //println!("{:?}: {}\t", &p, get_hue(&p));
         map_array[get_pixel_value(&p) as usize].push(&p);
     }
 
-    println!("Writing pixels...");
     let mut ind = 0;
     for h in map_array {
         for p in h {
@@ -46,6 +43,5 @@ pub fn mapsort(img: &RgbImage, width: u32, height: u32, get_pixel_value: for<'a>
         }
     }
 
-    println!("Done!");
     return sorted;
 }

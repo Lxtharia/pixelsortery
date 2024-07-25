@@ -14,7 +14,7 @@ fn parse_diagonal_path_parameters(arg: Option<String>) -> PathCreator {
             return PathCreator::Diagonally(n);
         }
     }
-    println!("[ERROR] Wrong syntax, usage --diagonal <angle>");
+    eprintln!("[ERROR] Wrong syntax, usage --diagonal <angle>");
     exit(-1);
 }
 
@@ -24,7 +24,7 @@ fn parse_fixed_selector_parameters(arg: Option<String>) -> Box<dyn PixelSelector
             return Box::new(FixedSelector { len: n });
         }
     }
-    println!("[ERROR] Wrong syntax, usage --fixed <max>");
+    eprintln!("[ERROR] Wrong syntax, usage --fixed <max>");
     exit(-1);
 }
 
@@ -34,7 +34,7 @@ fn parse_random_selector_parameters(arg: Option<String>) -> Box<dyn PixelSelecto
             return Box::new(RandomSelector {max: n } );
         }
     }
-    println!("[ERROR] Wrong syntax, usage --random <max>");
+    eprintln!("[ERROR] Wrong syntax, usage --random <max>");
     exit(-1);
 }
 
@@ -52,7 +52,7 @@ fn parse_thres_selector_parameters(arg: Option<String>) -> Box<dyn PixelSelector
             "bright" => (PixelSelectCriteria::Brightness, 0, 255),
             "sat" => (PixelSelectCriteria::Saturation, 0, 255),
             _ => {
-                println!("[ERROR] Wrong syntax, usage: --thres <hue|bright|sat>:0:255");
+                eprintln!("[ERROR] Wrong syntax, usage: --thres <hue|bright|sat>:0:255");
                 exit(-1)
             }
         };
@@ -68,14 +68,14 @@ fn parse_thres_selector_parameters(arg: Option<String>) -> Box<dyn PixelSelector
             .parse()
             .unwrap_or(defaultmax);
     } else {
-        println!("[ERROR] Wrong syntax, usage: --thres <hue|bright|sat>:0:255");
+        eprintln!("[ERROR] Wrong syntax, usage: --thres <hue|bright|sat>:0:255");
         exit(-1)
     }
     Box::new(thres)
 }
 
 fn print_help() {
-    println!("
+    eprintln!("
     =========== Pixelsorter ===========
        Usage: pixelsort <infile> <outfile> [<options>]
     ============= Options =============
@@ -119,13 +119,13 @@ fn main() {
             _ => path = s,
         };
     } else {
-        println!("[!] You need to specify the input and the output path");
+        eprintln!("[!] You need to specify the input and the output path");
         exit(1);
     }
     let output_path = match args.pop_front() {
         Some(s) => s,
         None => {
-            println!("[!] You need to specify the output path");
+            eprintln!("[!] You need to specify the output path");
             exit(1);
         }
     };
@@ -175,7 +175,7 @@ fn main() {
             "--mapsort"     => ps.sorter.algorithm = SortingAlgorithm::Mapsort,
 
             _ => {
-                println!("Unrecognized argument: {}", arg);
+                eprintln!("Unrecognized argument: {}", arg);
                 exit(-1)
             }
         }
@@ -190,10 +190,19 @@ fn main() {
     ps.sort();
 
     let duration = start.elapsed();
-    println!();
-    println!("Total time: {:?}", duration);
-    println!("Saving to {}", output_path);
+    eprintln!();
+    eprintln!("Total time: {:?}", duration);
 
     // SAVING
-    let _ = ps.save(&output_path);
+    match output_path.as_str() {
+        "-" => {
+            eprintln!("Saving to stdout");
+            ps.save_to_stdout().unwrap();
+        },
+        _ => {
+            eprintln!("Saving to {}", output_path);
+            let _ = ps.save(&output_path);
+        }
+        
+    }
 }

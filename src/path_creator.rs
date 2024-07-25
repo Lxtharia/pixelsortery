@@ -129,9 +129,6 @@ fn path_rect_spiral(all_pixels: Vec<&mut Rgb<u8>>, w: u64, h: u64, square: bool)
         y -= reach_y/2;
     }
 
-
-    println!("DEBUG: {} {}", reach_x, reach_y);
-
     loop {
         for _ in 0..reach_x {
             x += 1;
