@@ -78,9 +78,12 @@ fn print_help() {
     eprintln!("
     =========== Pixelsorter ===========
        Usage: pixelsort <infile> <outfile> [<options>]
+    ===================================
+       If <infile>  is '-' , read from stdin
+       If <outfile> is '-' , write to stdout
     ============= Options =============
      --help | -h : Show this
-    ===== Direction Options
+    ===== Direction Options =====
      --vert
      --vertical   : Sort all pixels top to bottom, left to right
      --horizontal : Sort all pixels left to right, top to bottom
@@ -92,18 +95,18 @@ fn print_help() {
      --spiral-rect      : Sort in a rectangular spiral
      --diagonal <angle> : Sort lines tilted by an angle
      --reverse    : Sort in the opposite direction
-    ===== Sorting Options
-     --hue        : Sort Pixels by Hue
-     --saturation : Sort Pixels by Saturation
-     --brightness : Sort Pixels by Brightness
-    ===== Algorithm Options
-     --mapsort    : Default. O(n)
-     --shellsort  : Also cool.
-     --glitchsort : May creates a glitch effect (extremly cool) or noise
-    ===== Span-Selection options. Choose which pixels are valid to form a span
+    ===== Span-Selection Options ===== [Choose which pixels are valid to form a span]
      --random <max>                        : Sort spans of random length between 0 and <max>
      --fixed  <max>                        : Sort spans of a fixed length <max>
      --thres [hue|bright|sat]:<min>:<max>  : Mark pixels as valid if [hue|bright|sat] is between <min> and <max>
+    ===== Sorting Options =====
+     --hue        : Sort Pixels by Hue
+     --saturation : Sort Pixels by Saturation
+     --brightness : Sort Pixels by Brightness
+    ===== Algorithm Options =====
+     --mapsort    : Default. O(n)
+     --shellsort  : Also cool.
+     --glitchsort : May creates a glitch effect (extremly cool) or noise
     ");
 }
 
