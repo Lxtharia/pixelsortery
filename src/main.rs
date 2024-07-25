@@ -165,6 +165,7 @@ fn main() {
             "--down"       =>   ps.path_creator = PathCreator::VerticalLines,
             "--up"         => { ps.path_creator = PathCreator::VerticalLines;   ps.reverse = true},
             "--circles"           =>   ps.path_creator = PathCreator::Circles,
+            "--spiral"            =>   ps.path_creator = PathCreator::Spiral,
             "--spiral-square"     =>   ps.path_creator = PathCreator::SquareSpiral,
             "--spiral-rect"       =>   ps.path_creator = PathCreator::RectSpiral,
             "--diagonal"   => ps.path_creator = parse_diagonal_path_parameters(args.pop_front()),
