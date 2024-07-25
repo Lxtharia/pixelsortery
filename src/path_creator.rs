@@ -105,12 +105,19 @@ fn path_vertical_lines(all_pixels: Vec<&mut Rgb<u8>>, w: u64, h: u64) -> Vec<Vec
 fn path_diagonal_lines(all_pixels: Vec<&mut Rgb<u8>>, w: u64, h: u64, angle: f32) -> Vec<Vec<&mut Rgb<u8>>> {
     let mut paths: Vec<Vec<u64>> = Vec::new();
 
-    for x in 0..w {
+    let tan_val = angle.to_radians().tan();
+    // we need spans starting at x values outside our width, so that they "fly into" the image
+    // For example: if spans go to the right at 45°, we need to start at -w/2, so that the bottom left pixel gets assigned a range as well
+    let xoverhead = -(tan_val * h as f32).round() as i64;
+    let xrange = if tan_val > 0.0 { xoverhead..w as i64 } else { 0..w as i64 + xoverhead };
+    for xs in xrange {
         let mut path = Vec::new();
         for y in 0..h {
-            let xf = ( y as f32 * angle.to_radians().tan() ).round() as i32;
-            let i = (y * w + x) as i32 + xf;
-            path.push(i as u64);
+            let x = xs + ( y as f32 * tan_val ).round() as i64;
+            // Prevent "overflowing" the index and selecting indices on the next line
+            if x >= w as i64 || x < 0 { continue; }
+            let i = y * w + x as u64;
+            path.push(i);
         }
         paths.push(path);
     }
