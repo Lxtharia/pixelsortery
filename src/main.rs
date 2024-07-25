@@ -91,6 +91,7 @@ fn print_help() {
      --left       : Sort horizontal lines of pixels to the left
      --down       : Sort vertical lines of pixels downwards
      --up         : Sort vertical lines of pixels upwards
+     --circles          : Sort in circles
      --spiral-square    : Sort in a squared spiral
      --spiral-rect      : Sort in a rectangular spiral
      --diagonal <angle> : Sort lines tilted by an angle
@@ -163,6 +164,7 @@ fn main() {
             "--left"       => { ps.path_creator = PathCreator::HorizontalLines; ps.reverse = true},
             "--down"       =>   ps.path_creator = PathCreator::VerticalLines,
             "--up"         => { ps.path_creator = PathCreator::VerticalLines;   ps.reverse = true},
+            "--circles"           =>   ps.path_creator = PathCreator::Circles,
             "--spiral-square"     =>   ps.path_creator = PathCreator::SquareSpiral,
             "--spiral-rect"       =>   ps.path_creator = PathCreator::RectSpiral,
             "--diagonal"   => ps.path_creator = parse_diagonal_path_parameters(args.pop_front()),
