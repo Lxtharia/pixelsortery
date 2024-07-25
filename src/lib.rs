@@ -93,10 +93,7 @@ impl Pixelsorter {
 
         // SORT EVERY SPAN
         for mut span in spans {
-            // Only sort if there is at least 2 pixels in there
-            if span.len() > 1 {
-                self.sorter.sort(&mut span);
-            }
+            self.sorter.sort(&mut span);
         }
 
         if BENCHMARK {

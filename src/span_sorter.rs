@@ -79,6 +79,12 @@ impl SpanSorter {
             (SortingAlgorithm::Glitchsort, SortingCriteria::Brightness) => color_helpers::get_brightness_flawed,
             _ => SpanSorter::get_value_function(self.criteria),
         };
+        match self.algorithm {
+            // Apply debug color even on every span
+            SortingAlgorithm::DebugColor => sorting_function(pixels, criteria_function),
+            // Skip sorting a span if it contains less than 2 pixels
+            _ => if pixels.len() < 2 {return;},
+        }
         // call sorting function
         sorting_function(pixels, criteria_function);
     }
