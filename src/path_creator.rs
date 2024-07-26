@@ -1,8 +1,7 @@
 use std::{f64::consts::PI, time::Instant};
-
+use log::{info, warn, error};
 use image::{Rgb, RgbImage};
 
-use crate::BENCHMARK;
 
 #[derive(Debug, Clone, Copy)]
 pub enum PathCreator {
@@ -26,14 +25,10 @@ impl PathCreator {
         let h: u64 = img.height().into();
 
         let mut timestart = Instant::now();
-        if BENCHMARK {
-            timestart = Instant::now();
-        }
+        timestart = Instant::now();
         let mut all_pixels: Vec<&mut Rgb<u8>> = img.pixels_mut().collect();
-        if BENCHMARK {
-            eprintln!("TIME | [Loading image]:\t{:?}", timestart.elapsed());
-            timestart = Instant::now();
-        }
+        info!("TIME | [Loading image]:\t{:?}", timestart.elapsed());
+        timestart = Instant::now();
         // Ideas/missing:
         // Hilbert Curve
         // Diagonally
@@ -278,9 +273,7 @@ fn pick_pixels(all_pixels: Vec<&mut Rgb<u8>>, indices: Vec<Vec<u64>>) -> Vec<Vec
         }
         paths.push(path);
     }
-    if BENCHMARK {
-        eprintln!("TIME | [Pickin pixels]:\t{:?}", timestart.elapsed());
-    }
+    info!("TIME | [Pickin pixels]:\t{:?}", timestart.elapsed());
 
     return paths;
 }

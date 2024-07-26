@@ -1,9 +1,12 @@
 use image::RgbImage;
-use pixelsortery::path_creator::PathCreator;
-use pixelsortery::pixel_selector::{
-    FixedSelector, PixelSelectCriteria, PixelSelector, RandomSelector, ThresholdSelector
+use log::info;
+use pixelsortery::{
+    path_creator::PathCreator,
+    pixel_selector::{
+        FixedSelector, PixelSelectCriteria, PixelSelector, RandomSelector, ThresholdSelector,
+    },
+    span_sorter::{SortingAlgorithm, SortingCriteria},
 };
-use pixelsortery::span_sorter::{SortingAlgorithm, SortingCriteria};
 use std::io::Read;
 use std::time::Instant;
 use std::{collections::VecDeque, env, process::exit};
@@ -74,42 +77,52 @@ fn parse_thres_selector_parameters(arg: Option<String>) -> Box<dyn PixelSelector
     Box::new(thres)
 }
 
-fn print_help() {
-    eprintln!("
-    =========== Pixelsorter ===========
-       Usage: pixelsort <infile> <outfile> [<options>]
-    ===================================
-       If <infile>  is '-' , read from stdin
-       If <outfile> is '-' , write to stdout
-    ============= Options =============
-     --help | -h : Show this
-    ===== Direction Options =====
-     --vert
-     --vertical   : Sort all pixels top to bottom, left to right
-     --horizontal : Sort all pixels left to right, top to bottom
-     --right      : Sort horizontal lines of pixels to the right
-     --left       : Sort horizontal lines of pixels to the left
-     --down       : Sort vertical lines of pixels downwards
-     --up         : Sort vertical lines of pixels upwards
-     --circles          : Sort in circles
-     --spiral-square    : Sort in a squared spiral
-     --spiral-rect      : Sort in a rectangular spiral
-     --diagonal <angle> : Sort lines tilted by an angle
-     --reverse    : Sort in the opposite direction
-    ===== Span-Selection Options ===== [Choose which pixels are valid to form a span]
-     --random <max>                        : Sort spans of random length between 0 and <max>
-     --fixed  <max>                        : Sort spans of a fixed length <max>
-     --thres [hue|bright|sat]:<min>:<max>  : Mark pixels as valid if [hue|bright|sat] is between <min> and <max>
-    ===== Sorting Options =====
-     --hue        : Sort Pixels by Hue
-     --saturation : Sort Pixels by Saturation
-     --brightness : Sort Pixels by Brightness
-    ===== Algorithm Options =====
-     --mapsort    : Default. O(n)
-     --shellsort  : Also cool.
-     --glitchsort : May creates a glitch effect (extremly cool) or noise
-    ");
-}
+const HELP_STRING: &str = "
+=================== Pixelsorter ===================
+   Usage: pixelsort <infile> <outfile> [<options>]
+
+   If <infile>  is '-' , read from stdin
+   If <outfile> is '-' , write to stdout
+===================== Options ====================
+
+   --help | -h : Show this
+   --quiet     : Make the program shut up
+
+================ Direction Options ==============
+
+   --vert
+   --vertical   : Sort all pixels top to bottom, left to right
+   --horizontal : Sort all pixels left to right, top to bottom
+   --right      : Sort horizontal lines of pixels to the right
+   --left       : Sort horizontal lines of pixels to the left
+   --down       : Sort vertical lines of pixels downwards
+   --up         : Sort vertical lines of pixels upwards
+   --circles          : Sort in circles
+   --spiral-square    : Sort in a squared spiral
+   --spiral-rect      : Sort in a rectangular spiral
+   --diagonal <angle> : Sort lines tilted by an angle
+   --reverse    : Sort in the opposite direction
+
+============= Span-Selection  Options ===========
+  [Choose which pixels are valid to form a span]
+
+   --random <max>                        : Sort spans of random length between 0 and <max>
+   --fixed  <max>                        : Sort spans of a fixed length <max>
+   --thres [hue|bright|sat]:<min>:<max>  : Mark pixels as valid if [hue|bright|sat] is between <min> and <max>
+
+================= Sorting Options ===============
+
+   --hue        : Sort Pixels by Hue
+   --saturation : Sort Pixels by Saturation
+   --brightness : Sort Pixels by Brightness
+
+================ Algorithm Options ==============
+
+   --mapsort    : Default. O(n)
+   --shellsort  : Also cool.
+   --glitchsort : Used to create a glitch-like effect
+";
+
 
 fn main() {
     let mut args: VecDeque<String> = env::args().collect();
@@ -119,7 +132,7 @@ fn main() {
     let path;
     if let Some(s) = args.pop_front() {
         match s.as_str() {
-            "--help" | "-h" | "" => { print_help(); exit(0); }
+            "--help" | "-h" | "" => { println!("{}", HELP_STRING); exit(0); }
             _ => path = s,
         };
     } else {
@@ -148,11 +161,13 @@ fn main() {
     // CREATE DEFAULT PIXELSORTER
     let mut ps = pixelsortery::Pixelsorter::new(img);
     let mut do_reverse = false;
+    let mut quiet = false;
 
     // I should just use some argument library tbh
     while let Some(arg) = args.pop_front() {
         match arg.as_str() {
-            "-h" | "--help" => { print_help(); exit(0); }
+            "-h" | "--help" => { println!("{}", HELP_STRING); exit(0); }
+            "--quiet" => quiet = true,
             "--random" => ps.selector = parse_random_selector_parameters(args.pop_front()),
             "--fixed"  => ps.selector = parse_fixed_selector_parameters(args.pop_front()),
             "--thres"  => ps.selector = parse_thres_selector_parameters(args.pop_front()),
@@ -189,6 +204,13 @@ fn main() {
     if do_reverse {
         ps.reverse = ! ps.reverse;
     }
+
+    // ENABLE LOGGING WITH A LOGGING LEVEL
+    stderrlog::new()
+        .module(module_path!())
+        .verbosity(2)
+        .quiet(quiet)
+        .init().unwrap();
     
     let start = Instant::now();
 
@@ -196,17 +218,16 @@ fn main() {
     ps.sort();
 
     let duration = start.elapsed();
-    eprintln!("=> TIME [Total]:\t{:?}", duration);
-    eprintln!();
+    info!("=> TIME [Total]:\t{:?}\n", duration);
 
     // SAVING
     match output_path.as_str() {
         "-" => {
-            eprintln!("Saving to stdout");
+            info!("Saving to stdout");
             ps.save_to_stdout().unwrap();
         },
         _ => {
-            eprintln!("Saving to {}", output_path);
+            info!("Saving to {}", output_path);
             let _ = ps.save(&output_path);
         }
         
