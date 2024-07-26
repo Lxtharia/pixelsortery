@@ -1,10 +1,9 @@
 #![allow(unused_parens, unused)]
-use image::{codecs::png::PngEncoder, ImageResult, Rgb, RgbImage};
+use image::{codecs::png::{self, PngEncoder}, ImageResult, Rgb, RgbImage};
 use path_creator::PathCreator;
 use span_sorter::{SortingCriteria, SpanSorter};
 use std::{
-    path::Path,
-    time::Instant,
+    fs::File, path::Path, time::Instant
 };
 
 use crate::pixel_selector::PixelSelector;
@@ -22,8 +21,6 @@ pub struct Pixelsorter {
     pub reverse: bool,
 }
 
-pub type Span = Vec<Rgb<u8>>;
-
 const BENCHMARK: bool = true;
 
 impl Pixelsorter {
@@ -40,7 +37,9 @@ impl Pixelsorter {
 
     // 1:1 wrapper for image save function
     pub fn save<Q: AsRef<Path>>(&self, path: Q) -> ImageResult<()> {
-        self.img.save(path)
+        let f = File::create(path).expect("Error saving to file");
+        let png_encoder = PngEncoder::new_with_quality(f, png::CompressionType::Best, png::FilterType::Adaptive);
+        self.img.write_with_encoder(png_encoder)
     }
 
     pub fn save_to_stdout(&self) -> ImageResult<()> {
