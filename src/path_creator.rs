@@ -254,9 +254,8 @@ fn path_circles(w: u64, h: u64) -> Vec<Vec<u64>> {
         vec![path_left, path_right]
     };
     // THREADING, WOOO
-    let paths = (1..max_size/2).into_par_iter().map(line_path).flatten();
-
-    return paths.collect();
+    let paths = (1..max_size/2).into_par_iter().map(line_path).flatten().collect();
+    return paths;
 }
 
 
@@ -268,7 +267,8 @@ fn pick_pixels(all_pixels: Vec<&mut Rgb<u8>>, indices: Vec<Vec<u64>>) -> Vec<Vec
 
     let mut all_pixels: Vec<Option<&mut Rgb<u8>>> =
         all_pixels.into_iter().map(|p| Some(p)).collect();
-    for li in indices {
+    for mut li in indices {
+        li.dedup();
         let mut path = Vec::new();
         for i in li {
             all_pixels.push(None);
