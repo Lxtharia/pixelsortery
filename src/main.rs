@@ -7,37 +7,17 @@ use pixelsortery::{
     },
     span_sorter::{SortingAlgorithm, SortingCriteria},
 };
-use std::io::Read;
+use std::{io::Read, str::FromStr};
 use std::time::Instant;
 use std::{collections::VecDeque, env, process::exit};
 
-fn parse_diagonal_path_parameters(arg: Option<String>) -> PathCreator {
+fn parse_parameter<T: FromStr>(arg: Option<String>, usage: &str) -> T {
     if let Some(s) = arg {
-        if let Ok(n) = s.parse::<f32>() {
-            return PathCreator::Diagonally(n);
+        if let Ok(n) = s.parse::<T>() {
+            return n;
         }
     }
-    eprintln!("[ERROR] Wrong syntax, usage --diagonal <angle>");
-    exit(-1);
-}
-
-fn parse_fixed_selector_parameters(arg: Option<String>) -> Box<dyn PixelSelector> {
-    if let Some(s) = arg {
-        if let Ok(n) = s.parse::<u64>() {
-            return Box::new(FixedSelector { len: n });
-        }
-    }
-    eprintln!("[ERROR] Wrong syntax, usage --fixed <max>");
-    exit(-1);
-}
-
-fn parse_random_selector_parameters(arg: Option<String>) -> Box<dyn PixelSelector> {
-    if let Some(s) = arg {
-        if let Ok(n) = s.parse::<u32>() {
-            return Box::new(RandomSelector {max: n } );
-        }
-    }
-    eprintln!("[ERROR] Wrong syntax, usage --random <max>");
+    eprintln!("[ERROR] Wrong syntax, usage {}", usage);
     exit(-1);
 }
 
@@ -168,8 +148,8 @@ fn main() {
         match arg.as_str() {
             "-h" | "--help" => { println!("{}", HELP_STRING); exit(0); }
             "--quiet" => quiet = true,
-            "--random" => ps.selector = parse_random_selector_parameters(args.pop_front()),
-            "--fixed"  => ps.selector = parse_fixed_selector_parameters(args.pop_front()),
+            "--random" => ps.selector = Box::new(RandomSelector{ max: parse_parameter(args.pop_front(), "--random <max>")}),
+            "--fixed"  => ps.selector = Box::new(FixedSelector{ len: parse_parameter(args.pop_front(), "--fixed <len>")}),
             "--thres"  => ps.selector = parse_thres_selector_parameters(args.pop_front()),
 
             "--horizontal" => ps.path_creator = PathCreator::AllHorizontally,
@@ -183,7 +163,7 @@ fn main() {
             "--spiral"            =>   ps.path_creator = PathCreator::Spiral,
             "--spiral-square"     =>   ps.path_creator = PathCreator::SquareSpiral,
             "--spiral-rect"       =>   ps.path_creator = PathCreator::RectSpiral,
-            "--diagonal"   => ps.path_creator = parse_diagonal_path_parameters(args.pop_front()),
+            "--diagonal"   => ps.path_creator = PathCreator::Diagonally(parse_parameter(args.pop_front(), "--diagonal <angle>")),
             "--reverse"    => do_reverse = true,
 
             "--hue"         => ps.sorter.criteria = SortingCriteria::Hue,
