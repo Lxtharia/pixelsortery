@@ -104,7 +104,7 @@ fn path_diagonal_lines(w: u64, h: u64, angle: f32) -> Vec<Vec<u64>> {
     // Explanation:
     // We need to iterate differently, depending on the angle
     //
-    // x_line_path (a=20°)  x_line_path: (a=70°)          y_line_path: (a=70°)
+    // x_line_path (a=160°)  x_line_path: (a=110°)          y_line_path: (a=110°)
     //
     //   0  1  2              0 1 2 3 4 5 6 7               0 1 2 3 4 5 6 7
     // 0 X        <Good     0 X                           0 X X
@@ -112,14 +112,15 @@ fn path_diagonal_lines(w: u64, h: u64, angle: f32) -> Vec<Vec<u64>> {
     // 2    X        Bad>   2         X        Correct>   2         X X     
     // 3    X               3             X               3             X X
 
+    let angle = angle % 180.0;
     let x_tan_val = angle.to_radians().tan();
-    let xoverhead = -(x_tan_val * h as f32).round() as i64;
-    let xrange = if x_tan_val > 0.0 { xoverhead..w as i64 } else { 0..w as i64 + xoverhead };
+    let xoverhead = (x_tan_val * h as f32).round() as i64;
+    let xrange = if x_tan_val < 0.0 { xoverhead..w as i64 } else { 0..w as i64 + xoverhead };
 
     let x_line_path = |xs| {
         let mut path = Vec::new();
         for y in 0..h {
-            let x = xs + ( y as f32 * x_tan_val ).round() as i64;
+            let x = xs - ( y as f32 * x_tan_val ).round() as i64;
             // Prevent "overflowing" the index and selecting indices on the next line
             if x >= w as i64 || x < 0 { continue; }
             let i = y * w + x as u64;
@@ -129,13 +130,13 @@ fn path_diagonal_lines(w: u64, h: u64, angle: f32) -> Vec<Vec<u64>> {
     };
 
     let y_tan_val = (90.0 - angle).to_radians().tan();
-    let yoverhead = -(y_tan_val * w as f32).round() as i64;
-    let yrange = if y_tan_val > 0.0 { yoverhead..h as i64 } else { 0..h as i64 + yoverhead };
+    let yoverhead = (y_tan_val * w as f32).round() as i64;
+    let yrange = if y_tan_val < 0.0 { yoverhead..h as i64 } else { 0..h as i64 + yoverhead };
 
     let y_line_path = |ys| {
         let mut path = Vec::new();
         for x in 0..w {
-            let y = ys + ( x as f32 * y_tan_val ).round() as i64;
+            let y = ys - ( x as f32 * y_tan_val ).round() as i64;
             // Prevent "overflowing" the index and selecting indices on the next line
             if y >= h as i64 || y < 0 { continue; }
             let i = y as u64 * w + x;
@@ -145,7 +146,7 @@ fn path_diagonal_lines(w: u64, h: u64, angle: f32) -> Vec<Vec<u64>> {
     };
 
     // Choosing the correct function
-    let paths = match (angle.to_radians() < 45.0){
+    let paths = match (angle.abs() < 45.0 || angle.abs() > 135.0){
         // THREADPOOLING WOOO
         true => xrange.into_iter().map(x_line_path).collect(),
         false => yrange.into_iter().map(y_line_path).collect(),
