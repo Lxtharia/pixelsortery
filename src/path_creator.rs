@@ -101,13 +101,20 @@ fn path_vertical_lines(w: u64, h: u64) -> Vec<Vec<u64>> {
 fn path_diagonal_lines(w: u64, h: u64, angle: f32) -> Vec<Vec<u64>> {
     let mut paths: Vec<Vec<u64>> = Vec::new();
 
+    // Explanation:
+    // We need to iterate differently, depending on the angle
+    //
+    // x_line_path (a=20°)  x_line_path: (a=70°)          y_line_path: (a=70°)
+    //
+    //   0  1  2              0 1 2 3 4 5 6 7               0 1 2 3 4 5 6 7
+    // 0 X        <Good     0 X                           0 X X
+    // 1 X                  1     X                       1     X X
+    // 2    X        Bad>   2         X        Correct>   2         X X     
+    // 3    X               3             X               3             X X
+
     let x_tan_val = angle.to_radians().tan();
     let xoverhead = -(x_tan_val * h as f32).round() as i64;
     let xrange = if x_tan_val > 0.0 { xoverhead..w as i64 } else { 0..w as i64 + xoverhead };
-
-    let y_tan_val = (90.0 - angle).to_radians().tan();
-    let yoverhead = -(y_tan_val * w as f32).round() as i64;
-    let yrange = if y_tan_val > 0.0 { yoverhead..h as i64 } else { 0..h as i64 + yoverhead };
 
     let x_line_path = |xs| {
         let mut path = Vec::new();
@@ -121,6 +128,10 @@ fn path_diagonal_lines(w: u64, h: u64, angle: f32) -> Vec<Vec<u64>> {
         path
     };
 
+    let y_tan_val = (90.0 - angle).to_radians().tan();
+    let yoverhead = -(y_tan_val * w as f32).round() as i64;
+    let yrange = if y_tan_val > 0.0 { yoverhead..h as i64 } else { 0..h as i64 + yoverhead };
+
     let y_line_path = |ys| {
         let mut path = Vec::new();
         for x in 0..w {
@@ -133,7 +144,8 @@ fn path_diagonal_lines(w: u64, h: u64, angle: f32) -> Vec<Vec<u64>> {
         path
     };
 
-    let paths = match (xoverhead.abs() as u64 + w < yoverhead.abs() as u64 + h){
+    // Choosing the correct function
+    let paths = match (angle.to_radians() < 45.0){
         // THREADPOOLING WOOO
         true => xrange.into_iter().map(x_line_path).collect(),
         false => yrange.into_iter().map(y_line_path).collect(),
