@@ -28,37 +28,39 @@ impl PathCreator {
         let mut timestart = Instant::now();
         timestart = Instant::now();
         let mut all_pixels: Vec<&mut Rgb<u8>> = img.pixels_mut().collect();
-        info!("TIME | [Loading image]:\t{:?}", timestart.elapsed());
+        info!("TIME | [Loading pixels]:\t+ {:?}", timestart.elapsed());
         timestart = Instant::now();
         // Ideas/missing:
         // Hilbert Curve
         // In waves
-        let mut all_paths = match self {
-            PathCreator::AllHorizontally => path_all_horizontally(all_pixels, w, h),
-            PathCreator::AllVertically => path_all_vertically(all_pixels, w, h),
-            PathCreator::HorizontalLines => path_horizontal_lines(all_pixels, w, h),
-            PathCreator::VerticalLines => path_vertical_lines(all_pixels, w, h),
-            PathCreator::SquareSpiral => path_rect_spiral(all_pixels, w, h, true),
-            PathCreator::RectSpiral => path_rect_spiral(all_pixels, w, h, false),
-            PathCreator::Diagonally(angle) => path_diagonal_lines(all_pixels, w, h, angle),
-            PathCreator::Circles => path_circles(all_pixels, w, h),
-            PathCreator::Spiral => path_round_spiral(all_pixels, w, h),
+        let mut all_paths_indices = match self {
+            PathCreator::AllHorizontally => path_all_horizontally(w, h),
+            PathCreator::AllVertically => path_all_vertically(w, h),
+            PathCreator::HorizontalLines => path_horizontal_lines(w, h),
+            PathCreator::VerticalLines => path_vertical_lines(w, h),
+            PathCreator::SquareSpiral => path_rect_spiral(w, h, true),
+            PathCreator::RectSpiral => path_rect_spiral(w, h, false),
+            PathCreator::Diagonally(angle) => path_diagonal_lines(w, h, angle),
+            PathCreator::Circles => path_circles(w, h),
+            PathCreator::Spiral => path_round_spiral(w, h),
         };
-
+        info!("TIME | [Creating paths]:\t+ {:?}", timestart.elapsed());
+        timestart = Instant::now();
         if reverse {
-            all_paths.iter_mut().for_each(|p| {
+            all_paths_indices.iter_mut().for_each(|p| {
                 p.reverse();
             });
         }
-        return all_paths;
+        info!("TIME | [Reversing paths]:\t+ {:?}", timestart.elapsed());
+        return pick_pixels(all_pixels, all_paths_indices);
     }
 }
 
-fn path_all_horizontally(all_pixels: Vec<&mut Rgb<u8>>, _: u64, _: u64) -> Vec<Vec<&mut Rgb<u8>>> {
-    vec![all_pixels]
+fn path_all_horizontally(w: u64, h: u64) -> Vec<Vec<u64>> {
+    vec![(0..w*h).collect()]
 }
 
-fn path_all_vertically(all_pixels: Vec<&mut Rgb<u8>>, w: u64, h: u64) -> Vec<Vec<&mut Rgb<u8>>> {
+fn path_all_vertically(w: u64, h: u64) -> Vec<Vec<u64>> {
     let mut paths: Vec<Vec<u64>> = Vec::new();
     let mut path = Vec::new();
     for x in 0..w {
@@ -68,20 +70,20 @@ fn path_all_vertically(all_pixels: Vec<&mut Rgb<u8>>, w: u64, h: u64) -> Vec<Vec
         }
     }
     paths.push(path);
-    return pick_pixels(all_pixels, paths);
+    return paths;
 }
 
-fn path_horizontal_lines(all_pixels: Vec<&mut Rgb<u8>>, w: u64, h: u64) -> Vec<Vec<&mut Rgb<u8>>> {
+fn path_horizontal_lines(w: u64, h: u64) -> Vec<Vec<u64>> {
     let mut paths: Vec<Vec<u64>> = Vec::new();
 
     for y in 0..h {
         paths.push((y * w..y * w + w).collect());
     }
 
-    return pick_pixels(all_pixels, paths);
+    return paths;
 }
 
-fn path_vertical_lines(all_pixels: Vec<&mut Rgb<u8>>, w: u64, h: u64) -> Vec<Vec<&mut Rgb<u8>>> {
+fn path_vertical_lines(w: u64, h: u64) -> Vec<Vec<u64>> {
     let mut paths: Vec<Vec<u64>> = Vec::new();
 
     for x in 0..w {
@@ -93,10 +95,10 @@ fn path_vertical_lines(all_pixels: Vec<&mut Rgb<u8>>, w: u64, h: u64) -> Vec<Vec
         paths.push(path);
     }
 
-    return pick_pixels(all_pixels, paths);
+    return paths;
 }
 
-fn path_diagonal_lines(all_pixels: Vec<&mut Rgb<u8>>, w: u64, h: u64, angle: f32) -> Vec<Vec<&mut Rgb<u8>>> {
+fn path_diagonal_lines(w: u64, h: u64, angle: f32) -> Vec<Vec<u64>> {
     let mut paths: Vec<Vec<u64>> = Vec::new();
 
     let tan_val = angle.to_radians().tan();
@@ -120,10 +122,10 @@ fn path_diagonal_lines(all_pixels: Vec<&mut Rgb<u8>>, w: u64, h: u64, angle: f32
     let path_iter = xrange.into_iter().map(line_path);
     paths = path_iter.collect();
 
-    return pick_pixels(all_pixels, paths);
+    return paths;
 }
 
-fn path_rect_spiral(all_pixels: Vec<&mut Rgb<u8>>, w: u64, h: u64, square: bool) -> Vec<Vec<&mut Rgb<u8>>> {
+fn path_rect_spiral(w: u64, h: u64, square: bool) -> Vec<Vec<u64>> {
     let mut paths: Vec<Vec<u64>> = Vec::new();
     let mut x = w / 2;
     let mut y = h / 2;
@@ -179,11 +181,11 @@ fn path_rect_spiral(all_pixels: Vec<&mut Rgb<u8>>, w: u64, h: u64, square: bool)
     }
     paths.push(path);
 
-    return pick_pixels(all_pixels, paths);
+    return paths;
 }
 
 // Not really a spiral, more like connected circles
-fn path_round_spiral(all_pixels: Vec<&mut Rgb<u8>>, w: u64, h: u64) -> Vec<Vec<&mut Rgb<u8>>> {
+fn path_round_spiral(w: u64, h: u64) -> Vec<Vec<u64>> {
     let mut paths: Vec<Vec<u64>> = Vec::new();
     let mut x = w as f64 / 2.0;
     let mut y = h as f64 / 2.0;
@@ -214,11 +216,11 @@ fn path_round_spiral(all_pixels: Vec<&mut Rgb<u8>>, w: u64, h: u64) -> Vec<Vec<&
     // THREADING, WOOO
     let path_iter = (1..max_size/2).into_par_iter().map(line_path);
     paths = vec![path_iter.flatten().collect()];
-    return pick_pixels(all_pixels, paths)
+    return paths;
 }
 
 
-fn path_circles(all_pixels: Vec<&mut Rgb<u8>>, w: u64, h: u64) -> Vec<Vec<&mut Rgb<u8>>> {
+fn path_circles(w: u64, h: u64) -> Vec<Vec<u64>> {
     let mut paths: Vec<Vec<u64>> = Vec::new();
     let mut x = w as f64 / 2.0;
     let mut y = h as f64 / 2.0;
@@ -253,7 +255,7 @@ fn path_circles(all_pixels: Vec<&mut Rgb<u8>>, w: u64, h: u64) -> Vec<Vec<&mut R
     // THREADING, WOOO
     let paths = (1..max_size/2).into_par_iter().map(line_path).flatten();
 
-    return pick_pixels(all_pixels, paths.collect())
+    return paths.collect();
 }
 
 
@@ -279,7 +281,7 @@ fn pick_pixels(all_pixels: Vec<&mut Rgb<u8>>, indices: Vec<Vec<u64>>) -> Vec<Vec
         }
         paths.push(path);
     }
-    info!("TIME | [Pickin pixels]:\t{:?}", timestart.elapsed());
+    info!("TIME | [Pickin pixels]:\t+ {:?}", timestart.elapsed());
 
     return paths;
 }
