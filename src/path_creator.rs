@@ -208,6 +208,7 @@ fn path_round_spiral(w: u64, h: u64) -> Vec<Vec<u64>> {
             let angle = angle_offset + step_size * step as f64;
             let xi = x + angle.cos() * r as f64;
             let yi = y + angle.sin() * r as f64;
+            if !is_in_bounds(xi as u64,yi as u64,w,h) {continue;}
             path.push(yi as u64 * w + xi as u64);
         }
         path
@@ -284,4 +285,8 @@ fn pick_pixels(all_pixels: Vec<&mut Rgb<u8>>, indices: Vec<Vec<u64>>) -> Vec<Vec
     info!("TIME | [Pickin pixels]:\t+ {:?}", timestart.elapsed());
 
     return paths;
+}
+
+fn is_in_bounds(x: u64,y: u64,w: u64,h: u64) -> bool {
+    x > 0 && x < w && y > 0 && y < h
 }
