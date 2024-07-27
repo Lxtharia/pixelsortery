@@ -111,7 +111,8 @@ fn path_diagonal_lines(w: u64, h: u64, angle: f32) -> Vec<Vec<u64>> {
     // 1 X                  1     X                       1     X X
     // 2    X        Bad>   2         X        Correct>   2         X X     
     // 3    X               3             X               3             X X
-
+    let angle = angle % 360.0;
+    let do_reverse = (angle > 45.0 && angle < 225.0) || (angle < -135.0 && angle > -315.0);
     let angle = angle % 180.0;
     let x_tan_val = angle.to_radians().tan();
     let xoverhead = (x_tan_val * h as f32).round() as i64;
@@ -146,11 +147,15 @@ fn path_diagonal_lines(w: u64, h: u64, angle: f32) -> Vec<Vec<u64>> {
     };
 
     // Choosing the correct function
-    let paths = match (angle.abs() < 45.0 || angle.abs() > 135.0){
+    let mut paths: Vec<Vec<u64>> = match (angle.abs() > 45.0 && angle.abs() < 135.0) {
         // THREADPOOLING WOOO
-        true => xrange.into_iter().map(x_line_path).collect(),
-        false => yrange.into_iter().map(y_line_path).collect(),
+        true => yrange.into_iter().map(y_line_path).collect(),
+        false => xrange.into_iter().map(x_line_path).collect(),
     };
+    if (do_reverse){
+        for p in &mut paths { p.reverse()};
+    }
+
 
     return paths;
 }
