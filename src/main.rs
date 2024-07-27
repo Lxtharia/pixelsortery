@@ -59,18 +59,17 @@ fn parse_thres_selector_parameters(arg: Option<String>) -> Box<dyn PixelSelector
 
 const HELP_STRING: &str = "
 =================== Pixelsorter ===================
-   Usage: pixelsort <infile> <outfile> [<options>]
-
+   Usage: pixelsortery <infile> --output|-o <outfile> [<options>]
    If <infile>  is '-' , read from stdin
    If <outfile> is '-' , write to stdout
+
 ===================== Options ====================
 
-   --help | -h : Show this
-   --quiet     : Make the program shut up
+   -h | --help   : Show this
+   --quiet       : Make the program shut up
 
 ================ Direction Options ==============
 
-   --vert
    --vertical   : Sort all pixels top to bottom, left to right
    --horizontal : Sort all pixels left to right, top to bottom
    --right      : Sort horizontal lines of pixels to the right
@@ -81,14 +80,14 @@ const HELP_STRING: &str = "
    --spiral-square    : Sort in a squared spiral
    --spiral-rect      : Sort in a rectangular spiral
    --diagonal <angle> : Sort lines tilted by an angle
-   --reverse    : Sort in the opposite direction
+   --reverse          : Sort in the opposite direction
 
 ============= Span-Selection  Options ===========
   [Choose which pixels are valid to form a span]
 
    --random <max>                        : Sort spans of random length between 0 and <max>
    --fixed  <max>                        : Sort spans of a fixed length <max>
-   --thres [hue|bright|sat]:<min>:<max>  : Mark pixels as valid if [hue|bright|sat] is between <min> and <max>
+   --thres <hue|bright|sat>:<min>:<max>  : Mark pixels as valid if [hue|bright|sat] is between <min> and <max>
 
 ================= Sorting Options ===============
 
@@ -119,16 +118,9 @@ fn main() {
         eprintln!("[!] You need to specify the input and the output path");
         exit(1);
     }
-    let output_path = match args.pop_front() {
-        Some(s) => s,
-        None => {
-            eprintln!("[!] You need to specify the output path");
-            exit(1);
-        }
-    };
 
     // OPEN IMAGE OR READ FROM STDIN
-    let img: RgbImage = match path.as_str() {
+    let img: RgbImage = match path.as_str(){
         "-" => {
             let mut buf = Vec::new();
             std::io::stdin().read_to_end(&mut buf).unwrap();
@@ -143,18 +135,21 @@ fn main() {
     let mut do_reverse = false;
     let mut quiet = false;
 
+    let mut output_path = String::new();
+
     // I should just use some argument library tbh
     while let Some(arg) = args.pop_front() {
         match arg.as_str() {
             "-h" | "--help" => { println!("{}", HELP_STRING); exit(0); }
             "--quiet" => quiet = true,
+            "-o" | "--output" => { output_path = parse_parameter::<String>(args.pop_front(), "--output") }
+
             "--random" => ps.selector = Box::new(RandomSelector{ max: parse_parameter(args.pop_front(), "--random <max>")}),
             "--fixed"  => ps.selector = Box::new(FixedSelector{ len: parse_parameter(args.pop_front(), "--fixed <len>")}),
             "--thres"  => ps.selector = parse_thres_selector_parameters(args.pop_front()),
 
+            "--vertical"   => ps.path_creator = PathCreator::AllVertically,
             "--horizontal" => ps.path_creator = PathCreator::AllHorizontally,
-            "--vertical"
-                | "--vert" => ps.path_creator = PathCreator::AllVertically,
             "--right"      => ps.path_creator = PathCreator::HorizontalLines,
             "--left"       => { ps.path_creator = PathCreator::HorizontalLines; ps.reverse = true},
             "--down"       =>   ps.path_creator = PathCreator::VerticalLines,
@@ -181,6 +176,11 @@ fn main() {
             }
         }
     }
+    if output_path.is_empty() {
+        eprintln!("You need to specify the output! Usage: --output <FILE> | -o <FILE>");
+        exit(-1)
+    }
+
     if do_reverse {
         ps.reverse = ! ps.reverse;
     }
