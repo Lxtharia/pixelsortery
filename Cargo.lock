@@ -361,6 +361,7 @@ dependencies = [
  "image",
  "log",
  "rand",
+ "rayon",
  "stderrlog",
 ]
 

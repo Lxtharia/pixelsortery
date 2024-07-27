@@ -1,6 +1,7 @@
 use std::{f64::consts::PI, time::Instant};
 use log::{info, warn, error};
 use image::{Rgb, RgbImage};
+use rayon::prelude::*;
 
 
 #[derive(Debug, Clone, Copy)]
@@ -31,9 +32,7 @@ impl PathCreator {
         timestart = Instant::now();
         // Ideas/missing:
         // Hilbert Curve
-        // Diagonally
-        // In a Spiral
-        // In circles
+        // In waves
         let mut all_paths = match self {
             PathCreator::AllHorizontally => path_all_horizontally(all_pixels, w, h),
             PathCreator::AllVertically => path_all_vertically(all_pixels, w, h),
@@ -105,7 +104,8 @@ fn path_diagonal_lines(all_pixels: Vec<&mut Rgb<u8>>, w: u64, h: u64, angle: f32
     // For example: if spans go to the right at 45°, we need to start at -w/2, so that the bottom left pixel gets assigned a range as well
     let xoverhead = -(tan_val * h as f32).round() as i64;
     let xrange = if tan_val > 0.0 { xoverhead..w as i64 } else { 0..w as i64 + xoverhead };
-    for xs in xrange {
+
+    let line_path = |xs| {
         let mut path = Vec::new();
         for y in 0..h {
             let x = xs + ( y as f32 * tan_val ).round() as i64;
@@ -114,8 +114,11 @@ fn path_diagonal_lines(all_pixels: Vec<&mut Rgb<u8>>, w: u64, h: u64, angle: f32
             let i = y * w + x as u64;
             path.push(i);
         }
-        paths.push(path);
-    }
+        path
+    };
+    // THREADPOOLING WOOO
+    let path_iter = xrange.into_iter().map(line_path);
+    paths = path_iter.collect();
 
     return pick_pixels(all_pixels, paths);
 }
@@ -179,6 +182,7 @@ fn path_rect_spiral(all_pixels: Vec<&mut Rgb<u8>>, w: u64, h: u64, square: bool)
     return pick_pixels(all_pixels, paths);
 }
 
+// Not really a spiral, more like connected circles
 fn path_round_spiral(all_pixels: Vec<&mut Rgb<u8>>, w: u64, h: u64) -> Vec<Vec<&mut Rgb<u8>>> {
     let mut paths: Vec<Vec<u64>> = Vec::new();
     let mut x = w as f64 / 2.0;
@@ -194,20 +198,22 @@ fn path_round_spiral(all_pixels: Vec<&mut Rgb<u8>>, w: u64, h: u64) -> Vec<Vec<&
     // TODO: make elliptic, not just circles
     // TODO: Allow to set center
 
-    let mut path = Vec::new();
-    while r as u64 <= max_size / 2 {
+    let line_path = |r| {
+        let mut path = Vec::new();
         let step_amounts = 16 * r as u64;
-        let circ_step_size: f64 = 2.0 * PI / step_amounts as f64;
+        let step_size: f64 = 2.0 * PI / step_amounts as f64;
         for step in 0..=step_amounts {
-            let angle = angle_offset + circ_step_size * step as f64;
-            let xi = x + angle.cos() * r;
-            let yi = y + angle.sin() * r;
+            let angle = angle_offset + step_size * step as f64;
+            let xi = x + angle.cos() * r as f64;
+            let yi = y + angle.sin() * r as f64;
             path.push(yi as u64 * w + xi as u64);
         }
-        r += 1.0;
-    }
-    paths.push(path);
+        path
+    };
 
+    // THREADING, WOOO
+    let path_iter = (1..max_size/2).into_par_iter().map(line_path);
+    paths = vec![path_iter.flatten().collect()];
     return pick_pixels(all_pixels, paths)
 }
 
@@ -227,7 +233,7 @@ fn path_circles(all_pixels: Vec<&mut Rgb<u8>>, w: u64, h: u64) -> Vec<Vec<&mut R
     // TODO: make elliptic, not just circles
     // TODO: Allow to set center
 
-    while r <= max_size / 2 {
+    let line_path = |r| {
         let mut path_left = Vec::new();
         let mut path_right = Vec::new();
         let step_amounts = 8 * r as u64;
@@ -242,12 +248,12 @@ fn path_circles(all_pixels: Vec<&mut Rgb<u8>>, w: u64, h: u64) -> Vec<Vec<&mut R
             let yi = y + angle.sin() * r as f64;
             path_right.push(yi as u64 * w + xi as u64);
         }
-        paths.push(path_left);
-        paths.push(path_right);
-        r += 1;
-    }
+        vec![path_left, path_right]
+    };
+    // THREADING, WOOO
+    let paths = (1..max_size/2).into_par_iter().map(line_path).flatten();
 
-    return pick_pixels(all_pixels, paths)
+    return pick_pixels(all_pixels, paths.collect())
 }
 
 
