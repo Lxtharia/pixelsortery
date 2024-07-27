@@ -101,16 +101,18 @@ fn path_vertical_lines(w: u64, h: u64) -> Vec<Vec<u64>> {
 fn path_diagonal_lines(w: u64, h: u64, angle: f32) -> Vec<Vec<u64>> {
     let mut paths: Vec<Vec<u64>> = Vec::new();
 
-    let tan_val = angle.to_radians().tan();
-    // we need spans starting at x values outside our width, so that they "fly into" the image
-    // For example: if spans go to the right at 45°, we need to start at -w/2, so that the bottom left pixel gets assigned a range as well
-    let xoverhead = -(tan_val * h as f32).round() as i64;
-    let xrange = if tan_val > 0.0 { xoverhead..w as i64 } else { 0..w as i64 + xoverhead };
+    let x_tan_val = angle.to_radians().tan();
+    let xoverhead = -(x_tan_val * h as f32).round() as i64;
+    let xrange = if x_tan_val > 0.0 { xoverhead..w as i64 } else { 0..w as i64 + xoverhead };
 
-    let line_path = |xs| {
+    let y_tan_val = (90.0 - angle).to_radians().tan();
+    let yoverhead = -(y_tan_val * w as f32).round() as i64;
+    let yrange = if y_tan_val > 0.0 { yoverhead..h as i64 } else { 0..h as i64 + yoverhead };
+
+    let x_line_path = |xs| {
         let mut path = Vec::new();
         for y in 0..h {
-            let x = xs + ( y as f32 * tan_val ).round() as i64;
+            let x = xs + ( y as f32 * x_tan_val ).round() as i64;
             // Prevent "overflowing" the index and selecting indices on the next line
             if x >= w as i64 || x < 0 { continue; }
             let i = y * w + x as u64;
@@ -118,9 +120,24 @@ fn path_diagonal_lines(w: u64, h: u64, angle: f32) -> Vec<Vec<u64>> {
         }
         path
     };
-    // THREADPOOLING WOOO
-    let path_iter = xrange.into_iter().map(line_path);
-    paths = path_iter.collect();
+
+    let y_line_path = |ys| {
+        let mut path = Vec::new();
+        for x in 0..w {
+            let y = ys + ( x as f32 * y_tan_val ).round() as i64;
+            // Prevent "overflowing" the index and selecting indices on the next line
+            if y >= h as i64 || y < 0 { continue; }
+            let i = y as u64 * w + x;
+            path.push(i);
+        }
+        path
+    };
+
+    let paths = match (xoverhead.abs() as u64 + w < yoverhead.abs() as u64 + h){
+        // THREADPOOLING WOOO
+        true => xrange.into_iter().map(x_line_path).collect(),
+        false => yrange.into_iter().map(y_line_path).collect(),
+    };
 
     return paths;
 }
