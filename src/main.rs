@@ -11,6 +11,8 @@ use std::{io::Read, str::FromStr};
 use std::time::Instant;
 use std::{collections::VecDeque, env, process::exit};
 
+mod gui;
+
 fn parse_parameter<T: FromStr>(arg: Option<String>, usage: &str) -> T {
     if let Some(s) = arg {
         if let Ok(n) = s.parse::<T>() {
@@ -186,11 +188,13 @@ fn main() {
     }
 
     // ENABLE LOGGING WITH A LOGGING LEVEL
-    stderrlog::new()
-        .module(module_path!())
-        .verbosity(2)
-        .quiet(quiet)
-        .init().unwrap();
+    let mut log_builder = pretty_env_logger::formatted_builder();
+    log_builder.filter_level(log::LevelFilter::Info);
+    match quiet {
+        true => { log_builder.filter_level( log::LevelFilter::Off); },
+        _ => (),
+    };
+    log_builder.init();
     
     let start = Instant::now();
 
