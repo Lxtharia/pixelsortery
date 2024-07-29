@@ -11,7 +11,6 @@ use std::{io::Read, str::FromStr};
 use std::time::Instant;
 use std::{collections::VecDeque, env, process::exit};
 
-use crate::gui::start_gui;
 
 mod gui;
 
@@ -112,12 +111,11 @@ fn main() {
     // shift
     args.pop_front();
 
-    let mut gui = false;
-    let mut path = String::from("");
+    let path;
     if let Some(s) = args.pop_front() {
         match s.as_str() {
             "--help" | "-h" | "" => { println!("{}", HELP_STRING); exit(0); }
-            "--gui" => {start_gui().unwrap();},
+            "--gui" => { gui::start_gui().unwrap(); exit(0);},
             _ => path = s,
         };
     } else {
