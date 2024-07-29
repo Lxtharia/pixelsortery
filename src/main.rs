@@ -11,6 +11,8 @@ use std::{io::Read, str::FromStr};
 use std::time::Instant;
 use std::{collections::VecDeque, env, process::exit};
 
+use crate::gui::start_gui;
+
 mod gui;
 
 fn parse_parameter<T: FromStr>(arg: Option<String>, usage: &str) -> T {
@@ -110,10 +112,12 @@ fn main() {
     // shift
     args.pop_front();
 
-    let path;
+    let mut gui = false;
+    let mut path = String::from("");
     if let Some(s) = args.pop_front() {
         match s.as_str() {
             "--help" | "-h" | "" => { println!("{}", HELP_STRING); exit(0); }
+            "--gui" => {start_gui().unwrap();},
             _ => path = s,
         };
     } else {
@@ -178,6 +182,7 @@ fn main() {
             }
         }
     }
+
     if output_path.is_empty() {
         eprintln!("You need to specify the output! Usage: --output <FILE> | -o <FILE>");
         exit(-1)
