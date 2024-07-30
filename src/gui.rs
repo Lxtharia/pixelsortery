@@ -1,6 +1,6 @@
 #![allow(unused)]
 use eframe::egui::{
-    self, accesskit::ListStyle, Align, Color32, Layout, Pos2, Rect, RichText, Rounding, Style, Ui,
+    self, accesskit::ListStyle, Align, Color32, Layout, Pos2, Rect, RichText, Rounding, Style, TextBuffer, Ui
 };
 use image::RgbImage;
 use log::{debug, info};
@@ -302,6 +302,23 @@ impl eframe::App for PixelsorterGui {
                     ui.set_width(full_width(&ui));
                     if ui.button("Open image...").clicked() {
                         info!("Opening image...");
+                        // Opening image until cancled or until valid image loaded
+                        loop {
+                            let file = rfd::FileDialog::new()
+                                .add_filter("Images", &["png","jpg","jpeg","webp"])
+                                .pick_file();
+                            match file {
+                                None => break,
+                                Some(f) => match image::open(f.as_path()) {
+                                    Ok(i) => {
+                                        self.img = Some((i.into_rgb8(), f.to_string_lossy().to_string()));
+                                        break;
+                                    },
+                                    Err(_) => {},
+                                }
+                            }
+
+                        }
                     }
                     if let Some((_, name)) = &self.img {
                         ui.label(RichText::new(name).italics());
