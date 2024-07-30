@@ -4,7 +4,7 @@ use image::RgbImage;
 use log::{debug, info};
 use pixelsortery::{
     path_creator::PathCreator,
-    pixel_selector::{PixelSelector, RandomSelector, ThresholdSelector},
+    pixel_selector::{FixedSelector, PixelSelectCriteria, PixelSelector, RandomSelector, ThresholdSelector},
     span_sorter::{SortingAlgorithm, SortingCriteria},
 };
 
@@ -28,20 +28,41 @@ pub fn start_gui() -> eframe::Result {
 struct PixelsorterGui {
     img: Option<(RgbImage, String)>,
     path: PathCreator,
+    selector_type: SelectorType,
+    selector: Box<dyn PixelSelector>,
     criteria: SortingCriteria,
     algorithmn: SortingAlgorithm,
+    // We can select these with the real structs tbh
     tmp_path_diag_val: f32,
+    tmp_sel_rand_max: u32,
+    tmp_sel_fixed_len: u64,
+    tmp_sel_thres_val: (u64, u64, PixelSelectCriteria),
+
     reverse: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+enum SelectorType {
+    Fixed,
+    Random,
+    Thres,
 }
 
 impl Default for PixelsorterGui {
     fn default() -> Self {
         Self {
             img: None,
-            path: PathCreator::HorizontalLines,
+            path: PathCreator::VerticalLines,
             criteria: SortingCriteria::Brightness,
+            selector_type: SelectorType::Thres,
+            selector: Box::new(RandomSelector{max: 30}),
             algorithmn: SortingAlgorithm::Mapsort,
+
             tmp_path_diag_val: 0.0,
+            tmp_sel_rand_max: 100,
+            tmp_sel_fixed_len: 100,
+            tmp_sel_thres_val: (0, 100, PixelSelectCriteria::Hue),
+
             reverse: false,
         }
     }
@@ -82,6 +103,65 @@ impl PixelsorterGui {
                     "Diagonally",
                 );
             });
+    }
+
+    fn selector_combo_box(&mut self, ui: &mut Ui, id: u64) {
+        egui::ComboBox::from_id_source(format!("selector_combo_{}", id))
+            .selected_text(format!("{:?}", self.selector_type))
+            .show_ui(ui, |ui| {
+                vec![SelectorType::Fixed, SelectorType::Random, SelectorType::Thres]
+                    .into_iter()
+                    .for_each(|c| {
+                        ui.selectable_value(&mut self.selector_type, c, format!("{:?}", c));
+                    });
+            });
+            ui.end_row();
+        match self.selector_type {
+            SelectorType::Fixed => {
+                let len = &mut self.tmp_sel_fixed_len;
+                ui.label("Length");
+                ui.add(egui::Slider::new(len, 0..=1000));
+                ui.end_row();
+                self.selector = Box::new(FixedSelector{len: *len});
+            },
+            SelectorType::Random =>{
+                let max = &mut self.tmp_sel_rand_max;
+                ui.label("Max");
+                ui.add(egui::Slider::new(max, 0..=1000));
+                ui.end_row();
+                self.selector = Box::new(RandomSelector{max: *max});
+            },
+            SelectorType::Thres => {
+                let min = &mut self.tmp_sel_thres_val.0;
+                let max = &mut self.tmp_sel_thres_val.1;
+                let criteria = &mut self.tmp_sel_thres_val.2;
+
+                ui.label("Criteria");
+                egui::ComboBox::from_id_source(format!("selector_criteria_combo_{}", id))
+                    .selected_text(format!("{:?}", criteria))
+                    .show_ui(ui, |ui| {
+                        vec![PixelSelectCriteria::Hue, PixelSelectCriteria::Brightness, PixelSelectCriteria::Saturation]
+                            .into_iter()
+                            .for_each(|c| {
+                                ui.selectable_value(criteria, c, format!("{:?}", c));
+                            });
+                    });
+                ui.end_row();
+
+                let cap = if *criteria == PixelSelectCriteria::Hue {360} else {256};
+
+                ui.label("Lower Bound");
+                ui.add(egui::Slider::new(min, 0..=cap));
+                ui.end_row();
+
+                ui.label("Upper Bound");
+                ui.add(egui::Slider::new(max, 0..=cap));
+                ui.end_row();
+
+                // TODO: clamping, depending on which slider is dragged
+                self.selector = Box::new(ThresholdSelector{min: *min, max: *max, criteria: *criteria});
+            },
+        }
     }
 
     fn criteria_combo_box(&mut self, ui: &mut Ui, id: u64) {
@@ -148,6 +228,8 @@ impl PixelsorterGui {
                     }
                     _ => {}
                 };
+                ui.label("Selector");
+                self.selector_combo_box(ui, id);
 
                 // SORTER
                 // SORTING CRITERIA

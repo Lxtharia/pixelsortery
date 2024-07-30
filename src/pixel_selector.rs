@@ -26,7 +26,7 @@ pub struct FullSelector {
 }
 
 /// Key criteria which a (Threshold-)Selector should use as a key
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum PixelSelectCriteria {
     Hue,
     Brightness,
