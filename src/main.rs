@@ -107,15 +107,30 @@ const HELP_STRING: &str = "
 
 
 fn main() {
+
     let mut args: VecDeque<String> = env::args().collect();
     // shift
     args.pop_front();
+
+    // ENABLE LOGGING WITH A LOGGING LEVEL
+    let mut log_builder = env_logger::builder();
+    log_builder.format_timestamp(None);
+    log_builder.format_target(false);
+    // Disable logging when --quiet is given
+    if args.contains(&String::from("--quiet")){
+        log_builder.filter_level(log::LevelFilter::Off);
+    }
+    log_builder.init();
+
+    // Start gui
+    if args.contains(&String::from("--gui")){
+        gui::start_gui().unwrap(); exit(0);
+    }
 
     let path;
     if let Some(s) = args.pop_front() {
         match s.as_str() {
             "--help" | "-h" | "" => { println!("{}", HELP_STRING); exit(0); }
-            "--gui" => { gui::start_gui().unwrap(); exit(0);},
             _ => path = s,
         };
     } else {
@@ -137,15 +152,15 @@ fn main() {
     // CREATE DEFAULT PIXELSORTER
     let mut ps = pixelsortery::Pixelsorter::new(img);
     let mut do_reverse = false;
-    let mut quiet = false;
 
     let mut output_path = String::new();
+    
+    
 
     // I should just use some argument library tbh
     while let Some(arg) = args.pop_front() {
         match arg.as_str() {
             "-h" | "--help" => { println!("{}", HELP_STRING); exit(0); }
-            "--quiet" => quiet = true,
             "-o" | "--output" => { output_path = parse_parameter::<String>(args.pop_front(), "--output") }
 
             "--random" => ps.selector = Box::new(RandomSelector{ max: parse_parameter(args.pop_front(), "--random <max>")}),
@@ -189,16 +204,6 @@ fn main() {
     if do_reverse {
         ps.reverse = ! ps.reverse;
     }
-
-    // ENABLE LOGGING WITH A LOGGING LEVEL
-    let mut log_builder = pretty_env_logger::formatted_builder();
-    log_builder.filter_level(log::LevelFilter::Info);
-    match quiet {
-        true => { log_builder.filter_level( log::LevelFilter::Off); },
-        _ => (),
-    };
-    log_builder.init();
-    
     let start = Instant::now();
 
     // SORTING
