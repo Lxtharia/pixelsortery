@@ -42,6 +42,42 @@ impl Default for PixelsorterGui {
 }
 
 impl PixelsorterGui {
+    fn path_combo_box(&mut self, ui: &mut Ui, id: u64) {
+        egui::ComboBox::from_id_source(format!("path_combo_{}", id))
+            .selected_text(format!("{:?}", self.path))
+            .show_ui(ui, |ui| {
+                ui.selectable_value(
+                    &mut self.path,
+                    PathCreator::AllHorizontally,
+                    "All, Horizontally",
+                );
+                ui.selectable_value(
+                    &mut self.path,
+                    PathCreator::AllVertically,
+                    "All, Vertically",
+                );
+                ui.selectable_value(
+                    &mut self.path,
+                    PathCreator::HorizontalLines,
+                    "Horizontal Lines",
+                );
+                ui.selectable_value(&mut self.path, PathCreator::VerticalLines, "Vertical Lines");
+                ui.selectable_value(&mut self.path, PathCreator::Circles, "Circles");
+                ui.selectable_value(&mut self.path, PathCreator::Spiral, "Spiral");
+                ui.selectable_value(&mut self.path, PathCreator::SquareSpiral, "Square Spiral");
+                ui.selectable_value(
+                    &mut self.path,
+                    PathCreator::RectSpiral,
+                    "Rectangular Spiral",
+                );
+                ui.selectable_value(
+                    &mut self.path,
+                    PathCreator::Diagonally(self.tmp_path_diag_val),
+                    "Diagonally",
+                );
+            });
+    }
+
     fn sorting_options_panel(&mut self, ui: &mut Ui, id: u64) {
         // ui.vertical_centered(|ui| {
         // ui.colored_label(Color32::GOLD, "Sorting Options");
@@ -58,47 +94,7 @@ impl PixelsorterGui {
                 ui.end_row();
                 // PATH
                 ui.label("Path");
-                egui::ComboBox::from_id_source(format!("path_combo_{}", id))
-                    .selected_text(format!("{:?}", self.path))
-                    .show_ui(ui, |ui| {
-                        ui.selectable_value(
-                            &mut self.path,
-                            PathCreator::AllHorizontally,
-                            "All, Horizontally",
-                        );
-                        ui.selectable_value(
-                            &mut self.path,
-                            PathCreator::AllVertically,
-                            "All, Vertically",
-                        );
-                        ui.selectable_value(
-                            &mut self.path,
-                            PathCreator::HorizontalLines,
-                            "Horizontal Lines",
-                        );
-                        ui.selectable_value(
-                            &mut self.path,
-                            PathCreator::VerticalLines,
-                            "Vertical Lines",
-                        );
-                        ui.selectable_value(&mut self.path, PathCreator::Circles, "Circles");
-                        ui.selectable_value(&mut self.path, PathCreator::Spiral, "Spiral");
-                        ui.selectable_value(
-                            &mut self.path,
-                            PathCreator::SquareSpiral,
-                            "Square Spiral",
-                        );
-                        ui.selectable_value(
-                            &mut self.path,
-                            PathCreator::RectSpiral,
-                            "Rectangular Spiral",
-                        );
-                        ui.selectable_value(
-                            &mut self.path,
-                            PathCreator::Diagonally(self.tmp_path_diag_val),
-                            "Diagonally",
-                        );
-                    });
+                self.path_combo_box(ui, id);
                 ui.end_row();
 
                 // Path specific tweaks for some pathings
@@ -131,8 +127,8 @@ impl PixelsorterGui {
 impl eframe::App for PixelsorterGui {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         egui::SidePanel::left("my-left-pane")
-            .resizable(false)
-            .exact_width(380.0)
+            .resizable(true)
+            //.exact_width(380.0)
             .show(ctx, |ui| {
                 ui.vertical_centered(|ui| {
                     ui.heading("Options");
