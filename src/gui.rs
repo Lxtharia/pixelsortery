@@ -36,18 +36,17 @@ impl Default for PixelsorterGui {
 }
 
 impl PixelsorterGui {
-    fn sorting_options_panel(&mut self, ui: &mut Ui) {
-        ui.group(|ui| {
+    fn sorting_options_panel(&mut self, ui: &mut Ui, id: u64) {
             ui.colored_label(Color32::GOLD, "Sorting Options");
 
-            egui::Grid::new("sorting_option_grid")
+            egui::Grid::new(format!("sorting_options_grid_{}", id))
                 .num_columns(2)
                 .spacing([30.0, 4.0])
                 .min_row_height(25.0)
                 .striped(true)
                 .show(ui, |ui| {
                     ui.label("Path");
-                    egui::ComboBox::from_id_source("path_combo")
+                    egui::ComboBox::from_id_source(format!("path_combo_{}", id))
                         .selected_text("Diagonal")
                         .show_ui(ui, |ui| {
                             ui.selectable_label(false, "Left");
@@ -75,7 +74,6 @@ impl PixelsorterGui {
                     ui.end_row();
                     ui.checkbox(&mut self.checked, "Checked?");
                 });
-        });
     }
 }
 
@@ -93,12 +91,7 @@ impl eframe::App for PixelsorterGui {
                 egui::ScrollArea::vertical()
                     .max_height(f32::INFINITY)
                     .show(ui, |ui| {
-                        // ui.with_layout(Layout::bottom_up(Align::Center), |ui| {
-                        self.sorting_options_panel(ui);
-                        self.sorting_options_panel(ui);
-                        self.sorting_options_panel(ui);
-                        self.sorting_options_panel(ui);
-                        // });
+                        self.sorting_options_panel(ui, 1);
                     });
             });
 
