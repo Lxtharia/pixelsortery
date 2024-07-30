@@ -4,7 +4,7 @@ use image::{Rgb, RgbImage};
 use rayon::prelude::*;
 
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum PathCreator {
     AllHorizontally,
     AllVertically,

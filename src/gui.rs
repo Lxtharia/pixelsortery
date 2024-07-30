@@ -1,6 +1,10 @@
 #![allow(unused)]
 use eframe::egui::{self, Align, Color32, Layout, RichText, Ui};
 use log::{debug, info};
+use pixelsortery::{
+    path_creator::PathCreator,
+    pixel_selector::{PixelSelector, RandomSelector},
+};
 
 pub fn start_gui() -> eframe::Result {
     let options = eframe::NativeOptions {
@@ -20,60 +24,107 @@ pub fn start_gui() -> eframe::Result {
 }
 
 struct PixelsorterGui {
-    val: i64,
-    s: String,
-    checked: bool,
+    image_name: Option<String>,
+    path: PathCreator,
+    tmp_path_diag_val: f32,
+    reverse: bool,
 }
 
 impl Default for PixelsorterGui {
     fn default() -> Self {
         Self {
-            val: 66,
-            s: "lorem ipsum".into(),
-            checked: false,
+            image_name: None,
+            path: PathCreator::HorizontalLines,
+            tmp_path_diag_val: 0.0,
+            reverse: false,
         }
     }
 }
 
 impl PixelsorterGui {
     fn sorting_options_panel(&mut self, ui: &mut Ui, id: u64) {
-            ui.colored_label(Color32::GOLD, "Sorting Options");
+        // ui.vertical_centered(|ui| {
+        // ui.colored_label(Color32::GOLD, "Sorting Options");
+        // });
 
-            egui::Grid::new(format!("sorting_options_grid_{}", id))
-                .num_columns(2)
-                .spacing([30.0, 4.0])
-                .min_row_height(25.0)
-                .striped(true)
-                .show(ui, |ui| {
-                    ui.label("Path");
-                    egui::ComboBox::from_id_source(format!("path_combo_{}", id))
-                        .selected_text("Diagonal")
-                        .show_ui(ui, |ui| {
-                            ui.selectable_label(false, "Left");
-                            ui.selectable_label(true, "Right");
-                        });
-                    ui.end_row();
+        egui::Grid::new(format!("sorting_options_grid_{}", id))
+            .num_columns(2)
+            .spacing([30.0, 4.0])
+            .min_row_height(25.0)
+            .striped(true)
+            .show(ui, |ui| {
+                ui.label("");
+                ui.separator();
+                ui.end_row();
+                // PATH
+                ui.label("Path");
+                egui::ComboBox::from_id_source(format!("path_combo_{}", id))
+                    .selected_text(format!("{:?}", self.path))
+                    .show_ui(ui, |ui| {
+                        ui.selectable_value(
+                            &mut self.path,
+                            PathCreator::AllHorizontally,
+                            "All, Horizontally",
+                        );
+                        ui.selectable_value(
+                            &mut self.path,
+                            PathCreator::AllVertically,
+                            "All, Vertically",
+                        );
+                        ui.selectable_value(
+                            &mut self.path,
+                            PathCreator::HorizontalLines,
+                            "Horizontal Lines",
+                        );
+                        ui.selectable_value(
+                            &mut self.path,
+                            PathCreator::VerticalLines,
+                            "Vertical Lines",
+                        );
+                        ui.selectable_value(&mut self.path, PathCreator::Circles, "Circles");
+                        ui.selectable_value(&mut self.path, PathCreator::Spiral, "Spiral");
+                        ui.selectable_value(
+                            &mut self.path,
+                            PathCreator::SquareSpiral,
+                            "Square Spiral",
+                        );
+                        ui.selectable_value(
+                            &mut self.path,
+                            PathCreator::RectSpiral,
+                            "Rectangular Spiral",
+                        );
+                        ui.selectable_value(
+                            &mut self.path,
+                            PathCreator::Diagonally(self.tmp_path_diag_val),
+                            "Diagonally",
+                        );
+                    });
+                ui.end_row();
 
-                    if self.checked {
-                        ui.label("Minimum");
-                        ui.add(egui::Slider::new(&mut self.val, 0..=360));
+                // Path specific tweaks for some pathings
+                match self.path {
+                    PathCreator::Diagonally(ref mut angle) => {
+                        ui.label("Angle");
+                        ui.add(egui::Slider::new(angle, 0.0..=360.0));
                         ui.end_row();
-                        ui.label("Maximum");
-                        ui.add(egui::Slider::new(&mut self.val, 0..=360));
-                        ui.end_row();
+                        angle.clamp(0.0, 360.0);
+                        // Save for when we reselect diagonally
+                        self.tmp_path_diag_val = angle.clone();
                     }
+                    _ => {}
+                };
 
-                    ui.label("Selector");
-                    if ui.button("Ja/Nein").clicked() {
-                        info!("Button has been pressed!");
-                    }
-                    ui.end_row();
+                // SORTER
+                // SORTING CRITERIA
+                ui.label("Criteria");
+                ui.end_row();
+                // SORTING ALGORITHM
+                ui.label("Algorithm");
+                ui.end_row();
 
-                    ui.label("Sorter");
-                    ui.text_edit_singleline(&mut self.s);
-                    ui.end_row();
-                    ui.checkbox(&mut self.checked, "Checked?");
-                });
+                ui.checkbox(&mut self.reverse, "Reverse?");
+                ui.end_row();
+            });
     }
 }
 
@@ -90,6 +141,7 @@ impl eframe::App for PixelsorterGui {
 
                 egui::ScrollArea::vertical()
                     .max_height(f32::INFINITY)
+                    .max_width(f32::INFINITY)
                     .show(ui, |ui| {
                         self.sorting_options_panel(ui, 1);
                     });
