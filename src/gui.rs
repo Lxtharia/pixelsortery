@@ -4,7 +4,8 @@ use image::RgbImage;
 use log::{debug, info};
 use pixelsortery::{
     path_creator::PathCreator,
-    pixel_selector::{PixelSelector, RandomSelector},
+    pixel_selector::{PixelSelector, RandomSelector, ThresholdSelector},
+    span_sorter::{SortingAlgorithm, SortingCriteria},
 };
 
 pub fn start_gui() -> eframe::Result {
@@ -27,6 +28,8 @@ pub fn start_gui() -> eframe::Result {
 struct PixelsorterGui {
     img: Option<(RgbImage, String)>,
     path: PathCreator,
+    criteria: SortingCriteria,
+    algorithmn: SortingAlgorithm,
     tmp_path_diag_val: f32,
     reverse: bool,
 }
@@ -36,6 +39,8 @@ impl Default for PixelsorterGui {
         Self {
             img: None,
             path: PathCreator::HorizontalLines,
+            criteria: SortingCriteria::Brightness,
+            algorithmn: SortingAlgorithm::Mapsort,
             tmp_path_diag_val: 0.0,
             reverse: false,
         }
@@ -79,6 +84,39 @@ impl PixelsorterGui {
             });
     }
 
+    fn criteria_combo_box(&mut self, ui: &mut Ui, id: u64) {
+        egui::ComboBox::from_id_source(format!("criteria_combo_{}", id))
+            .selected_text(format!("{:?}", self.criteria))
+            .show_ui(ui, |ui| {
+                vec![
+                    SortingCriteria::Brightness,
+                    SortingCriteria::Saturation,
+                    SortingCriteria::Hue,
+                ]
+                .into_iter()
+                .for_each(|c| {
+                    ui.selectable_value(&mut self.criteria, c, format!("{:?}", c));
+                });
+            });
+    }
+
+    fn algorithmn_combo_box(&mut self, ui: &mut Ui, id: u64) {
+        egui::ComboBox::from_id_source(format!("algorithm_combo_{}", id))
+            .selected_text(format!("{:?}", self.algorithmn))
+            .show_ui(ui, |ui| {
+                vec![
+                    SortingAlgorithm::Mapsort,
+                    SortingAlgorithm::Glitchsort,
+                    SortingAlgorithm::Shellsort,
+                    SortingAlgorithm::DebugColor,
+                ]
+                .into_iter()
+                .for_each(|c| {
+                    ui.selectable_value(&mut self.algorithmn, c, format!("{:?}", c));
+                });
+            });
+    }
+
     fn sorting_options_panel(&mut self, ui: &mut Ui, id: u64) {
         // ui.vertical_centered(|ui| {
         // ui.colored_label(Color32::GOLD, "Sorting Options");
@@ -114,9 +152,11 @@ impl PixelsorterGui {
                 // SORTER
                 // SORTING CRITERIA
                 ui.label("Criteria");
+                self.criteria_combo_box(ui, id);
                 ui.end_row();
                 // SORTING ALGORITHM
                 ui.label("Algorithm");
+                self.algorithmn_combo_box(ui, id);
                 ui.end_row();
 
                 ui.checkbox(&mut self.reverse, "Reverse?");
@@ -160,33 +200,26 @@ impl eframe::App for PixelsorterGui {
                 });
 
                 ui.add_enabled_ui(self.img.is_some(), |ui| {
-
                     ui.add_space(full_height(ui) - 50.0);
 
-                    ui.with_layout(
-                        Layout::bottom_up(Align::Center),
-                        |ui| {
-                            ui.group(|ui| {
-                                // let w = ui.max_rect().max.x - ui.max_rect().min.x;
-                                // ui.set_width(w);
-                                if ui
-                                    .add_enabled(
-                                        self.img.is_some(),
-                                        egui::Button::new("Save as..."),
-                                    )
-                                    .clicked()
-                                {
-                                    info!("Saving image...");
-                                }
-                            });
-
-                            ui.separator();
-
-                            if ui.button(RichText::new("SORT").heading()).clicked() {
-                                info!("SORTING IMAGE");
+                    ui.with_layout(Layout::bottom_up(Align::Center), |ui| {
+                        ui.group(|ui| {
+                            // let w = ui.max_rect().max.x - ui.max_rect().min.x;
+                            // ui.set_width(w);
+                            if ui
+                                .add_enabled(self.img.is_some(), egui::Button::new("Save as..."))
+                                .clicked()
+                            {
+                                info!("Saving image...");
                             }
-                        },
-                    );
+                        });
+
+                        ui.separator();
+
+                        if ui.button(RichText::new("SORT IMAGE").heading()).clicked() {
+                            info!("SORTING IMAGE");
+                        }
+                    });
                 });
             });
 

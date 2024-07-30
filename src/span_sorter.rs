@@ -12,14 +12,14 @@ pub struct SpanSorter {
     pub algorithm: SortingAlgorithm,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SortingCriteria {
     Hue,
     Brightness,
     Saturation,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SortingAlgorithm {
     Mapsort,
     Shellsort,
