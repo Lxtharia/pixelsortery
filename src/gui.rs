@@ -133,15 +133,16 @@ impl eframe::App for PixelsorterGui {
             .max_width(420.0)
             .show(ctx, |ui| {
                 ui.vertical_centered(|ui| {
+                    ui.separator();
                     ui.heading("Options");
                     ui.separator();
                 });
 
                 ui.group(|ui| {
+                    ui.set_width(full_width(&ui));
                     if ui.button("Open image...").clicked() {
                         info!("Opening image...");
                     }
-                    ui.separator();
                     if let Some((_, name)) = &self.img {
                         ui.label(RichText::new(name).italics());
                     } else {
@@ -159,25 +160,33 @@ impl eframe::App for PixelsorterGui {
                 });
 
                 ui.add_enabled_ui(self.img.is_some(), |ui| {
+
+                    ui.add_space(full_height(ui) - 50.0);
+
                     ui.with_layout(
-                        Layout::top_down(Align::Center).with_cross_justify(true),
+                        Layout::bottom_up(Align::Center),
                         |ui| {
+                            ui.group(|ui| {
+                                // let w = ui.max_rect().max.x - ui.max_rect().min.x;
+                                // ui.set_width(w);
+                                if ui
+                                    .add_enabled(
+                                        self.img.is_some(),
+                                        egui::Button::new("Save as..."),
+                                    )
+                                    .clicked()
+                                {
+                                    info!("Saving image...");
+                                }
+                            });
+
+                            ui.separator();
+
                             if ui.button(RichText::new("SORT").heading()).clicked() {
                                 info!("SORTING IMAGE");
                             }
                         },
                     );
-                });
-
-                ui.group(|ui| {
-                    let w = ui.max_rect().max.x - ui.max_rect().min.x;
-                    ui.set_width(w);
-                    if ui
-                        .add_enabled(self.img.is_some(), egui::Button::new("Save as..."))
-                        .clicked()
-                    {
-                        info!("Saving image...");
-                    }
                 });
             });
 
@@ -193,4 +202,16 @@ impl eframe::App for PixelsorterGui {
             ui.heading("Hello Pixely World!");
         });
     }
+}
+
+fn set_full_width(ui: &mut Ui) -> () {
+    ui.set_width(ui.max_rect().max.x - ui.max_rect().min.x);
+}
+
+fn full_width(ui: &Ui) -> f32 {
+    ui.max_rect().max.x - ui.max_rect().min.x
+}
+
+fn full_height(ui: &Ui) -> f32 {
+    ui.max_rect().max.y - ui.max_rect().min.y
 }
