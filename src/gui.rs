@@ -1,5 +1,6 @@
 #![allow(unused)]
-use eframe::egui::{self, Align, Color32, Layout, RichText, Ui};
+use eframe::egui::{self, Align, Color32, Layout, Pos2, Rect, RichText, Rounding, Ui};
+use image::RgbImage;
 use log::{debug, info};
 use pixelsortery::{
     path_creator::PathCreator,
@@ -24,7 +25,7 @@ pub fn start_gui() -> eframe::Result {
 }
 
 struct PixelsorterGui {
-    image_name: Option<String>,
+    img: Option<(RgbImage, String)>,
     path: PathCreator,
     tmp_path_diag_val: f32,
     reverse: bool,
@@ -33,7 +34,7 @@ struct PixelsorterGui {
 impl Default for PixelsorterGui {
     fn default() -> Self {
         Self {
-            image_name: None,
+            img: None,
             path: PathCreator::HorizontalLines,
             tmp_path_diag_val: 0.0,
             reverse: false,
@@ -92,6 +93,7 @@ impl PixelsorterGui {
                 ui.label("");
                 ui.separator();
                 ui.end_row();
+
                 // PATH
                 ui.label("Path");
                 self.path_combo_box(ui, id);
@@ -103,7 +105,6 @@ impl PixelsorterGui {
                         ui.label("Angle");
                         ui.add(egui::Slider::new(angle, 0.0..=360.0));
                         ui.end_row();
-                        angle.clamp(0.0, 360.0);
                         // Save for when we reselect diagonally
                         self.tmp_path_diag_val = angle.clone();
                     }
@@ -129,18 +130,55 @@ impl eframe::App for PixelsorterGui {
         egui::SidePanel::left("my-left-pane")
             .resizable(true)
             //.exact_width(380.0)
+            .max_width(420.0)
             .show(ctx, |ui| {
                 ui.vertical_centered(|ui| {
                     ui.heading("Options");
                     ui.separator();
                 });
 
-                egui::ScrollArea::vertical()
-                    .max_height(f32::INFINITY)
-                    .max_width(f32::INFINITY)
-                    .show(ui, |ui| {
-                        self.sorting_options_panel(ui, 1);
-                    });
+                ui.group(|ui| {
+                    if ui.button("Open image...").clicked() {
+                        info!("Opening image...");
+                    }
+                    ui.separator();
+                    if let Some((_, name)) = &self.img {
+                        ui.label(RichText::new(name).italics());
+                    } else {
+                        ui.label(RichText::new("No image loaded...").italics());
+                    }
+                });
+
+                ui.group(|ui| {
+                    egui::ScrollArea::vertical()
+                        .max_height(f32::INFINITY)
+                        .max_width(f32::INFINITY)
+                        .show(ui, |ui| {
+                            self.sorting_options_panel(ui, 1);
+                        });
+                });
+
+                ui.add_enabled_ui(self.img.is_some(), |ui| {
+                    ui.with_layout(
+                        Layout::top_down(Align::Center).with_cross_justify(true),
+                        |ui| {
+                            if ui.button(RichText::new("SORT").heading()).clicked() {
+                                info!("SORTING IMAGE");
+                            }
+                        },
+                    );
+                });
+
+                ui.group(|ui| {
+                    let w = ui.max_rect().max.x - ui.max_rect().min.x;
+                    ui.set_width(w);
+                    if ui
+                        .add_enabled(self.img.is_some(), egui::Button::new("Save as..."))
+                        .clicked()
+                    {
+                        info!("Saving image...");
+                    }
+                });
             });
 
         egui::TopBottomPanel::bottom("info-bar").show(ctx, |ui| {
