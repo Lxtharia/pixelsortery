@@ -1153,6 +1153,7 @@ dependencies = [
  "ahash",
  "egui",
  "enum-map",
+ "image 0.25.2",
  "log",
  "mime_guess2",
  "serde",

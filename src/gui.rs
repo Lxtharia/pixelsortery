@@ -1,8 +1,11 @@
 #![allow(unused)]
+use std::io::Read;
+
 use eframe::egui::{
-    self, accesskit::ListStyle, Align, Color32, Layout, Pos2, Rect, RichText, Rounding, Style, TextBuffer, Ui
+    self, accesskit::ListStyle, Align, Color32, Image, Layout, Pos2, Rect, RichText, Rounding,
+    Style, TextBuffer, Ui,
 };
-use image::RgbImage;
+use image::{GenericImageView, RgbImage};
 use log::{debug, info};
 use pixelsortery::{
     path_creator::PathCreator,
@@ -283,6 +286,17 @@ impl PixelsorterGui {
                 ui.end_row();
             });
     }
+
+    /// Tries to show the image if it exists, or not.
+    fn show_img(&self, ctx: &egui::Context, ui: &mut Ui) {
+        if let Some((i, _)) = &self.img {
+            // println!("Image dimensions: {} x {}", i.width(), i.height());
+            let mut buffer = Vec::new();
+            i.write_to( &mut std::io::Cursor::new(&mut buffer), image::ImageOutputFormat::Png) .unwrap();
+            
+            ui.add(Image::from_bytes("bytes://image", buffer));
+        }
+    }
 }
 
 impl eframe::App for PixelsorterGui {
@@ -305,21 +319,22 @@ impl eframe::App for PixelsorterGui {
                         // Opening image until cancled or until valid image loaded
                         loop {
                             let file = rfd::FileDialog::new()
-                                .add_filter("Images", &["png","jpg","jpeg","webp"])
+                                .add_filter("Images", &["png", "jpg", "jpeg", "webp"])
                                 .pick_file();
                             match file {
                                 None => break,
                                 Some(f) => match image::open(f.as_path()) {
                                     Ok(i) => {
-                                        self.img = Some((i.into_rgb8(), f.to_string_lossy().to_string()));
+                                        self.img =
+                                            Some((i.into_rgb8(), f.to_string_lossy().to_string()));
                                         break;
-                                    },
-                                    Err(_) => {},
-                                }
+                                    }
+                                    Err(_) => {}
+                                },
                             }
-
                         }
                     }
+
                     if let Some((_, name)) = &self.img {
                         ui.label(RichText::new(name).italics());
                     } else {
@@ -370,6 +385,7 @@ impl eframe::App for PixelsorterGui {
 
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.heading("Hello Pixely World!");
+            self.show_img(ctx, ui);
         });
     }
 }
