@@ -287,16 +287,25 @@ impl PixelsorterGui {
             });
     }
 
+    fn set_img(&mut self, ctx: &egui::Context, img: RgbImage, name: String) {
+        self.img = Some((img.clone(), name));
+        // println!("Image dimensions: {} x {}", i.width(), i.height());
+        let mut buffer = Vec::new();
+        img.write_to(
+            &mut std::io::Cursor::new(&mut buffer),
+            image::ImageOutputFormat::Png,
+        )
+        .unwrap();
+        ctx.forget_image("bytes://image");
+        ctx.include_bytes("bytes://image", buffer);
+    }
+
     /// Tries to show the image if it exists, or not.
     fn show_img(&self, ctx: &egui::Context, ui: &mut Ui) {
-        if let Some((i, _)) = &self.img {
-            // println!("Image dimensions: {} x {}", i.width(), i.height());
-            let mut buffer = Vec::new();
-            i.write_to( &mut std::io::Cursor::new(&mut buffer), image::ImageOutputFormat::Png) .unwrap();
-            ctx.forget_image("bytes://image");
-            ctx.include_bytes("bytes://image", buffer);
-            ui.image("bytes://image");
-        }
+        if self.img.is_none() {
+            return;
+        };
+        ui.image("bytes://image");
     }
 }
 
@@ -326,8 +335,11 @@ impl eframe::App for PixelsorterGui {
                                 None => break,
                                 Some(f) => match image::open(f.as_path()) {
                                     Ok(i) => {
-                                        self.img =
-                                            Some((i.into_rgb8(), f.to_string_lossy().to_string()));
+                                        self.set_img(
+                                            ctx,
+                                            i.into_rgb8(),
+                                            f.to_string_lossy().to_string(),
+                                        );
                                         break;
                                     }
                                     Err(_) => {}
