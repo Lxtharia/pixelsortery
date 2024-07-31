@@ -38,6 +38,9 @@ impl Pixelsorter {
         }
     }
 
+    pub fn get_img(&self) -> RgbImage {
+        self.img.clone()
+    }
     // 1:1 wrapper for image save function
     pub fn save<Q: AsRef<Path>>(&self, path: Q) -> ImageResult<()> {
         self.img.save(path)

@@ -46,9 +46,9 @@ struct PixelsorterGui {
     algorithmn: SortingAlgorithm,
     /// We can select these with the real structs tbh
     tmp_path_diag_val: f32,
-    tmp_sel_rand_max: u32,
-    tmp_sel_fixed_len: u64,
-    tmp_sel_thres_val: (u64, u64, PixelSelectCriteria),
+    my_selector_random: RandomSelector,
+    my_selector_fixed: FixedSelector,
+    my_selector_thres: ThresholdSelector,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -63,6 +63,7 @@ impl Default for PixelsorterGui {
         Self {
             img: None,
             texture: None,
+            reverse: false,
             path: PathCreator::VerticalLines,
             criteria: SortingCriteria::Brightness,
             selector_type: SelectorType::Thres,
@@ -70,11 +71,9 @@ impl Default for PixelsorterGui {
             algorithmn: SortingAlgorithm::Mapsort,
 
             tmp_path_diag_val: 0.0,
-            tmp_sel_rand_max: 100,
-            tmp_sel_fixed_len: 100,
-            tmp_sel_thres_val: (0, 100, PixelSelectCriteria::Hue),
-
-            reverse: false,
+            my_selector_random: RandomSelector { max: 30 },
+            my_selector_fixed: FixedSelector {len: 100},
+            my_selector_thres: ThresholdSelector{min: 0, max: 360, criteria: PixelSelectCriteria::Hue},
         }
     }
 }
@@ -160,23 +159,23 @@ impl PixelsorterGui {
             .show(ui, |ui| {
                 match self.selector_type {
                     SelectorType::Fixed => {
-                        let len = &mut self.tmp_sel_fixed_len;
+                        let len = &mut self.my_selector_fixed.len;
                         ui.label("Length");
                         ui.add(egui::Slider::new(len, 0..=1000));
                         ui.end_row();
                         self.selector = Box::new(FixedSelector { len: *len });
                     }
                     SelectorType::Random => {
-                        let max = &mut self.tmp_sel_rand_max;
+                        let max = &mut self.my_selector_random.max;
                         ui.label("Max");
                         ui.add(egui::Slider::new(max, 0..=1000));
                         ui.end_row();
                         self.selector = Box::new(RandomSelector { max: *max });
                     }
                     SelectorType::Thres => {
-                        let min = &mut self.tmp_sel_thres_val.0;
-                        let max = &mut self.tmp_sel_thres_val.1;
-                        let criteria = &mut self.tmp_sel_thres_val.2;
+                        let min = &mut self.my_selector_thres.min;
+                        let max = &mut self.my_selector_thres.max;
+                        let criteria = &mut self.my_selector_thres.criteria;
 
                         ui.label("Criteria");
                         egui::ComboBox::from_id_source(format!("selector_criteria_combo_{}", id))
@@ -291,8 +290,25 @@ impl PixelsorterGui {
             });
     }
 
-    fn set_img(&mut self, ctx: &egui::Context, img: RgbImage, name: String) {
-        self.img = Some((img.clone(), name));
+    fn sort_img(&mut self) -> Option<RgbImage> {
+        if let Some((img, _)) = &mut self.img {
+            let mut ps = pixelsortery::Pixelsorter::new(img.clone());
+            ps.path_creator = self.path;
+            ps.sorter.criteria = self.criteria;
+            ps.sorter.algorithm = self.algorithmn;
+            ps.reverse = self.reverse;
+            ps.selector = match self.selector_type {
+                SelectorType::Fixed => Box::new(self.my_selector_fixed),
+                SelectorType::Random => Box::new(self.my_selector_random),
+                SelectorType::Thres => Box::new(self.my_selector_thres),
+            };
+            ps.sort();
+            return Some(ps.get_img());
+        }
+        return None;
+    }
+
+    fn set_texture(&mut self, ctx: &egui::Context, img: &RgbImage, name: String) {
         let rgb_data = img.to_vec();
         let colorimg =
             egui::ColorImage::from_rgb([img.width() as usize, img.height() as usize], &rgb_data);
@@ -337,11 +353,13 @@ impl eframe::App for PixelsorterGui {
                                 None => break,
                                 Some(f) => match image::open(f.as_path()) {
                                     Ok(i) => {
-                                        self.set_img(
+                                        let img = i.into_rgb8();
+                                        self.set_texture(
                                             ctx,
-                                            i.into_rgb8(),
+                                            &img,
                                             f.to_string_lossy().to_string(),
                                         );
+                                        self.img = Some((img, f.to_string_lossy().to_string()));
                                         break;
                                     }
                                     Err(_) => {}
@@ -385,6 +403,9 @@ impl eframe::App for PixelsorterGui {
 
                         if ui.button(RichText::new("SORT IMAGE").heading()).clicked() {
                             info!("SORTING IMAGE");
+                            if let Some(img) = self.sort_img() {
+                                self.set_texture(ctx, &img, "Some name".to_string());
+                            }
                         }
                     });
                 });

@@ -6,22 +6,24 @@ use rand::{
     thread_rng
 };
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct ThresholdSelector {
     pub min: u64,
     pub max: u64,
     pub criteria: PixelSelectCriteria,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct RandomSelector {
     pub max: u32,
 }
 
+#[derive(Debug, Clone, Copy)]
 pub struct FixedSelector {
     pub len: u64,
 }
 
+#[derive(Debug, Clone, Copy)]
 pub struct FullSelector {
 }
 
