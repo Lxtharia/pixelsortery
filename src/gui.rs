@@ -293,8 +293,9 @@ impl PixelsorterGui {
             // println!("Image dimensions: {} x {}", i.width(), i.height());
             let mut buffer = Vec::new();
             i.write_to( &mut std::io::Cursor::new(&mut buffer), image::ImageOutputFormat::Png) .unwrap();
-            
-            ui.add(Image::from_bytes("bytes://image", buffer));
+            ctx.forget_image("bytes://image");
+            ctx.include_bytes("bytes://image", buffer);
+            ui.image("bytes://image");
         }
     }
 }
