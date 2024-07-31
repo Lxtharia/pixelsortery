@@ -3,7 +3,7 @@ use std::io::Read;
 
 use eframe::egui::{
     self, accesskit::ListStyle, Align, Color32, Image, Layout, Pos2, Rect, RichText, Rounding,
-    Style, TextBuffer, Ui,
+    Style, TextBuffer, TextureHandle, TextureOptions, Ui,
 };
 use image::{GenericImageView, RgbImage};
 use log::{debug, info};
@@ -33,19 +33,22 @@ pub fn start_gui() -> eframe::Result {
 }
 
 struct PixelsorterGui {
+    /// The image, used to load and be sorted
     img: Option<(RgbImage, String)>,
+    /// The image used by egui to draw every frame
+    texture: Option<TextureHandle>,
+    /// Components of the pixelsorter
+    reverse: bool,
     path: PathCreator,
     selector_type: SelectorType,
     selector: Box<dyn PixelSelector>,
     criteria: SortingCriteria,
     algorithmn: SortingAlgorithm,
-    // We can select these with the real structs tbh
+    /// We can select these with the real structs tbh
     tmp_path_diag_val: f32,
     tmp_sel_rand_max: u32,
     tmp_sel_fixed_len: u64,
     tmp_sel_thres_val: (u64, u64, PixelSelectCriteria),
-
-    reverse: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -59,6 +62,7 @@ impl Default for PixelsorterGui {
     fn default() -> Self {
         Self {
             img: None,
+            texture: None,
             path: PathCreator::VerticalLines,
             criteria: SortingCriteria::Brightness,
             selector_type: SelectorType::Thres,
@@ -289,23 +293,17 @@ impl PixelsorterGui {
 
     fn set_img(&mut self, ctx: &egui::Context, img: RgbImage, name: String) {
         self.img = Some((img.clone(), name));
-        // println!("Image dimensions: {} x {}", i.width(), i.height());
-        let mut buffer = Vec::new();
-        img.write_to(
-            &mut std::io::Cursor::new(&mut buffer),
-            image::ImageOutputFormat::Png,
-        )
-        .unwrap();
-        ctx.forget_image("bytes://image");
-        ctx.include_bytes("bytes://image", buffer);
+        let rgb_data = img.to_vec();
+        let colorimg =
+            egui::ColorImage::from_rgb([img.width() as usize, img.height() as usize], &rgb_data);
+        self.texture = Some(ctx.load_texture("ImageYeahYeah", colorimg, TextureOptions::default()));
     }
 
     /// Tries to show the image if it exists, or not.
     fn show_img(&self, ctx: &egui::Context, ui: &mut Ui) {
-        if self.img.is_none() {
-            return;
-        };
-        ui.image("bytes://image");
+        if let Some(tex) = &self.texture {
+            ui.add(Image::new((tex.id(), tex.size_vec2())).shrink_to_fit());
+        }
     }
 }
 
@@ -325,7 +323,6 @@ impl eframe::App for PixelsorterGui {
                 ui.group(|ui| {
                     ui.set_width(full_width(&ui));
                     if ui.button("Open image...").clicked() {
-                        info!("Opening image...");
                         // Opening image until cancled or until valid image loaded
                         loop {
                             let file = rfd::FileDialog::new()
