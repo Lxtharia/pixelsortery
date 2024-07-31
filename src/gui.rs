@@ -3,7 +3,7 @@ use std::io::Read;
 
 use eframe::egui::{
     self, accesskit::ListStyle, Align, Color32, Image, Layout, Pos2, Rect, RichText, Rounding,
-    Style, TextBuffer, TextureHandle, TextureOptions, Ui,
+    Style, TextBuffer, TextureFilter, TextureHandle, TextureOptions, Ui,
 };
 use image::{GenericImageView, RgbImage};
 use log::{debug, info};
@@ -296,7 +296,12 @@ impl PixelsorterGui {
         let rgb_data = img.to_vec();
         let colorimg =
             egui::ColorImage::from_rgb([img.width() as usize, img.height() as usize], &rgb_data);
-        self.texture = Some(ctx.load_texture("ImageYeahYeah", colorimg, TextureOptions::default()));
+        let mut options = TextureOptions::default();
+        // Make small images stretch without blurring
+        options.magnification = TextureFilter::Nearest;
+        // Make big images fit without noise
+        options.minification = TextureFilter::Linear;
+        self.texture = Some(ctx.load_texture("ImageYeahYeah", colorimg, options));
     }
 
     /// Tries to show the image if it exists, or not.
