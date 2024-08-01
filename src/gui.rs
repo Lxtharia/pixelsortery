@@ -43,7 +43,6 @@ struct PixelsorterGui {
     reverse: bool,
     path: PathCreator,
     selector_type: SelectorType,
-    selector: Box<dyn PixelSelector>,
     criteria: SortingCriteria,
     algorithmn: SortingAlgorithm,
     /// We can select these with the real structs tbh
@@ -86,7 +85,6 @@ impl Default for PixelsorterGui {
             path: PathCreator::VerticalLines,
             criteria: SortingCriteria::Brightness,
             selector_type: SelectorType::Thres,
-            selector: Box::new(RandomSelector { max: 30 }),
             algorithmn: SortingAlgorithm::Mapsort,
 
             tmp_path_diag_val: 0.0,
@@ -112,17 +110,17 @@ impl PixelsorterGui {
                     PathCreator::AllHorizontally,
                     "All Horizontally",
                 );
-                ui.selectable_value(
-                    &mut self.path,
-                    PathCreator::AllVertically,
-                    "All Vertically",
-                );
+                ui.selectable_value(&mut self.path, PathCreator::AllVertically, "All Vertically");
                 ui.selectable_value(
                     &mut self.path,
                     PathCreator::HorizontalLines,
                     "Lines, Horizontally",
                 );
-                ui.selectable_value(&mut self.path, PathCreator::VerticalLines, "Lines, Vertically");
+                ui.selectable_value(
+                    &mut self.path,
+                    PathCreator::VerticalLines,
+                    "Lines, Vertically",
+                );
                 ui.selectable_value(&mut self.path, PathCreator::Circles, "Circles");
                 ui.selectable_value(&mut self.path, PathCreator::Spiral, "Spiral");
                 ui.selectable_value(&mut self.path, PathCreator::SquareSpiral, "Square Spiral");
@@ -198,7 +196,6 @@ impl PixelsorterGui {
                             .smart_aim(false);
                         ui.add(slider);
                         ui.end_row();
-                        self.selector = Box::new(FixedSelector { len: *len });
                     }
                     SelectorType::Random => {
                         let max = &mut self.my_selector_random.max;
@@ -211,7 +208,6 @@ impl PixelsorterGui {
                             .step_by(1.0);
                         ui.add(slider);
                         ui.end_row();
-                        self.selector = Box::new(RandomSelector { max: *max });
                     }
                     SelectorType::Thres => {
                         let min = &mut self.my_selector_thres.min;
@@ -259,11 +255,6 @@ impl PixelsorterGui {
                         ui.end_row();
 
                         // TODO: clamping, depending on which slider is dragged
-                        self.selector = Box::new(ThresholdSelector {
-                            min: *min,
-                            max: *max,
-                            criteria: *criteria,
-                        });
                     }
                 }
             });
@@ -393,6 +384,31 @@ impl PixelsorterGui {
             my_selector_thres: self.my_selector_thres,
         }
     }
+
+    fn open_file(&mut self, ctx: &egui::Context) -> () {
+        // Opening image until cancled or until valid image loaded
+        loop {
+            let file = rfd::FileDialog::new()
+                .add_filter("Images", &["png", "jpg", "jpeg", "webp"])
+                .pick_file();
+            match file {
+                None => break,
+                Some(f) => match image::open(f.as_path()) {
+                    Ok(i) => {
+                        let img = i.into_rgb8();
+                        self.set_texture(ctx, &img, f.to_string_lossy().to_string());
+                        self.img = Some((img, f.to_string_lossy().to_string()));
+                        break;
+                    }
+                    Err(_) => {}
+                },
+            }
+        }
+    }
+
+    fn save_file(&self) -> () {
+        println!("Unimplemented");
+    }
 }
 
 impl eframe::App for PixelsorterGui {
@@ -412,28 +428,7 @@ impl eframe::App for PixelsorterGui {
                 ui.group(|ui| {
                     ui.set_width(full_width(&ui));
                     if ui.button("Open image...").clicked() {
-                        // Opening image until cancled or until valid image loaded
-                        loop {
-                            let file = rfd::FileDialog::new()
-                                .add_filter("Images", &["png", "jpg", "jpeg", "webp"])
-                                .pick_file();
-                            match file {
-                                None => break,
-                                Some(f) => match image::open(f.as_path()) {
-                                    Ok(i) => {
-                                        let img = i.into_rgb8();
-                                        self.set_texture(
-                                            ctx,
-                                            &img,
-                                            f.to_string_lossy().to_string(),
-                                        );
-                                        self.img = Some((img, f.to_string_lossy().to_string()));
-                                        break;
-                                    }
-                                    Err(_) => {}
-                                },
-                            }
-                        }
+                        self.open_file(ctx);
                     }
 
                     if let Some((_, name)) = &self.img {
@@ -478,6 +473,7 @@ impl eframe::App for PixelsorterGui {
                             .clicked()
                         {
                             info!("Saving image...");
+                            self.save_file();
                         }
                     });
 
