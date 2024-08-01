@@ -1,6 +1,4 @@
 #![allow(unused)]
-use std::io::Read;
-
 use eframe::egui::{
     self, accesskit::ListStyle, Align, Color32, Image, Layout, Pos2, Rect, RichText, Rounding,
     Style, TextBuffer, TextureFilter, TextureHandle, TextureOptions, Ui, Widget,
@@ -13,6 +11,10 @@ use pixelsortery::{
         FixedSelector, PixelSelectCriteria, PixelSelector, RandomSelector, ThresholdSelector,
     },
     span_sorter::{SortingAlgorithm, SortingCriteria},
+};
+use std::{
+    io::Read,
+    time::{Duration, Instant},
 };
 
 pub fn start_gui() -> eframe::Result {
@@ -49,6 +51,8 @@ struct PixelsorterGui {
     my_selector_random: RandomSelector,
     my_selector_fixed: FixedSelector,
     my_selector_thres: ThresholdSelector,
+
+    time_last_sort: Duration,
 }
 
 /// A struct holding a copy of all the values to help detect change
@@ -93,6 +97,7 @@ impl Default for PixelsorterGui {
                 max: 360,
                 criteria: PixelSelectCriteria::Hue,
             },
+            time_last_sort: Duration::default(),
         }
     }
 }
@@ -428,12 +433,13 @@ impl eframe::App for PixelsorterGui {
                     ui.with_layout(Layout::top_down(Align::Center), |ui| {
                         if ui.button(RichText::new("SORT IMAGE").heading()).clicked() {
                             info!("SORTING IMAGE");
+                            let timestart = Instant::now();
                             if let Some(img) = self.sort_img() {
+                                self.time_last_sort = timestart.elapsed();
                                 self.set_texture(ctx, &img, "Some name".to_string());
                             }
                         }
                     });
-
                     ui.separator();
 
                     ui.group(|ui| {
@@ -447,6 +453,10 @@ impl eframe::App for PixelsorterGui {
                             info!("Saving image...");
                         }
                     });
+
+                    ui.separator();
+
+                    ui.label(format!("Time of last sort:\t{:?}", self.time_last_sort));
                 });
             });
 
@@ -467,7 +477,9 @@ impl eframe::App for PixelsorterGui {
         // Auto-Sort on changes
         let current_values = self.get_current_state();
         if prev_values != current_values {
+            let timestart = Instant::now();
             if let Some(img) = self.sort_img() {
+                self.time_last_sort = timestart.elapsed();
                 println!("Change detected, sorting image...");
                 self.set_texture(ctx, &img, "Some name".to_string());
             }
