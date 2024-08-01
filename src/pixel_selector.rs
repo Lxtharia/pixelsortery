@@ -6,29 +6,29 @@ use rand::{
     thread_rng
 };
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ThresholdSelector {
     pub min: u64,
     pub max: u64,
     pub criteria: PixelSelectCriteria,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct RandomSelector {
     pub max: u32,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct FixedSelector {
     pub len: u64,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct FullSelector {
 }
 
 /// Key criteria which a (Threshold-)Selector should use as a key
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PixelSelectCriteria {
     Hue,
     Brightness,
