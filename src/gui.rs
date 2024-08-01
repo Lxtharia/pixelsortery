@@ -9,7 +9,10 @@ use pixelsortery::{
     pixel_selector::{FixedSelector, PixelSelectCriteria, RandomSelector, ThresholdSelector},
     span_sorter::{SortingAlgorithm, SortingCriteria},
 };
-use std::time::{Duration, Instant};
+use std::{
+    path::PathBuf,
+    time::{Duration, Instant},
+};
 
 pub fn start_gui() -> eframe::Result {
     let options = eframe::NativeOptions {
@@ -31,7 +34,7 @@ pub fn start_gui() -> eframe::Result {
 /// Struct holding all the states of the gui and values of sliders etc.
 struct PixelsorterGui {
     /// The image, used to load and be sorted
-    img: Option<(RgbImage, String)>,
+    img: Option<(RgbImage, PathBuf)>,
     /// The image used by egui to draw every frame
     texture: Option<TextureHandle>,
     /// All the adjustable values for the pixelsorter
@@ -378,7 +381,7 @@ impl PixelsorterGui {
                     Ok(i) => {
                         let img = i.into_rgb8();
                         self.set_texture(ctx, &img, f.to_string_lossy().to_string());
-                        self.img = Some((img, f.to_string_lossy().to_string()));
+                        self.img = Some((img, f));
                         break;
                     }
                     Err(_) => {}
@@ -390,9 +393,15 @@ impl PixelsorterGui {
     /// Sorts and saves the image to a chosen location
     fn save_file(&self) -> () {
         if let Some((_, s)) = &self.img {
+            let suggested_filename = if let (Some(stem), Some(ext)) = (s.file_stem(), s.extension())
+            {
+                format!("{}-sorted.{}", stem.to_string_lossy(), ext.to_string_lossy())
+            } else {
+                String::from("")
+            };
             let file = rfd::FileDialog::new()
                 .add_filter("Images", &["png", "jpg", "jpeg", "webp"])
-                // .set_file_name(s)
+                .set_file_name(suggested_filename)
                 .save_file();
             if let Some(f) = file {
                 if let Some(sorted) = self.sort_img() {
@@ -430,7 +439,7 @@ impl eframe::App for PixelsorterGui {
                     }
 
                     if let Some((_, name)) = &self.img {
-                        ui.label(RichText::new(name));
+                        ui.label(RichText::new(name.to_string_lossy()));
                     } else {
                         ui.label(RichText::new("No image loaded...").italics());
                     }
