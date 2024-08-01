@@ -1,21 +1,15 @@
 #![allow(unused)]
 use eframe::egui::{
-    self, accesskit::ListStyle, Align, Color32, Image, Layout, Pos2, Rect, RichText, Rounding,
-    Style, TextBuffer, TextureFilter, TextureHandle, TextureOptions, Ui, Widget,
+    self, Align, Image, Layout, RichText, TextureFilter, TextureHandle, TextureOptions, Ui,
 };
-use image::{GenericImageView, RgbImage};
-use log::{debug, info};
+use image::RgbImage;
+use log::{info, warn};
 use pixelsortery::{
     path_creator::PathCreator,
-    pixel_selector::{
-        FixedSelector, PixelSelectCriteria, PixelSelector, RandomSelector, ThresholdSelector,
-    },
+    pixel_selector::{FixedSelector, PixelSelectCriteria, RandomSelector, ThresholdSelector},
     span_sorter::{SortingAlgorithm, SortingCriteria},
 };
-use std::{
-    io::Read,
-    time::{Duration, Instant},
-};
+use std::time::{Duration, Instant};
 
 pub fn start_gui() -> eframe::Result {
     let options = eframe::NativeOptions {
@@ -40,9 +34,8 @@ struct PixelsorterGui {
     img: Option<(RgbImage, String)>,
     /// The image used by egui to draw every frame
     texture: Option<TextureHandle>,
-
+    /// All the adjustable values for the pixelsorter
     values: PixelsorterValues,
-
     time_last_sort: Duration,
 }
 
@@ -65,7 +58,7 @@ struct PixelsorterValues {
 enum SelectorType {
     Fixed,
     Random,
-    Thres,
+    Threshold,
 }
 
 impl Default for PixelsorterGui {
@@ -77,7 +70,7 @@ impl Default for PixelsorterGui {
                 reverse: false,
                 path: PathCreator::VerticalLines,
                 criteria: SortingCriteria::Brightness,
-                selector_type: SelectorType::Thres,
+                selector_type: SelectorType::Threshold,
                 algorithmn: SortingAlgorithm::Mapsort,
 
                 path_diagonally_val: 0.0,
@@ -104,7 +97,11 @@ impl PixelsorterGui {
                     PathCreator::AllHorizontally,
                     "All Horizontally",
                 );
-                ui.selectable_value(&mut self.values.path, PathCreator::AllVertically, "All Vertically");
+                ui.selectable_value(
+                    &mut self.values.path,
+                    PathCreator::AllVertically,
+                    "All Vertically",
+                );
                 ui.selectable_value(
                     &mut self.values.path,
                     PathCreator::HorizontalLines,
@@ -117,7 +114,11 @@ impl PixelsorterGui {
                 );
                 ui.selectable_value(&mut self.values.path, PathCreator::Circles, "Circles");
                 ui.selectable_value(&mut self.values.path, PathCreator::Spiral, "Spiral");
-                ui.selectable_value(&mut self.values.path, PathCreator::SquareSpiral, "Square Spiral");
+                ui.selectable_value(
+                    &mut self.values.path,
+                    PathCreator::SquareSpiral,
+                    "Square Spiral",
+                );
                 ui.selectable_value(
                     &mut self.values.path,
                     PathCreator::RectSpiral,
@@ -165,7 +166,7 @@ impl PixelsorterGui {
                 vec![
                     SelectorType::Fixed,
                     SelectorType::Random,
-                    SelectorType::Thres,
+                    SelectorType::Threshold,
                 ]
                 .into_iter()
                 .for_each(|c| {
@@ -203,7 +204,7 @@ impl PixelsorterGui {
                         ui.add(slider);
                         ui.end_row();
                     }
-                    SelectorType::Thres => {
+                    SelectorType::Threshold => {
                         let min = &mut self.values.selector_thres.min;
                         let max = &mut self.values.selector_thres.max;
                         let criteria = &mut self.values.selector_thres.criteria;
@@ -336,7 +337,7 @@ impl PixelsorterGui {
             ps.selector = match self.values.selector_type {
                 SelectorType::Fixed => Box::new(self.values.selector_fixed),
                 SelectorType::Random => Box::new(self.values.selector_random),
-                SelectorType::Thres => Box::new(self.values.selector_thres),
+                SelectorType::Threshold => Box::new(self.values.selector_thres),
             };
             ps.sort();
             return Some(ps.get_img());
@@ -353,11 +354,11 @@ impl PixelsorterGui {
         options.magnification = TextureFilter::Nearest;
         // Make big images fit without noise
         options.minification = TextureFilter::Linear;
-        self.texture = Some(ctx.load_texture("ImageYeahYeah", colorimg, options));
+        self.texture = Some(ctx.load_texture(name, colorimg, options));
     }
 
     /// Tries to show the image if it exists, or not.
-    fn show_img(&self, ctx: &egui::Context, ui: &mut Ui) {
+    fn show_img(&self, ui: &mut Ui) {
         if let Some(tex) = &self.texture {
             egui::Frame::canvas(ui.style_mut()).show(ui, |ui| {
                 ui.add(Image::new((tex.id(), tex.size_vec2())).shrink_to_fit());
@@ -388,14 +389,20 @@ impl PixelsorterGui {
 
     /// Sorts and saves the image to a chosen location
     fn save_file(&self) -> () {
-        if let Some((img, s)) = &self.img {
+        if let Some((_, s)) = &self.img {
             let file = rfd::FileDialog::new()
                 .add_filter("Images", &["png", "jpg", "jpeg", "webp"])
                 // .set_file_name(s)
                 .save_file();
             if let Some(f) = file {
                 if let Some(sorted) = self.sort_img() {
-                    sorted.save(f);
+                    if let Err(err_msg) = sorted.save(&f) {
+                        warn!(
+                            "Saving image to {} failed: {}",
+                            f.to_string_lossy(),
+                            err_msg
+                        );
+                    };
                 }
             }
         }
@@ -485,7 +492,7 @@ impl eframe::App for PixelsorterGui {
         });
 
         egui::CentralPanel::default().show(ctx, |ui| {
-            self.show_img(ctx, ui);
+            self.show_img(ui);
         });
 
         // Auto-Sort on changes
@@ -495,7 +502,7 @@ impl eframe::App for PixelsorterGui {
             if let Some(img) = self.sort_img() {
                 self.time_last_sort = timestart.elapsed();
                 println!("Change detected, sorting image...");
-                self.set_texture(ctx, &img, "Some name".to_string());
+                self.set_texture(ctx, &img, String::from("Image-sorted"));
             }
         }
     }
