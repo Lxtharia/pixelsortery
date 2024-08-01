@@ -64,7 +64,8 @@ impl PixelSelector for FixedSelector {
     }
     fn create_spans<'a>(&'a self, pixels: &mut VecDeque<&'a mut Rgb<u8>>) -> Vec<Vec<&'a mut Rgb<u8>>> {
         let mut spans: Vec<Vec<&'a mut Rgb<u8>>> = Vec::new();
-
+        // Prevent an endless loop
+        if self.len == 0 {return spans;}
         while !pixels.is_empty() {
             // Take r pixels and put into new span
             let mut span: Vec<&mut Rgb<u8>> = Vec::new();
@@ -84,6 +85,8 @@ impl PixelSelector for RandomSelector {
     }
     fn create_spans<'a>(&'a self, pixels: &mut VecDeque<&'a mut Rgb<u8>>) -> Vec<Vec<&'a mut Rgb<u8>>> {
         let mut spans: Vec<Vec<&'a mut Rgb<u8>>> = Vec::new();
+        // rng_range cannot be 0..0
+        if self.max == 0 { return spans }
         let mut rng = thread_rng();
         let rng_range = Uniform::from(0..self.max as usize);
 
