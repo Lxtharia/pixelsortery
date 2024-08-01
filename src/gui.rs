@@ -74,7 +74,7 @@ impl Default for PixelsorterGui {
                 path: PathCreator::VerticalLines,
                 criteria: SortingCriteria::Brightness,
                 selector_type: SelectorType::Threshold,
-                algorithmn: SortingAlgorithm::Mapsort,
+                algorithmn: SortingAlgorithm::Shellsort,
 
                 path_diagonally_val: 0.0,
                 selector_random: RandomSelector { max: 30 },
@@ -187,7 +187,7 @@ impl PixelsorterGui {
                     SelectorType::Fixed => {
                         let len = &mut self.values.selector_fixed.len;
                         ui.label("Length");
-                        let slider = egui::Slider::new(len, 0..=1000)
+                        let slider = egui::Slider::new(len, 0..=2000)
                             .logarithmic(true)
                             .clamp_to_range(false)
                             .drag_value_speed(0.2)
@@ -198,7 +198,7 @@ impl PixelsorterGui {
                     SelectorType::Random => {
                         let max = &mut self.values.selector_random.max;
                         ui.label("Max");
-                        let slider = egui::Slider::new(max, 0..=1000)
+                        let slider = egui::Slider::new(max, 0..=2000)
                             .logarithmic(true)
                             .clamp_to_range(false)
                             .drag_value_speed(0.2)
