@@ -34,39 +34,31 @@ pub fn start_gui() -> eframe::Result {
     )
 }
 
+/// Struct holding all the states of the gui and values of sliders etc.
 struct PixelsorterGui {
     /// The image, used to load and be sorted
     img: Option<(RgbImage, String)>,
     /// The image used by egui to draw every frame
     texture: Option<TextureHandle>,
-    /// Components of the pixelsorter
-    reverse: bool,
-    path: PathCreator,
-    selector_type: SelectorType,
-    criteria: SortingCriteria,
-    algorithmn: SortingAlgorithm,
-    /// We can select these with the real structs tbh
-    tmp_path_diag_val: f32,
-    my_selector_random: RandomSelector,
-    my_selector_fixed: FixedSelector,
-    my_selector_thres: ThresholdSelector,
+
+    values: PixelsorterValues,
 
     time_last_sort: Duration,
 }
 
-/// A struct holding a copy of all the values to help detect change
-#[derive(PartialEq)]
-struct CurrentValues {
+/// Adjustable components of the pixelsorter
+#[derive(Clone, Copy, PartialEq)]
+struct PixelsorterValues {
     reverse: bool,
     path: PathCreator,
     selector_type: SelectorType,
     criteria: SortingCriteria,
     algorithmn: SortingAlgorithm,
     /// We can select these with the real structs tbh
-    tmp_path_diag_val: f32,
-    my_selector_random: RandomSelector,
-    my_selector_fixed: FixedSelector,
-    my_selector_thres: ThresholdSelector,
+    path_diagonally_val: f32,
+    selector_random: RandomSelector,
+    selector_fixed: FixedSelector,
+    selector_thres: ThresholdSelector,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -81,19 +73,21 @@ impl Default for PixelsorterGui {
         Self {
             img: None,
             texture: None,
-            reverse: false,
-            path: PathCreator::VerticalLines,
-            criteria: SortingCriteria::Brightness,
-            selector_type: SelectorType::Thres,
-            algorithmn: SortingAlgorithm::Mapsort,
+            values: PixelsorterValues {
+                reverse: false,
+                path: PathCreator::VerticalLines,
+                criteria: SortingCriteria::Brightness,
+                selector_type: SelectorType::Thres,
+                algorithmn: SortingAlgorithm::Mapsort,
 
-            tmp_path_diag_val: 0.0,
-            my_selector_random: RandomSelector { max: 30 },
-            my_selector_fixed: FixedSelector { len: 100 },
-            my_selector_thres: ThresholdSelector {
-                min: 0,
-                max: 360,
-                criteria: PixelSelectCriteria::Hue,
+                path_diagonally_val: 0.0,
+                selector_random: RandomSelector { max: 30 },
+                selector_fixed: FixedSelector { len: 100 },
+                selector_thres: ThresholdSelector {
+                    min: 0,
+                    max: 360,
+                    criteria: PixelSelectCriteria::Hue,
+                },
             },
             time_last_sort: Duration::default(),
         }
@@ -103,42 +97,42 @@ impl Default for PixelsorterGui {
 impl PixelsorterGui {
     fn path_combo_box(&mut self, ui: &mut Ui, id: u64) {
         egui::ComboBox::from_id_source(format!("path_combo_{}", id))
-            .selected_text(format!("{:?}", self.path))
+            .selected_text(format!("{:?}", self.values.path))
             .show_ui(ui, |ui| {
                 ui.selectable_value(
-                    &mut self.path,
+                    &mut self.values.path,
                     PathCreator::AllHorizontally,
                     "All Horizontally",
                 );
-                ui.selectable_value(&mut self.path, PathCreator::AllVertically, "All Vertically");
+                ui.selectable_value(&mut self.values.path, PathCreator::AllVertically, "All Vertically");
                 ui.selectable_value(
-                    &mut self.path,
+                    &mut self.values.path,
                     PathCreator::HorizontalLines,
                     "Lines, Horizontally",
                 );
                 ui.selectable_value(
-                    &mut self.path,
+                    &mut self.values.path,
                     PathCreator::VerticalLines,
                     "Lines, Vertically",
                 );
-                ui.selectable_value(&mut self.path, PathCreator::Circles, "Circles");
-                ui.selectable_value(&mut self.path, PathCreator::Spiral, "Spiral");
-                ui.selectable_value(&mut self.path, PathCreator::SquareSpiral, "Square Spiral");
+                ui.selectable_value(&mut self.values.path, PathCreator::Circles, "Circles");
+                ui.selectable_value(&mut self.values.path, PathCreator::Spiral, "Spiral");
+                ui.selectable_value(&mut self.values.path, PathCreator::SquareSpiral, "Square Spiral");
                 ui.selectable_value(
-                    &mut self.path,
+                    &mut self.values.path,
                     PathCreator::RectSpiral,
                     "Rectangular Spiral",
                 );
                 ui.selectable_value(
-                    &mut self.path,
-                    PathCreator::Diagonally(self.tmp_path_diag_val),
+                    &mut self.values.path,
+                    PathCreator::Diagonally(self.values.path_diagonally_val),
                     "Diagonally",
                 );
             });
         ui.end_row();
         // Path specific tweaks for some pathings
         // Nested Grid for sub-options
-        match self.path {
+        match self.values.path {
             PathCreator::Diagonally(ref mut angle) => {
                 ui.label("");
                 egui::Grid::new(format!("path_options_grid_{}", id))
@@ -155,7 +149,7 @@ impl PixelsorterGui {
                         ui.add(slider);
                         ui.end_row();
                         // Save for when we reselect diagonally
-                        self.tmp_path_diag_val = angle.clone();
+                        self.values.path_diagonally_val = angle.clone();
                     });
                 ui.end_row();
             }
@@ -166,7 +160,7 @@ impl PixelsorterGui {
     fn selector_combo_box(&mut self, ui: &mut Ui, id: u64) {
         ui.visuals_mut().weak_text_color();
         egui::ComboBox::from_id_source(format!("selector_combo_{}", id))
-            .selected_text(format!("{:?}", self.selector_type))
+            .selected_text(format!("{:?}", self.values.selector_type))
             .show_ui(ui, |ui| {
                 vec![
                     SelectorType::Fixed,
@@ -175,7 +169,7 @@ impl PixelsorterGui {
                 ]
                 .into_iter()
                 .for_each(|c| {
-                    ui.selectable_value(&mut self.selector_type, c, format!("{:?}", c));
+                    ui.selectable_value(&mut self.values.selector_type, c, format!("{:?}", c));
                 });
             });
         ui.end_row();
@@ -185,9 +179,9 @@ impl PixelsorterGui {
             .num_columns(2)
             .min_row_height(25.0)
             .show(ui, |ui| {
-                match self.selector_type {
+                match self.values.selector_type {
                     SelectorType::Fixed => {
-                        let len = &mut self.my_selector_fixed.len;
+                        let len = &mut self.values.selector_fixed.len;
                         ui.label("Length");
                         let slider = egui::Slider::new(len, 0..=1000)
                             .logarithmic(true)
@@ -198,7 +192,7 @@ impl PixelsorterGui {
                         ui.end_row();
                     }
                     SelectorType::Random => {
-                        let max = &mut self.my_selector_random.max;
+                        let max = &mut self.values.selector_random.max;
                         ui.label("Max");
                         let slider = egui::Slider::new(max, 0..=1000)
                             .logarithmic(true)
@@ -210,9 +204,9 @@ impl PixelsorterGui {
                         ui.end_row();
                     }
                     SelectorType::Thres => {
-                        let min = &mut self.my_selector_thres.min;
-                        let max = &mut self.my_selector_thres.max;
-                        let criteria = &mut self.my_selector_thres.criteria;
+                        let min = &mut self.values.selector_thres.min;
+                        let max = &mut self.values.selector_thres.max;
+                        let criteria = &mut self.values.selector_thres.criteria;
 
                         ui.label("Criteria");
                         egui::ComboBox::from_id_source(format!("selector_criteria_combo_{}", id))
@@ -263,7 +257,7 @@ impl PixelsorterGui {
 
     fn criteria_combo_box(&mut self, ui: &mut Ui, id: u64) {
         egui::ComboBox::from_id_source(format!("criteria_combo_{}", id))
-            .selected_text(format!("{:?}", self.criteria))
+            .selected_text(format!("{:?}", self.values.criteria))
             .show_ui(ui, |ui| {
                 vec![
                     SortingCriteria::Brightness,
@@ -272,14 +266,14 @@ impl PixelsorterGui {
                 ]
                 .into_iter()
                 .for_each(|c| {
-                    ui.selectable_value(&mut self.criteria, c, format!("{:?}", c));
+                    ui.selectable_value(&mut self.values.criteria, c, format!("{:?}", c));
                 });
             });
     }
 
     fn algorithmn_combo_box(&mut self, ui: &mut Ui, id: u64) {
         egui::ComboBox::from_id_source(format!("algorithm_combo_{}", id))
-            .selected_text(format!("{:?}", self.algorithmn))
+            .selected_text(format!("{:?}", self.values.algorithmn))
             .show_ui(ui, |ui| {
                 vec![
                     SortingAlgorithm::Mapsort,
@@ -289,7 +283,7 @@ impl PixelsorterGui {
                 ]
                 .into_iter()
                 .for_each(|c| {
-                    ui.selectable_value(&mut self.algorithmn, c, format!("{:?}", c));
+                    ui.selectable_value(&mut self.values.algorithmn, c, format!("{:?}", c));
                 });
             });
     }
@@ -327,7 +321,7 @@ impl PixelsorterGui {
                 self.algorithmn_combo_box(ui, id);
                 ui.end_row();
 
-                ui.checkbox(&mut self.reverse, "Reverse?");
+                ui.checkbox(&mut self.values.reverse, "Reverse?");
                 ui.end_row();
             });
     }
@@ -335,14 +329,14 @@ impl PixelsorterGui {
     fn sort_img(&mut self) -> Option<RgbImage> {
         if let Some((img, _)) = &mut self.img {
             let mut ps = pixelsortery::Pixelsorter::new(img.clone());
-            ps.path_creator = self.path;
-            ps.sorter.criteria = self.criteria;
-            ps.sorter.algorithm = self.algorithmn;
-            ps.reverse = self.reverse;
-            ps.selector = match self.selector_type {
-                SelectorType::Fixed => Box::new(self.my_selector_fixed),
-                SelectorType::Random => Box::new(self.my_selector_random),
-                SelectorType::Thres => Box::new(self.my_selector_thres),
+            ps.path_creator = self.values.path;
+            ps.sorter.criteria = self.values.criteria;
+            ps.sorter.algorithm = self.values.algorithmn;
+            ps.reverse = self.values.reverse;
+            ps.selector = match self.values.selector_type {
+                SelectorType::Fixed => Box::new(self.values.selector_fixed),
+                SelectorType::Random => Box::new(self.values.selector_random),
+                SelectorType::Thres => Box::new(self.values.selector_thres),
             };
             ps.sort();
             return Some(ps.get_img());
@@ -368,20 +362,6 @@ impl PixelsorterGui {
             egui::Frame::canvas(ui.style_mut()).show(ui, |ui| {
                 ui.add(Image::new((tex.id(), tex.size_vec2())).shrink_to_fit());
             });
-        }
-    }
-
-    fn get_current_state(&self) -> CurrentValues {
-        CurrentValues {
-            reverse: self.reverse,
-            path: self.path,
-            selector_type: self.selector_type,
-            criteria: self.criteria,
-            algorithmn: self.algorithmn,
-            tmp_path_diag_val: self.tmp_path_diag_val,
-            my_selector_random: self.my_selector_random,
-            my_selector_fixed: self.my_selector_fixed,
-            my_selector_thres: self.my_selector_thres,
         }
     }
 
@@ -413,7 +393,7 @@ impl PixelsorterGui {
 
 impl eframe::App for PixelsorterGui {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
-        let prev_values = self.get_current_state();
+        let prev_values = self.values.clone();
         egui::SidePanel::left("my-left-pane")
             .resizable(true)
             //.exact_width(380.0)
@@ -498,7 +478,7 @@ impl eframe::App for PixelsorterGui {
         });
 
         // Auto-Sort on changes
-        let current_values = self.get_current_state();
+        let current_values = self.values;
         if prev_values != current_values {
             let timestart = Instant::now();
             if let Some(img) = self.sort_img() {
