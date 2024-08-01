@@ -3,7 +3,7 @@ use std::io::Read;
 
 use eframe::egui::{
     self, accesskit::ListStyle, Align, Color32, Image, Layout, Pos2, Rect, RichText, Rounding,
-    Style, TextBuffer, TextureFilter, TextureHandle, TextureOptions, Ui,
+    Style, TextBuffer, TextureFilter, TextureHandle, TextureOptions, Ui, Widget,
 };
 use image::{GenericImageView, RgbImage};
 use log::{debug, info};
@@ -72,8 +72,12 @@ impl Default for PixelsorterGui {
 
             tmp_path_diag_val: 0.0,
             my_selector_random: RandomSelector { max: 30 },
-            my_selector_fixed: FixedSelector {len: 100},
-            my_selector_thres: ThresholdSelector{min: 0, max: 360, criteria: PixelSelectCriteria::Hue},
+            my_selector_fixed: FixedSelector { len: 100 },
+            my_selector_thres: ThresholdSelector {
+                min: 0,
+                max: 360,
+                criteria: PixelSelectCriteria::Hue,
+            },
         }
     }
 }
@@ -323,7 +327,9 @@ impl PixelsorterGui {
     /// Tries to show the image if it exists, or not.
     fn show_img(&self, ctx: &egui::Context, ui: &mut Ui) {
         if let Some(tex) = &self.texture {
-            ui.add(Image::new((tex.id(), tex.size_vec2())).shrink_to_fit());
+            egui::Frame::canvas(ui.style_mut()).show(ui, |ui| {
+                ui.add(Image::new((tex.id(), tex.size_vec2())).shrink_to_fit());
+            });
         }
     }
 }
@@ -369,7 +375,7 @@ impl eframe::App for PixelsorterGui {
                     }
 
                     if let Some((_, name)) = &self.img {
-                        ui.label(RichText::new(name).italics());
+                        ui.label(RichText::new(name));
                     } else {
                         ui.label(RichText::new("No image loaded...").italics());
                     }
@@ -385,22 +391,11 @@ impl eframe::App for PixelsorterGui {
                 });
 
                 ui.add_enabled_ui(self.img.is_some(), |ui| {
-                    ui.add_space(full_height(ui) - 50.0);
+                    // ui.add_space(full_height(ui) - 50.0);
 
-                    ui.with_layout(Layout::bottom_up(Align::Center), |ui| {
-                        ui.group(|ui| {
-                            // let w = ui.max_rect().max.x - ui.max_rect().min.x;
-                            // ui.set_width(w);
-                            if ui
-                                .add_enabled(self.img.is_some(), egui::Button::new("Save as..."))
-                                .clicked()
-                            {
-                                info!("Saving image...");
-                            }
-                        });
+                    ui.separator();
 
-                        ui.separator();
-
+                    ui.with_layout(Layout::top_down(Align::Center), |ui| {
                         if ui.button(RichText::new("SORT IMAGE").heading()).clicked() {
                             info!("SORTING IMAGE");
                             if let Some(img) = self.sort_img() {
@@ -408,19 +403,34 @@ impl eframe::App for PixelsorterGui {
                             }
                         }
                     });
+
+                    ui.separator();
+
+                    ui.group(|ui| {
+                        ui.set_width(full_width(&ui));
+                        // let w = ui.max_rect().max.x - ui.max_rect().min.x;
+                        // ui.set_width(w);
+                        if ui
+                            .add_enabled(self.img.is_some(), egui::Button::new("Save as..."))
+                            .clicked()
+                        {
+                            info!("Saving image...");
+                        }
+                    });
                 });
             });
 
         egui::TopBottomPanel::bottom("info-bar").show(ctx, |ui| {
             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                ui.label("Info Panel!");
-                ui.separator();
-                ui.label(format!("Image Dimensions: {} x {}", 1920, 1080));
+                if let Some(tex) = &self.texture {
+                    let [w, h] = tex.size();
+                    ui.label(format!("{} x {} ({} pixels)", w, h, w*h));
+                    ui.separator();
+                }
             });
         });
 
         egui::CentralPanel::default().show(ctx, |ui| {
-            ui.heading("Hello Pixely World!");
             self.show_img(ctx, ui);
         });
     }
