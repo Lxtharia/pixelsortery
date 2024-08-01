@@ -51,6 +51,21 @@ struct PixelsorterGui {
     my_selector_thres: ThresholdSelector,
 }
 
+/// A struct holding a copy of all the values to help detect change
+#[derive(PartialEq)]
+struct CurrentValues {
+    reverse: bool,
+    path: PathCreator,
+    selector_type: SelectorType,
+    criteria: SortingCriteria,
+    algorithmn: SortingAlgorithm,
+    /// We can select these with the real structs tbh
+    tmp_path_diag_val: f32,
+    my_selector_random: RandomSelector,
+    my_selector_fixed: FixedSelector,
+    my_selector_thres: ThresholdSelector,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 enum SelectorType {
     Fixed,
@@ -332,10 +347,25 @@ impl PixelsorterGui {
             });
         }
     }
+
+    fn get_current_state(&self) -> CurrentValues {
+        CurrentValues {
+            reverse: self.reverse,
+            path: self.path,
+            selector_type: self.selector_type,
+            criteria: self.criteria,
+            algorithmn: self.algorithmn,
+            tmp_path_diag_val: self.tmp_path_diag_val,
+            my_selector_random: self.my_selector_random,
+            my_selector_fixed: self.my_selector_fixed,
+            my_selector_thres: self.my_selector_thres,
+        }
+    }
 }
 
 impl eframe::App for PixelsorterGui {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+        let prev_values = self.get_current_state();
         egui::SidePanel::left("my-left-pane")
             .resizable(true)
             //.exact_width(380.0)
@@ -424,7 +454,7 @@ impl eframe::App for PixelsorterGui {
             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                 if let Some(tex) = &self.texture {
                     let [w, h] = tex.size();
-                    ui.label(format!("{} x {} ({} pixels)", w, h, w*h));
+                    ui.label(format!("{} x {} ({} pixels)", w, h, w * h));
                     ui.separator();
                 }
             });
@@ -433,6 +463,15 @@ impl eframe::App for PixelsorterGui {
         egui::CentralPanel::default().show(ctx, |ui| {
             self.show_img(ctx, ui);
         });
+
+        // Auto-Sort on changes
+        let current_values = self.get_current_state();
+        if prev_values != current_values {
+            if let Some(img) = self.sort_img() {
+                println!("Change detected, sorting image...");
+                self.set_texture(ctx, &img, "Some name".to_string());
+            }
+        }
     }
 }
 
