@@ -326,8 +326,8 @@ impl PixelsorterGui {
             });
     }
 
-    fn sort_img(&mut self) -> Option<RgbImage> {
-        if let Some((img, _)) = &mut self.img {
+    fn sort_img(&self) -> Option<RgbImage> {
+        if let Some((img, _)) = &self.img {
             let mut ps = pixelsortery::Pixelsorter::new(img.clone());
             ps.path_creator = self.values.path;
             ps.sorter.criteria = self.values.criteria;
@@ -386,8 +386,19 @@ impl PixelsorterGui {
         }
     }
 
+    /// Sorts and saves the image to a chosen location
     fn save_file(&self) -> () {
-        println!("Unimplemented");
+        if let Some((img, s)) = &self.img {
+            let file = rfd::FileDialog::new()
+                .add_filter("Images", &["png", "jpg", "jpeg", "webp"])
+                // .set_file_name(s)
+                .save_file();
+            if let Some(f) = file {
+                if let Some(sorted) = self.sort_img() {
+                    sorted.save(f);
+                }
+            }
+        }
     }
 }
 
