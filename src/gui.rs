@@ -110,19 +110,19 @@ impl PixelsorterGui {
                 ui.selectable_value(
                     &mut self.path,
                     PathCreator::AllHorizontally,
-                    "All, Horizontally",
+                    "All Horizontally",
                 );
                 ui.selectable_value(
                     &mut self.path,
                     PathCreator::AllVertically,
-                    "All, Vertically",
+                    "All Vertically",
                 );
                 ui.selectable_value(
                     &mut self.path,
                     PathCreator::HorizontalLines,
-                    "Horizontal Lines",
+                    "Lines, Horizontally",
                 );
-                ui.selectable_value(&mut self.path, PathCreator::VerticalLines, "Vertical Lines");
+                ui.selectable_value(&mut self.path, PathCreator::VerticalLines, "Lines, Vertically");
                 ui.selectable_value(&mut self.path, PathCreator::Circles, "Circles");
                 ui.selectable_value(&mut self.path, PathCreator::Spiral, "Spiral");
                 ui.selectable_value(&mut self.path, PathCreator::SquareSpiral, "Square Spiral");
@@ -148,7 +148,13 @@ impl PixelsorterGui {
                     .min_row_height(25.0)
                     .show(ui, |ui| {
                         ui.label("Angle");
-                        ui.add(egui::Slider::new(angle, 0.0..=360.0));
+                        let slider = egui::Slider::new(angle, 0.0..=360.0)
+                            .suffix("°")
+                            .clamp_to_range(false)
+                            .drag_value_speed(0.2)
+                            .max_decimals(1)
+                            .smart_aim(false);
+                        ui.add(slider);
                         ui.end_row();
                         // Save for when we reselect diagonally
                         self.tmp_path_diag_val = angle.clone();
@@ -185,14 +191,25 @@ impl PixelsorterGui {
                     SelectorType::Fixed => {
                         let len = &mut self.my_selector_fixed.len;
                         ui.label("Length");
-                        ui.add(egui::Slider::new(len, 0..=1000));
+                        let slider = egui::Slider::new(len, 0..=1000)
+                            .logarithmic(true)
+                            .clamp_to_range(false)
+                            .drag_value_speed(0.2)
+                            .smart_aim(false);
+                        ui.add(slider);
                         ui.end_row();
                         self.selector = Box::new(FixedSelector { len: *len });
                     }
                     SelectorType::Random => {
                         let max = &mut self.my_selector_random.max;
                         ui.label("Max");
-                        ui.add(egui::Slider::new(max, 0..=1000));
+                        let slider = egui::Slider::new(max, 0..=1000)
+                            .logarithmic(true)
+                            .clamp_to_range(false)
+                            .drag_value_speed(0.2)
+                            .smart_aim(false)
+                            .step_by(1.0);
+                        ui.add(slider);
                         ui.end_row();
                         self.selector = Box::new(RandomSelector { max: *max });
                     }
@@ -217,18 +234,28 @@ impl PixelsorterGui {
                             });
                         ui.end_row();
 
-                        let cap = if *criteria == PixelSelectCriteria::Hue {
-                            360
+                        let (cap, selector_suffix) = if *criteria == PixelSelectCriteria::Hue {
+                            (360, "°")
                         } else {
-                            256
+                            (256, "")
                         };
 
-                        ui.label("Lower Bound");
-                        ui.add(egui::Slider::new(min, 0..=cap));
+                        ui.label("Min");
+                        let min_slider = egui::Slider::new(min, 0..=cap)
+                            .trailing_fill(true)
+                            .suffix(selector_suffix)
+                            .drag_value_speed(0.2)
+                            .smart_aim(false);
+                        ui.add(min_slider);
                         ui.end_row();
 
-                        ui.label("Upper Bound");
-                        ui.add(egui::Slider::new(max, 0..=cap));
+                        ui.label("Max");
+                        let max_slider = egui::Slider::new(max, 0..=cap)
+                            .trailing_fill(true)
+                            .suffix(selector_suffix)
+                            .drag_value_speed(0.2)
+                            .smart_aim(false);
+                        ui.add(max_slider);
                         ui.end_row();
 
                         // TODO: clamping, depending on which slider is dragged
