@@ -7,6 +7,7 @@ use std::{
     path::Path,
     time::Instant,
 };
+use std::sync::mpsc::{Sender, Receiver, channel};
 
 use crate::pixel_selector::PixelSelector;
 
@@ -19,7 +20,7 @@ pub mod span_sorter;
 pub struct Pixelsorter {
     img: RgbImage,
     pub sorter: span_sorter::SpanSorter,
-    pub selector: Box<dyn PixelSelector>,
+    pub selector: Box<dyn PixelSelector + Send>,
     pub path_creator: path_creator::PathCreator,
     pub reverse: bool,
 }
@@ -56,7 +57,14 @@ impl Pixelsorter {
         self.sorter.sort(&mut pixels);
     }
 
+
     pub fn sort(&mut self) {
+        let (_, rec) = channel();
+        self.sort_cancelable(&rec);
+    }
+
+    /// Uses a given receiver that will cancel the function when a message was sent
+    pub fn sort_cancelable(&mut self, cancled_rec: &Receiver<()>) {
         let mut timestart = Instant::now();
         // a vector containing pointers to each pixel
         let pixelcount = self.img.width() * self.img.height();

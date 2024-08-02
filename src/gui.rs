@@ -11,6 +11,8 @@ use pixelsortery::{
 };
 use std::{
     path::PathBuf,
+    sync::mpsc::{channel, Receiver, Sender},
+    thread,
     time::{Duration, Instant},
 };
 
@@ -39,7 +41,11 @@ struct PixelsorterGui {
     texture: Option<TextureHandle>,
     /// All the adjustable values for the pixelsorter
     values: PixelsorterValues,
+    timestart: Instant,
     time_last_sort: Duration,
+    cancel_snd: Sender<()>,
+    img_recv: Receiver<RgbImage>,
+    threads_started: u32,
 }
 
 /// Adjustable components of the pixelsorter
@@ -86,6 +92,10 @@ impl Default for PixelsorterGui {
                 },
             },
             time_last_sort: Duration::default(),
+            cancel_snd: channel().0,
+            img_recv: channel().1,
+            timestart: Instant::now(),
+            threads_started: 0,
         }
     }
 }
@@ -330,9 +340,17 @@ impl PixelsorterGui {
             });
     }
 
-    fn sort_img(&self) -> Option<RgbImage> {
-        if let Some((img, _)) = &self.img {
-            let mut ps = pixelsortery::Pixelsorter::new(img.clone());
+    fn sort_img(&mut self) -> () {
+        if let Some((img, _)) = self.img.clone() {
+            // Cancel ongoing sorts
+            self.cancel_snd.send(());
+            // Create new cancel channel
+            let (canc_snd, canc_rec) = channel();
+            self.cancel_snd = canc_snd;
+            // Create a channel where we can send the image over
+            let (img_snd, img_rec) = channel();
+            // Thread
+            let mut ps = pixelsortery::Pixelsorter::new(img);
             ps.path_creator = self.values.path;
             ps.sorter.criteria = self.values.criteria;
             ps.sorter.algorithm = self.values.algorithmn;
@@ -342,13 +360,23 @@ impl PixelsorterGui {
                 SelectorType::Random => Box::new(self.values.selector_random),
                 SelectorType::Threshold => Box::new(self.values.selector_thres),
             };
-            ps.sort();
-            return Some(ps.get_img());
+            self.threads_started += 1;
+            thread::spawn(move || {
+                ps.sort_cancelable(&canc_rec);
+                // Cancle last minute
+                if canc_rec.try_recv().is_ok() {
+                    return;
+                }
+                img_snd.send(ps.get_img());
+            });
+            self.img_recv = img_rec;
+            //
         }
-        return None;
     }
 
     fn set_texture(&mut self, ctx: &egui::Context, img: &RgbImage, name: String) {
+        info!("TEX: Received sorted image!");
+        let t = Instant::now();
         let rgb_data = img.to_vec();
         let colorimg =
             egui::ColorImage::from_rgb([img.width() as usize, img.height() as usize], &rgb_data);
@@ -358,6 +386,7 @@ impl PixelsorterGui {
         // Make big images fit without noise
         options.minification = TextureFilter::Linear;
         self.texture = Some(ctx.load_texture(name, colorimg, options));
+        info!("TEX: Texture set!! {:?}", t.elapsed());
     }
 
     /// Tries to show the image if it exists, or not.
@@ -391,11 +420,15 @@ impl PixelsorterGui {
     }
 
     /// Sorts and saves the image to a chosen location
-    fn save_file(&self) -> () {
+    fn save_file(&mut self) -> () {
         if let Some((_, s)) = &self.img {
             let suggested_filename = if let (Some(stem), Some(ext)) = (s.file_stem(), s.extension())
             {
-                format!("{}-sorted.{}", stem.to_string_lossy(), ext.to_string_lossy())
+                format!(
+                    "{}-sorted.{}",
+                    stem.to_string_lossy(),
+                    ext.to_string_lossy()
+                )
             } else {
                 String::from("")
             };
@@ -404,15 +437,16 @@ impl PixelsorterGui {
                 .set_file_name(suggested_filename)
                 .save_file();
             if let Some(f) = file {
-                if let Some(sorted) = self.sort_img() {
-                    if let Err(err_msg) = sorted.save(&f) {
+                self.sort_img();
+                if let Ok(sorted_img) = self.img_recv.recv() {
+                    if let Err(err_msg) = sorted_img.save(&f) {
                         warn!(
                             "Saving image to {} failed: {}",
                             f.to_string_lossy(),
                             err_msg
                         );
                     };
-                }
+                };
             }
         }
     }
@@ -462,11 +496,8 @@ impl eframe::App for PixelsorterGui {
                     ui.with_layout(Layout::top_down(Align::Center), |ui| {
                         if ui.button(RichText::new("SORT IMAGE").heading()).clicked() {
                             info!("SORTING IMAGE");
-                            let timestart = Instant::now();
-                            if let Some(img) = self.sort_img() {
-                                self.time_last_sort = timestart.elapsed();
-                                self.set_texture(ctx, &img, "Some name".to_string());
-                            }
+                            self.timestart = Instant::now();
+                            self.sort_img();
                         }
                     });
                     ui.separator();
@@ -487,6 +518,7 @@ impl eframe::App for PixelsorterGui {
                     ui.separator();
 
                     ui.label(format!("Time of last sort:\t{:?}", self.time_last_sort));
+                    ui.label(format!("Threads started:\t{:?}", self.threads_started));
                 });
             });
 
@@ -507,12 +539,15 @@ impl eframe::App for PixelsorterGui {
         // Auto-Sort on changes
         let current_values = self.values;
         if prev_values != current_values {
-            let timestart = Instant::now();
-            if let Some(img) = self.sort_img() {
-                self.time_last_sort = timestart.elapsed();
-                println!("Change detected, sorting image...");
-                self.set_texture(ctx, &img, String::from("Image-sorted"));
-            }
+            println!("Change detected, sorting image...");
+            self.timestart = Instant::now();
+            self.sort_img();
+        }
+
+        // Set received image
+        if let Ok(img) = self.img_recv.try_recv() {
+            self.time_last_sort = self.timestart.elapsed();
+            self.set_texture(ctx, &img, String::from("Image-sorted"));
         }
     }
 }

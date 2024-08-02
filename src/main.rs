@@ -24,7 +24,7 @@ fn parse_parameter<T: FromStr>(arg: Option<String>, usage: &str) -> T {
     exit(-1);
 }
 
-fn parse_thres_selector_parameters(arg: Option<String>) -> Box<dyn PixelSelector> {
+fn parse_thres_selector_parameters(arg: Option<String>) -> Box<dyn PixelSelector + Send> {
     let mut thres = ThresholdSelector {
         min: 0,
         max: 360,
