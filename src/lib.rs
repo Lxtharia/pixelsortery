@@ -80,13 +80,11 @@ impl Pixelsorter {
 
         // CREATE SPANS ON EVERY PATH
         let mut spans: Vec<Vec<&mut Rgb<u8>>> = Vec::new();
-        let span_iter = ranges.into_par_iter().map(|r| {
+        spans.par_extend(ranges.into_par_iter().map(|r| {
             self.selector.create_spans(&mut r.into())
-        });
+        }).flatten());
 
         info!("TIME [Selector]:\t{:?}", timestart.elapsed());
-        spans = span_iter.flatten().collect();
-        info!("TIME [Selector2]:\t{:?}", timestart.elapsed());
 
         info!("Amount of spans:\t{}", &spans.len());
         timestart = Instant::now();
