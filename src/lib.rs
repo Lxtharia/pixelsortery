@@ -7,6 +7,7 @@ use std::{
     path::Path,
     time::Instant,
 };
+use rayon::prelude::*;
 
 use crate::pixel_selector::PixelSelector;
 
@@ -19,7 +20,7 @@ pub mod span_sorter;
 pub struct Pixelsorter {
     img: RgbImage,
     pub sorter: span_sorter::SpanSorter,
-    pub selector: Box<dyn PixelSelector>,
+    pub selector: Box<dyn PixelSelector + Sync>,
     pub path_creator: path_creator::PathCreator,
     pub reverse: bool,
 }
@@ -71,27 +72,29 @@ impl Pixelsorter {
         );
 
         timestart = Instant::now();
-
+        // CUT IMAGE INTO PATHS
         let ranges = self.path_creator.create_paths(&mut self.img, self.reverse);
 
         info!("TIME [Creating Paths]:\t{:?}", timestart.elapsed());
         timestart = Instant::now();
 
-        // CREATE SPANS
+        // CREATE SPANS ON EVERY PATH
         let mut spans: Vec<Vec<&mut Rgb<u8>>> = Vec::new();
-        for r in ranges {
-            for span in self.selector.create_spans(&mut r.into()) {
-                spans.push(span);
-            }
-        }
+        let span_iter = ranges.into_par_iter().map(|r| {
+            self.selector.create_spans(&mut r.into())
+        });
+
         info!("TIME [Selector]:\t{:?}", timestart.elapsed());
+        spans = span_iter.flatten().collect();
+        info!("TIME [Selector2]:\t{:?}", timestart.elapsed());
+
         info!("Amount of spans:\t{}", &spans.len());
         timestart = Instant::now();
 
         // SORT EVERY SPAN
-        for mut span in spans {
+        spans.into_par_iter().for_each(|mut span| {
             self.sorter.sort(&mut span);
-        }
+        });
 
         let timeend = timestart.elapsed();
         info!("TIME [Sorting]: \t{:?}", timeend);
