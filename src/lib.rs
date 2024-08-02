@@ -80,7 +80,11 @@ impl Pixelsorter {
 
         timestart = Instant::now();
 
+        if cancled_rec.try_recv().is_ok() {info!("X Cancled Sorting"); return;}
+
         let ranges = self.path_creator.create_paths(&mut self.img, self.reverse);
+
+        if cancled_rec.try_recv().is_ok() {info!("X Cancled Sorting"); return;}
 
         info!("TIME [Creating Paths]:\t{:?}", timestart.elapsed());
         timestart = Instant::now();
@@ -88,6 +92,7 @@ impl Pixelsorter {
         // CREATE SPANS
         let mut spans: Vec<Vec<&mut Rgb<u8>>> = Vec::new();
         for r in ranges {
+            if cancled_rec.try_recv().is_ok() {info!("X Cancled Sorting"); return;}
             for span in self.selector.create_spans(&mut r.into()) {
                 spans.push(span);
             }
@@ -98,6 +103,7 @@ impl Pixelsorter {
 
         // SORT EVERY SPAN
         for mut span in spans {
+            if cancled_rec.try_recv().is_ok() {info!("X Cancled Sorting"); return;}
             self.sorter.sort(&mut span);
         }
 

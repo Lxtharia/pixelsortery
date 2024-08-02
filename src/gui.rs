@@ -544,6 +544,8 @@ impl eframe::App for PixelsorterGui {
             self.sort_img();
         }
 
+        ctx.request_repaint();
+
         // Set received image
         if let Ok(img) = self.img_recv.try_recv() {
             self.time_last_sort = self.timestart.elapsed();
