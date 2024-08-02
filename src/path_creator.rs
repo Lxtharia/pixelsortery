@@ -25,11 +25,15 @@ impl PathCreator {
         let w: u64 = img.width().into();
         let h: u64 = img.height().into();
 
+        let mut total_timestart = Instant::now();
         let mut timestart = Instant::now();
-        timestart = Instant::now();
+
+        // Loading pixels from image
         let mut all_pixels: Vec<&mut Rgb<u8>> = img.pixels_mut().collect();
-        info!("TIME | [Loading pixels]:\t+ {:?}", timestart.elapsed());
+        let timeend_loading = timestart.elapsed();
         timestart = Instant::now();
+
+        // Actual path algorithms
         // Ideas/missing:
         // Hilbert Curve
         // In waves
@@ -44,15 +48,29 @@ impl PathCreator {
             PathCreator::Circles => path_circles(w, h),
             PathCreator::Spiral => path_round_spiral(w, h),
         };
-        info!("TIME | [Creating paths]:\t+ {:?}", timestart.elapsed());
+        let timeend_pathing = timestart.elapsed();
         timestart = Instant::now();
+
+        // Reverse spans if nessesary
         if reverse {
             all_paths_indices.iter_mut().for_each(|p| {
                 p.reverse();
             });
         }
-        info!("TIME | [Reversing paths]:\t+ {:?}", timestart.elapsed());
-        return pick_pixels(all_pixels, all_paths_indices);
+        let timeend_reversing = timestart.elapsed();
+        timestart = Instant::now();
+
+        // Turn indexed paths into arrays of pixels
+        let pixels = pick_pixels(all_pixels, all_paths_indices);
+        let timeend_picking = timestart.elapsed();
+
+        info!("TIME | [Loading pixels]: \t+ {:?}", timeend_loading);
+        info!("TIME | [Index Pathing]:  \t+ {:?}", timeend_pathing);
+        info!("TIME | [Reversing paths]:\t+ {:?}", timeend_reversing);
+        info!("TIME | [Pickin pixels]:  \t+ {:?}", timeend_picking);
+        info!("TIME | [Creating Paths]: \t= {:?}", total_timestart.elapsed());
+
+        return pixels;
     }
 }
 
@@ -297,7 +315,6 @@ fn path_circles(w: u64, h: u64) -> Vec<Vec<u64>> {
 /// Creates and returns ranges of mutable Pixels.
 /// The picked pixels and their order are determined by the given vector of indices
 fn pick_pixels(all_pixels: Vec<&mut Rgb<u8>>, indices: Vec<Vec<u64>>) -> Vec<Vec<&mut Rgb<u8>>> {
-    let timestart = Instant::now();
     let mut paths: Vec<Vec<&mut Rgb<u8>>> = Vec::new();
 
     let mut all_pixels: Vec<Option<&mut Rgb<u8>>> =
@@ -317,8 +334,6 @@ fn pick_pixels(all_pixels: Vec<&mut Rgb<u8>>, indices: Vec<Vec<u64>>) -> Vec<Vec
         }
         paths.push(path);
     }
-    info!("TIME | [Pickin pixels]:\t+ {:?}", timestart.elapsed());
-
     return paths;
 }
 
