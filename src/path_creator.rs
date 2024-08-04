@@ -1,8 +1,7 @@
-use std::{f64::consts::PI, time::Instant};
-use log::{info, warn, error};
 use image::{Rgb, RgbImage};
+use log::{error, info, warn};
 use rayon::prelude::*;
-
+use std::{f64::consts::PI, time::Instant};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum PathCreator {
@@ -68,7 +67,10 @@ impl PathCreator {
         info!("TIME | [Index Pathing]:  \t+ {:?}", timeend_pathing);
         info!("TIME | [Reversing paths]:\t+ {:?}", timeend_reversing);
         info!("TIME | [Pickin pixels]:  \t+ {:?}", timeend_picking);
-        info!("TIME | [Creating Paths]: \t= {:?}", total_timestart.elapsed());
+        info!(
+            "TIME | [Creating Paths]: \t= {:?}",
+            total_timestart.elapsed()
+        );
 
         return pixels;
     }
@@ -79,16 +81,16 @@ fn path_all_horizontally(w: u64, h: u64) -> Vec<Vec<u64>> {
 }
 
 fn path_all_vertically(w: u64, h: u64) -> Vec<Vec<u64>> {
-    let mut paths: Vec<Vec<u64>> = Vec::new();
     let mut path = Vec::new();
+
     for x in 0..w {
         for y in 0..h {
             let i = y * w + x;
             path.push(i);
         }
     }
-    paths.push(path);
-    return paths;
+
+    return vec![path];
 }
 
 fn path_horizontal_lines(w: u64, h: u64) -> Vec<Vec<u64>> {
@@ -105,12 +107,7 @@ fn path_vertical_lines(w: u64, h: u64) -> Vec<Vec<u64>> {
     let mut paths: Vec<Vec<u64>> = Vec::new();
 
     for x in 0..w {
-        let mut path = Vec::new();
-        for y in 0..h {
-            let i = y * w + x;
-            path.push(i);
-        }
-        paths.push(path);
+        paths.push((0..h).into_iter().map(|y| y * w + x).collect());
     }
 
     return paths;
@@ -127,21 +124,27 @@ fn path_diagonal_lines(w: u64, h: u64, angle: f32) -> Vec<Vec<u64>> {
     //   0  1  2              0 1 2 3 4 5 6 7               0 1 2 3 4 5 6 7
     // 0 X        <Good     0 X                           0 X X
     // 1 X                  1     X                       1     X X
-    // 2    X        Bad>   2         X        Correct>   2         X X     
+    // 2    X        Bad>   2         X        Correct>   2         X X
     // 3    X               3             X               3             X X
     let angle = angle % 360.0;
     let do_reverse = (angle > 45.0 && angle < 225.0) || (angle < -135.0 && angle > -315.0);
     let angle = angle % 180.0;
     let x_tan_val = angle.to_radians().tan();
     let xoverhead = (x_tan_val * h as f32).round() as i64;
-    let xrange = if x_tan_val < 0.0 { xoverhead..w as i64 } else { 0..w as i64 + xoverhead };
+    let xrange = if x_tan_val < 0.0 {
+        xoverhead..w as i64
+    } else {
+        0..w as i64 + xoverhead
+    };
 
     let x_line_path = |xs| {
         let mut path = Vec::new();
         for y in 0..h {
-            let x = xs - ( y as f32 * x_tan_val ).round() as i64;
+            let x = xs - (y as f32 * x_tan_val).round() as i64;
             // Prevent "overflowing" the index and selecting indices on the next line
-            if x >= w as i64 || x < 0 { continue; }
+            if x >= w as i64 || x < 0 {
+                continue;
+            }
             let i = y * w + x as u64;
             path.push(i);
         }
@@ -150,14 +153,20 @@ fn path_diagonal_lines(w: u64, h: u64, angle: f32) -> Vec<Vec<u64>> {
 
     let y_tan_val = (90.0 - angle).to_radians().tan();
     let yoverhead = (y_tan_val * w as f32).round() as i64;
-    let yrange = if y_tan_val < 0.0 { yoverhead..h as i64 } else { 0..h as i64 + yoverhead };
+    let yrange = if y_tan_val < 0.0 {
+        yoverhead..h as i64
+    } else {
+        0..h as i64 + yoverhead
+    };
 
     let y_line_path = |ys| {
         let mut path = Vec::new();
         for x in 0..w {
-            let y = ys - ( x as f32 * y_tan_val ).round() as i64;
+            let y = ys - (x as f32 * y_tan_val).round() as i64;
             // Prevent "overflowing" the index and selecting indices on the next line
-            if y >= h as i64 || y < 0 { continue; }
+            if y >= h as i64 || y < 0 {
+                continue;
+            }
             let i = y as u64 * w + x;
             path.push(i);
         }
@@ -170,10 +179,11 @@ fn path_diagonal_lines(w: u64, h: u64, angle: f32) -> Vec<Vec<u64>> {
         true => yrange.into_iter().map(y_line_path).collect(),
         false => xrange.into_iter().map(x_line_path).collect(),
     };
-    if (do_reverse){
-        for p in &mut paths { p.reverse()};
+    if (do_reverse) {
+        for p in &mut paths {
+            p.reverse()
+        }
     }
-
 
     return paths;
 }
@@ -182,7 +192,7 @@ fn path_rect_spiral(w: u64, h: u64, square: bool) -> Vec<Vec<u64>> {
     let mut paths: Vec<Vec<u64>> = Vec::new();
     let mut x = w / 2;
     let mut y = h / 2;
-    let pixelcount = w*h;
+    let pixelcount = w * h;
     let max_size = std::cmp::max(w, h);
 
     let mut path = Vec::new();
@@ -198,10 +208,13 @@ fn path_rect_spiral(w: u64, h: u64, square: bool) -> Vec<Vec<u64>> {
     let mut reach_x = 1;
     let mut reach_y = 1;
     if !square {
-        if w>h {reach_x = std::cmp::max(1, w-h);}
-        else {reach_y = std::cmp::max(1, h-w);}
-        x -= reach_x/2;
-        y -= reach_y/2;
+        if w > h {
+            reach_x = std::cmp::max(1, w - h);
+        } else {
+            reach_y = std::cmp::max(1, h - w);
+        }
+        x -= reach_x / 2;
+        y -= reach_y / 2;
     }
 
     loop {
@@ -242,9 +255,9 @@ fn path_round_spiral(w: u64, h: u64) -> Vec<Vec<u64>> {
     let mut paths: Vec<Vec<u64>> = Vec::new();
     let mut x = w as f64 / 2.0;
     let mut y = h as f64 / 2.0;
-    let pixelcount = w*h;
+    let pixelcount = w * h;
     // The max radius has to be
-    let max_size = ((w*w + h*h) as f64).sqrt().ceil() as u64;
+    let max_size = ((w * w + h * h) as f64).sqrt().ceil() as u64;
 
     let mut r = 1.0;
     let angle_offset = -0.5 * PI;
@@ -261,26 +274,27 @@ fn path_round_spiral(w: u64, h: u64) -> Vec<Vec<u64>> {
             let angle = angle_offset + step_size * step as f64;
             let xi = x + angle.cos() * r as f64;
             let yi = y + angle.sin() * r as f64;
-            if !is_in_bounds(xi as u64,yi as u64,w,h) {continue;}
+            if !is_in_bounds(xi as u64, yi as u64, w, h) {
+                continue;
+            }
             path.push(yi as u64 * w + xi as u64);
         }
         path
     };
 
     // THREADING, WOOO
-    let path_iter = (1..max_size/2).into_par_iter().map(line_path);
+    let path_iter = (1..max_size / 2).into_par_iter().map(line_path);
     paths = vec![path_iter.flatten().collect()];
     return paths;
 }
-
 
 fn path_circles(w: u64, h: u64) -> Vec<Vec<u64>> {
     let mut paths: Vec<Vec<u64>> = Vec::new();
     let mut x = w as f64 / 2.0;
     let mut y = h as f64 / 2.0;
-    let pixelcount = w*h;
+    let pixelcount = w * h;
     // The max radius has to be
-    let max_size = ((w*w + h*h) as f64).sqrt().ceil() as u64;
+    let max_size = ((w * w + h * h) as f64).sqrt().ceil() as u64;
 
     let mut r = 1;
     let angle_offset = -0.5 * PI;
@@ -307,25 +321,24 @@ fn path_circles(w: u64, h: u64) -> Vec<Vec<u64>> {
         vec![path_left, path_right]
     };
     // THREADING, WOOO
-    let paths = (1..max_size/2).into_par_iter().map(line_path).flatten().collect();
+    paths.par_extend((1..max_size / 2).into_par_iter().map(line_path).flatten());
     return paths;
 }
-
 
 /// Creates and returns ranges of mutable Pixels.
 /// The picked pixels and their order are determined by the given vector of indices
 fn pick_pixels(all_pixels: Vec<&mut Rgb<u8>>, indices: Vec<Vec<u64>>) -> Vec<Vec<&mut Rgb<u8>>> {
     let mut paths: Vec<Vec<&mut Rgb<u8>>> = Vec::new();
-
     let mut all_pixels: Vec<Option<&mut Rgb<u8>>> =
         all_pixels.into_iter().map(|p| Some(p)).collect();
+
     for mut li in indices {
         li.dedup();
         let mut path = Vec::new();
         for i in li {
-            all_pixels.push(None);
             // Check if the index is valid
             if all_pixels.get(i as usize).is_some() {
+                all_pixels.push(None);
                 // Check if the pixel at index i is still available (not None)
                 if let Some(px) = all_pixels.swap_remove(i as usize) {
                     path.push(px);
@@ -337,6 +350,6 @@ fn pick_pixels(all_pixels: Vec<&mut Rgb<u8>>, indices: Vec<Vec<u64>>) -> Vec<Vec
     return paths;
 }
 
-fn is_in_bounds(x: u64,y: u64,w: u64,h: u64) -> bool {
+fn is_in_bounds(x: u64, y: u64, w: u64, h: u64) -> bool {
     x > 0 && x < w && y > 0 && y < h
 }
