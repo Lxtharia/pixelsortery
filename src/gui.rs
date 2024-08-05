@@ -1,6 +1,9 @@
 #![allow(unused)]
-use eframe::egui::{
-    self, Align, Image, Layout, RichText, TextureFilter, TextureHandle, TextureOptions, Ui,
+use eframe::{
+    egui::{
+        self, style::HandleShape, Align, Color32, Image, Layout, RichText, TextureFilter, TextureHandle, TextureOptions, Ui
+    },
+    epaint::Hsva,
 };
 use image::RgbImage;
 use log::{info, warn};
@@ -234,22 +237,57 @@ impl PixelsorterGui {
                             (256, "")
                         };
 
+                        // Get slider colors and image
+                        // HSVA::new(hue, saturation, brightness, alpha)
+                        let (mincol, maxcol, criteria_image) = match self.values.selector_thres.criteria {
+                            PixelSelectCriteria::Hue => (
+                                Hsva::new(*min as f32 / 360.0, 1.0, 1.0, 1.0).into(),
+                                Hsva::new(*max as f32 / 360.0, 1.0, 1.0, 1.0).into(),
+                                Image::new(egui::include_image!("../assets/hue-bar.png"))
+                            ),
+                            PixelSelectCriteria::Brightness => (
+                                Hsva::new(1.0, 0.0, *min as f32 / 256.0, 1.0).into(),
+                                Hsva::new(1.0, 0.0, *max as f32 / 256.0, 1.0).into(),
+                                Image::new(egui::include_image!("../assets/brightness-bar.png"))
+                            ),
+                            PixelSelectCriteria::Saturation => (
+                                Hsva::new(1.0, *min as f32 / 256.0, 1.0, 1.0).into(),
+                                Hsva::new(1.0, *max as f32 / 256.0, 1.0, 1.0).into(),
+                                Image::new(egui::include_image!("../assets/saturation-bar.png"))
+                            ),
+                        };
+
                         ui.label("Min");
-                        let min_slider = egui::Slider::new(min, 0..=cap)
-                            .trailing_fill(true)
-                            .suffix(selector_suffix)
-                            .drag_value_speed(0.2)
-                            .smart_aim(false);
-                        ui.add(min_slider);
+                        ui.scope(|ui| {
+                            ui.style_mut().visuals.selection.bg_fill = mincol;
+                            let min_slider = egui::Slider::new(min, 0..=cap)
+                                .handle_shape(HandleShape::Rect { aspect_ratio: 0.5 })
+                                .trailing_fill(true)
+                                .suffix(selector_suffix)
+                                .drag_value_speed(0.2)
+                                .smart_aim(false);
+                            ui.add(min_slider);
+                        });
+                        ui.end_row();
+
+                        ui.label("");
+                        ui.add(criteria_image
+                                .maintain_aspect_ratio(false)
+                                .fit_to_exact_size([ui.style().spacing.slider_width, 15.0].into()),
+                        );
                         ui.end_row();
 
                         ui.label("Max");
-                        let max_slider = egui::Slider::new(max, 0..=cap)
-                            .trailing_fill(true)
-                            .suffix(selector_suffix)
-                            .drag_value_speed(0.2)
-                            .smart_aim(false);
-                        ui.add(max_slider);
+                        ui.scope(|ui| {
+                            ui.style_mut().visuals.selection.bg_fill = maxcol;
+                            let max_slider = egui::Slider::new(max, 0..=cap)
+                                .handle_shape(HandleShape::Rect { aspect_ratio: 0.5 })
+                                .trailing_fill(true)
+                                .suffix(selector_suffix)
+                                .drag_value_speed(0.2)
+                                .smart_aim(false);
+                            ui.add(max_slider);
+                        });
                         ui.end_row();
 
                         // TODO: clamping, depending on which slider is dragged
@@ -348,6 +386,7 @@ impl PixelsorterGui {
         return None;
     }
 
+    /// loads the image as a texture into context
     fn set_texture(&mut self, ctx: &egui::Context, img: &RgbImage, name: String) {
         let rgb_data = img.to_vec();
         let colorimg =
@@ -360,7 +399,7 @@ impl PixelsorterGui {
         self.texture = Some(ctx.load_texture(name, colorimg, options));
     }
 
-    /// Tries to show the image if it exists, or not.
+    /// Tries to show the image if it exists
     fn show_img(&self, ui: &mut Ui) {
         if let Some(tex) = &self.texture {
             egui::Frame::canvas(ui.style_mut()).show(ui, |ui| {
@@ -395,7 +434,11 @@ impl PixelsorterGui {
         if let Some((_, s)) = &self.img {
             let suggested_filename = if let (Some(stem), Some(ext)) = (s.file_stem(), s.extension())
             {
-                format!("{}-sorted.{}", stem.to_string_lossy(), ext.to_string_lossy())
+                format!(
+                    "{}-sorted.{}",
+                    stem.to_string_lossy(),
+                    ext.to_string_lossy()
+                )
             } else {
                 String::from("")
             };
