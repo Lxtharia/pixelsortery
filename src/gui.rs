@@ -553,7 +553,7 @@ impl eframe::App for PixelsorterGui {
             let timestart = Instant::now();
             if let Some(img) = self.sort_img() {
                 self.time_last_sort = timestart.elapsed();
-                println!("Change detected, sorting image...");
+                info!("[Change detected, sorting image...]");
                 self.set_texture(ctx, &img, String::from("Image-sorted"));
             }
         }
