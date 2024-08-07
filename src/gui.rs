@@ -12,6 +12,7 @@ use pixelsortery::{
     pixel_selector::{FixedSelector, PixelSelectCriteria, RandomSelector, ThresholdSelector},
     span_sorter::{SortingAlgorithm, SortingCriteria},
 };
+use inflections::case::to_title_case;
 use std::{
     path::PathBuf,
     time::{Duration, Instant},
@@ -33,6 +34,10 @@ pub fn start_gui() -> eframe::Result {
         }),
     )
 }
+
+const VERSION: &str = env!("CARGO_PKG_VERSION");
+const AUTHORS: &str = env!("CARGO_PKG_AUTHORS");
+const PACKAGE_NAME: &str = env!("CARGO_PKG_NAME");
 
 /// Struct holding all the states of the gui and values of sliders etc.
 struct PixelsorterGui {
@@ -534,7 +539,9 @@ impl eframe::App for PixelsorterGui {
             });
 
         egui::TopBottomPanel::bottom("info-bar").show(ctx, |ui| {
-            ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+            ui.with_layout(Layout::right_to_left(Align::Max), |ui| {
+                ui.label(format!("{} v{} by {}", to_title_case(PACKAGE_NAME), VERSION, AUTHORS));
+                ui.separator();
                 if let Some(tex) = &self.texture {
                     let [w, h] = tex.size();
                     ui.label(format!("{} x {} ({} pixels)", w, h, w * h));
