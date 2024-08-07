@@ -1,18 +1,19 @@
 #![allow(unused)]
 use eframe::{
     egui::{
-        self, style::HandleShape, Align, Color32, Image, Layout, RichText, TextureFilter, TextureHandle, TextureOptions, Ui
+        self, style::HandleShape, Align, Image, Layout, RichText, TextureFilter, TextureHandle,
+        TextureOptions, Ui,
     },
     epaint::Hsva,
 };
 use image::RgbImage;
+use inflections::case::to_title_case;
 use log::{info, warn};
 use pixelsortery::{
     path_creator::PathCreator,
     pixel_selector::{FixedSelector, PixelSelectCriteria, RandomSelector, ThresholdSelector},
     span_sorter::{SortingAlgorithm, SortingCriteria},
 };
-use inflections::case::to_title_case;
 use std::{
     path::PathBuf,
     time::{Duration, Instant},
@@ -100,48 +101,40 @@ impl Default for PixelsorterGui {
 
 impl PixelsorterGui {
     fn path_combo_box(&mut self, ui: &mut Ui, id: u64) {
+        let path_name_mappings = [
+            (PathCreator::AllHorizontally, "All Horizontally"),
+            (PathCreator::AllVertically, "All Vertically"),
+            (PathCreator::VerticalLines, "Left/Right"),
+            (PathCreator::HorizontalLines, "Up/Down"),
+            (PathCreator::Circles, "Circles"),
+            (PathCreator::Spiral, "Spiral"),
+            (PathCreator::SquareSpiral, "Square Spiral"),
+            (PathCreator::RectSpiral, "Rectangular Spiral"),
+            (
+                PathCreator::Diagonally(self.values.path_diagonally_val),
+                &format!("Diagonally ({}°)", self.values.path_diagonally_val),
+            ),
+        ];
+        // The text that's shown in the combobox, debug as default
+        let path_debug_name = &format!("{:?}", &self.values.path);
+        let selected_text = match path_name_mappings
+            .into_iter()
+            .find(|x| x.0 == self.values.path)
+        {
+            Some((_, t)) => t,
+            None => path_debug_name,
+        };
+
+        // Build ComboBox from entries in the path_name_mappings
         egui::ComboBox::from_id_source(format!("path_combo_{}", id))
-            .selected_text(format!("{:?}", self.values.path))
+            .selected_text(selected_text)
             .show_ui(ui, |ui| {
-                ui.selectable_value(
-                    &mut self.values.path,
-                    PathCreator::AllHorizontally,
-                    "All Horizontally",
-                );
-                ui.selectable_value(
-                    &mut self.values.path,
-                    PathCreator::AllVertically,
-                    "All Vertically",
-                );
-                ui.selectable_value(
-                    &mut self.values.path,
-                    PathCreator::HorizontalLines,
-                    "Lines, Horizontally",
-                );
-                ui.selectable_value(
-                    &mut self.values.path,
-                    PathCreator::VerticalLines,
-                    "Lines, Vertically",
-                );
-                ui.selectable_value(&mut self.values.path, PathCreator::Circles, "Circles");
-                ui.selectable_value(&mut self.values.path, PathCreator::Spiral, "Spiral");
-                ui.selectable_value(
-                    &mut self.values.path,
-                    PathCreator::SquareSpiral,
-                    "Square Spiral",
-                );
-                ui.selectable_value(
-                    &mut self.values.path,
-                    PathCreator::RectSpiral,
-                    "Rectangular Spiral",
-                );
-                ui.selectable_value(
-                    &mut self.values.path,
-                    PathCreator::Diagonally(self.values.path_diagonally_val),
-                    "Diagonally",
-                );
+                for (v, t) in path_name_mappings {
+                    ui.selectable_value(&mut self.values.path, v, t);
+                }
             });
         ui.end_row();
+
         // Path specific tweaks for some pathings
         // Nested Grid for sub-options
         match self.values.path {
@@ -244,21 +237,25 @@ impl PixelsorterGui {
 
                         // Get slider colors and image
                         // HSVA::new(hue, saturation, brightness, alpha)
-                        let (mincol, maxcol, criteria_image) = match self.values.selector_thres.criteria {
+                        let (mincol, maxcol, criteria_image) = match self
+                            .values
+                            .selector_thres
+                            .criteria
+                        {
                             PixelSelectCriteria::Hue => (
                                 Hsva::new(*min as f32 / 360.0, 1.0, 1.0, 1.0).into(),
                                 Hsva::new(*max as f32 / 360.0, 1.0, 1.0, 1.0).into(),
-                                Image::new(egui::include_image!("../assets/hue-bar.png"))
+                                Image::new(egui::include_image!("../assets/hue-bar.png")),
                             ),
                             PixelSelectCriteria::Brightness => (
                                 Hsva::new(1.0, 0.0, *min as f32 / 256.0, 1.0).into(),
                                 Hsva::new(1.0, 0.0, *max as f32 / 256.0, 1.0).into(),
-                                Image::new(egui::include_image!("../assets/brightness-bar.png"))
+                                Image::new(egui::include_image!("../assets/brightness-bar.png")),
                             ),
                             PixelSelectCriteria::Saturation => (
                                 Hsva::new(1.0, *min as f32 / 256.0, 1.0, 1.0).into(),
                                 Hsva::new(1.0, *max as f32 / 256.0, 1.0, 1.0).into(),
-                                Image::new(egui::include_image!("../assets/saturation-bar.png"))
+                                Image::new(egui::include_image!("../assets/saturation-bar.png")),
                             ),
                         };
 
@@ -276,7 +273,8 @@ impl PixelsorterGui {
                         ui.end_row();
 
                         ui.label("");
-                        ui.add(criteria_image
+                        ui.add(
+                            criteria_image
                                 .maintain_aspect_ratio(false)
                                 .fit_to_exact_size([ui.style().spacing.slider_width, 15.0].into()),
                         );
@@ -540,7 +538,12 @@ impl eframe::App for PixelsorterGui {
 
         egui::TopBottomPanel::bottom("info-bar").show(ctx, |ui| {
             ui.with_layout(Layout::right_to_left(Align::Max), |ui| {
-                ui.label(format!("{} v{} by {}", to_title_case(PACKAGE_NAME), VERSION, AUTHORS));
+                ui.label(format!(
+                    "{} v{} by {}",
+                    to_title_case(PACKAGE_NAME),
+                    VERSION,
+                    AUTHORS
+                ));
                 ui.separator();
                 if let Some(tex) = &self.texture {
                     let [w, h] = tex.size();
