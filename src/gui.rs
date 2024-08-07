@@ -104,8 +104,8 @@ impl PixelsorterGui {
         let path_name_mappings = [
             (PathCreator::AllHorizontally, "All Horizontally"),
             (PathCreator::AllVertically, "All Vertically"),
-            (PathCreator::VerticalLines, "Left/Right"),
-            (PathCreator::HorizontalLines, "Up/Down"),
+            (PathCreator::HorizontalLines, "Left/Right"),
+            (PathCreator::VerticalLines, "Up/Down"),
             (PathCreator::Circles, "Circles"),
             (PathCreator::Spiral, "Spiral"),
             (PathCreator::SquareSpiral, "Square Spiral"),
