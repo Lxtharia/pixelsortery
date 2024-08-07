@@ -532,7 +532,8 @@ impl eframe::App for PixelsorterGui {
 
                     ui.separator();
 
-                    ui.label(format!("Time of last sort:\t{:?}", self.time_last_sort));
+                    ui.label(format!( "Time of last sort:\t{:?}", self.time_last_sort));
+                    ui.label(format!( "Frames per second:\t{:.3} fps", (1.0 / self.time_last_sort.as_secs_f32())));
                 });
             });
 
