@@ -164,19 +164,17 @@ impl PixelsorterGui {
 
     fn selector_combo_box(&mut self, ui: &mut Ui, id: u64) {
         ui.visuals_mut().weak_text_color();
-        egui::ComboBox::from_id_source(format!("selector_combo_{}", id))
-            .selected_text(format!("{:?}", self.values.selector_type))
-            .show_ui(ui, |ui| {
-                vec![
-                    SelectorType::Fixed,
-                    SelectorType::Random,
-                    SelectorType::Threshold,
-                ]
-                .into_iter()
-                .for_each(|c| {
-                    ui.selectable_value(&mut self.values.selector_type, c, format!("{:?}", c));
-                });
+        ui.horizontal(|ui| {
+            vec![
+                SelectorType::Fixed,
+                SelectorType::Random,
+                SelectorType::Threshold,
+            ]
+            .into_iter()
+            .for_each(|c| {
+                ui.selectable_value(&mut self.values.selector_type, c, format!("{:?}", c));
             });
+        });
         ui.end_row();
         // Nested Grid for sub-options
         ui.label("");
@@ -214,19 +212,17 @@ impl PixelsorterGui {
                         let criteria = &mut self.values.selector_thres.criteria;
 
                         ui.label("Criteria");
-                        egui::ComboBox::from_id_source(format!("selector_criteria_combo_{}", id))
-                            .selected_text(format!("{:?}", criteria))
-                            .show_ui(ui, |ui| {
-                                vec![
-                                    PixelSelectCriteria::Hue,
-                                    PixelSelectCriteria::Brightness,
-                                    PixelSelectCriteria::Saturation,
-                                ]
-                                .into_iter()
-                                .for_each(|c| {
-                                    ui.selectable_value(criteria, c, format!("{:?}", c));
-                                });
+                        ui.horizontal(|ui| {
+                            vec![
+                                PixelSelectCriteria::Hue,
+                                PixelSelectCriteria::Brightness,
+                                PixelSelectCriteria::Saturation,
+                            ]
+                            .into_iter()
+                            .for_each(|c| {
+                                ui.selectable_value(criteria, c, format!("{:?}", c));
                             });
+                        });
                         ui.end_row();
 
                         let (cap, selector_suffix) = if *criteria == PixelSelectCriteria::Hue {
@@ -301,19 +297,17 @@ impl PixelsorterGui {
     }
 
     fn criteria_combo_box(&mut self, ui: &mut Ui, id: u64) {
-        egui::ComboBox::from_id_source(format!("criteria_combo_{}", id))
-            .selected_text(format!("{:?}", self.values.criteria))
-            .show_ui(ui, |ui| {
-                vec![
-                    SortingCriteria::Brightness,
-                    SortingCriteria::Saturation,
-                    SortingCriteria::Hue,
-                ]
-                .into_iter()
-                .for_each(|c| {
-                    ui.selectable_value(&mut self.values.criteria, c, format!("{:?}", c));
-                });
+        ui.horizontal(|ui| {
+            vec![
+                SortingCriteria::Brightness,
+                SortingCriteria::Saturation,
+                SortingCriteria::Hue,
+            ]
+            .into_iter()
+            .for_each(|c| {
+                ui.selectable_value(&mut self.values.criteria, c, format!("{:?}", c));
             });
+        });
     }
 
     fn algorithmn_combo_box(&mut self, ui: &mut Ui, id: u64) {
@@ -327,8 +321,8 @@ impl PixelsorterGui {
                     SortingAlgorithm::DebugColor,
                 ]
                 .into_iter()
-                .for_each(|c| {
-                    ui.selectable_value(&mut self.values.algorithmn, c, format!("{:?}", c));
+                .for_each(|a| {
+                    ui.selectable_value(&mut self.values.algorithmn, a, format!("{:?}", a));
                 });
             });
     }
@@ -532,8 +526,11 @@ impl eframe::App for PixelsorterGui {
 
                     ui.separator();
 
-                    ui.label(format!( "Time of last sort:\t{:?}", self.time_last_sort));
-                    ui.label(format!( "Frames per second:\t{:.3} fps", (1.0 / self.time_last_sort.as_secs_f32())));
+                    ui.label(format!("Time of last sort:\t{:?}", self.time_last_sort));
+                    ui.label(format!(
+                        "Frames per second:\t{:.3} fps",
+                        (1.0 / self.time_last_sort.as_secs_f32())
+                    ));
                 });
             });
 
