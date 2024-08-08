@@ -1,4 +1,5 @@
 #![allow(unused_parens, unused)]
+#![feature(box_patterns)]
 use image::{codecs::png::PngEncoder, ImageResult, Rgb, RgbImage};
 use log::{info, warn, error};
 use path_creator::PathCreator;
@@ -20,7 +21,7 @@ pub mod span_sorter;
 pub struct Pixelsorter {
     img: RgbImage,
     pub sorter: span_sorter::SpanSorter,
-    pub selector: Box<dyn PixelSelector + Sync>,
+    pub selector: PixelSelector,
     pub path_creator: path_creator::PathCreator,
     pub reverse: bool,
 }
@@ -33,7 +34,7 @@ impl Pixelsorter {
         Pixelsorter {
             img,
             sorter: SpanSorter::new(SortingCriteria::Brightness),
-            selector: Box::new(pixel_selector::FullSelector{}),
+            selector: PixelSelector::Full,
             path_creator: PathCreator::AllHorizontally,
             reverse: false
         }

@@ -3,7 +3,7 @@ use log::info;
 use pixelsortery::{
     path_creator::PathCreator,
     pixel_selector::{
-        FixedSelector, PixelSelectCriteria, PixelSelector, RandomSelector, ThresholdSelector,
+        PixelSelectCriteria, PixelSelector
     },
     span_sorter::{SortingAlgorithm, SortingCriteria},
 };
@@ -24,16 +24,11 @@ fn parse_parameter<T: FromStr>(arg: Option<String>, usage: &str) -> T {
     exit(-1);
 }
 
-fn parse_thres_selector_parameters(arg: Option<String>) -> Box<dyn PixelSelector + Sync> {
-    let mut thres = ThresholdSelector {
-        min: 0,
-        max: 360,
-        criteria: PixelSelectCriteria::Hue,
-    };
+fn parse_thres_selector_parameters(arg: Option<String>) -> PixelSelector {
     // parse the string after that: --thres hue:10:200
     if let Some(arg2) = arg {
         let mut thres_opts: VecDeque<&str> = VecDeque::from_iter(arg2.split(":"));
-        let (crit, defaultmin, defaultmax) = match thres_opts.pop_front().unwrap_or("") {
+        let (criteria, defaultmin, defaultmax) = match thres_opts.pop_front().unwrap_or("") {
             "hue" => (PixelSelectCriteria::Hue, 0, 360),
             "bright" => (PixelSelectCriteria::Brightness, 0, 255),
             "sat" => (PixelSelectCriteria::Saturation, 0, 255),
@@ -42,22 +37,22 @@ fn parse_thres_selector_parameters(arg: Option<String>) -> Box<dyn PixelSelector
                 exit(-1)
             }
         };
-        thres.criteria = crit;
-        thres.min = thres_opts
+        let min = thres_opts
             .pop_front()
             .unwrap_or("")
             .parse()
             .unwrap_or(defaultmin);
-        thres.max = thres_opts
+        let max = thres_opts
             .pop_front()
             .unwrap_or("")
             .parse()
             .unwrap_or(defaultmax);
+        return PixelSelector::Threshold { min, max, criteria,
+        };
     } else {
         eprintln!("[ERROR] Wrong syntax, usage: --thres <hue|bright|sat>:0:255");
         exit(-1)
     }
-    Box::new(thres)
 }
 
 const HELP_STRING: &str = "
@@ -124,7 +119,8 @@ fn main() {
 
     // Start gui
     if args.contains(&String::from("--gui")){
-        gui::start_gui().unwrap(); exit(0);
+        gui::start_gui().unwrap();
+        exit(0);
     }
 
     let path;
@@ -134,8 +130,9 @@ fn main() {
             _ => path = s,
         };
     } else {
-        eprintln!("[!] You need to specify the input and the output path");
-        exit(1);
+        eprintln!("No arguments passed. Starting gui...");
+        gui::start_gui().unwrap();
+        exit(0);
     }
 
     // OPEN IMAGE OR READ FROM STDIN
@@ -163,8 +160,8 @@ fn main() {
             "-h" | "--help" => { println!("{}", HELP_STRING); exit(0); }
             "-o" | "--output" => { output_path = parse_parameter::<String>(args.pop_front(), "--output") }
 
-            "--random" => ps.selector = Box::new(RandomSelector{ max: parse_parameter(args.pop_front(), "--random <max>")}),
-            "--fixed"  => ps.selector = Box::new(FixedSelector{ len: parse_parameter(args.pop_front(), "--fixed <len>")}),
+            "--random" => ps.selector = PixelSelector::Random { max: parse_parameter(args.pop_front(), "--random <max>")},
+            "--fixed"  => ps.selector = PixelSelector::Fixed  { len: parse_parameter(args.pop_front(), "--fixed <len>")},
             "--thres"  => ps.selector = parse_thres_selector_parameters(args.pop_front()),
 
             "--vertical"   => ps.path_creator = PathCreator::AllVertically,

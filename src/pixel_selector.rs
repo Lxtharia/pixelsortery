@@ -5,29 +5,26 @@ use rand::{
     thread_rng,
 };
 use rayon::iter::{
-    IndexedParallelIterator, IntoParallelIterator, IntoParallelRefMutIterator, ParallelDrainRange, ParallelIterator
+    IndexedParallelIterator, IntoParallelIterator, IntoParallelRefMutIterator, ParallelDrainRange,
+    ParallelIterator,
 };
 use std::{cmp::min, collections::VecDeque};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct ThresholdSelector {
-    pub min: u64,
-    pub max: u64,
-    pub criteria: PixelSelectCriteria,
+pub enum PixelSelector {
+    Full,
+    Fixed {
+        len: u64,
+    },
+    Random {
+        max: u32,
+    },
+    Threshold {
+        min: u64,
+        max: u64,
+        criteria: PixelSelectCriteria,
+    },
 }
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct RandomSelector {
-    pub max: u32,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct FixedSelector {
-    pub len: u64,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct FullSelector {}
 
 /// Key criteria which a (Threshold-)Selector should use as a key
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -37,130 +34,124 @@ pub enum PixelSelectCriteria {
     Saturation,
 }
 
-/// Returns a list of pixel spans
-pub trait PixelSelector {
-    fn create_spans<'a>(
-        &'a self,
-        pixels: &mut VecDeque<&'a mut Rgb<u8>>,
-    ) -> Vec<Vec<&'a mut Rgb<u8>>>;
-    fn info_string<'a>(&'a self) -> String; // I bet this is no the rust way
-}
-
-impl PixelSelector for FullSelector {
-    fn info_string(&self) -> String {
-        format!("Selecting all pixels")
-    }
-    fn create_spans<'a>(
-        &'a self,
+impl PixelSelector {
+    /// Returns a list of pixel spans
+    pub fn create_spans<'a>(
+        self,
         pixels: &mut VecDeque<&'a mut Rgb<u8>>,
     ) -> Vec<Vec<&'a mut Rgb<u8>>> {
-        let mut spans: Vec<Vec<&'a mut Rgb<u8>>> = Vec::new();
-
-        let mut span: Vec<&mut Rgb<u8>> = Vec::new();
-        while !pixels.is_empty() {
-            span.push(pixels.pop_front().unwrap());
+        match self {
+            PixelSelector::Full => full_selector(pixels),
+            PixelSelector::Fixed { len } => fixed_selector(pixels, len),
+            PixelSelector::Random { max } => random_selector(pixels, max),
+            PixelSelector::Threshold { min, max, criteria } => threshold_selector(pixels, criteria, min, max),
         }
-        spans.push(span);
-        spans
     }
-}
-
-impl PixelSelector for FixedSelector {
-    fn info_string(&self) -> String {
-        format!("Selecting ranges of fixed length {}", self.len)
-    }
-    fn create_spans<'a>(
-        &'a self,
-        pixels: &mut VecDeque<&'a mut Rgb<u8>>,
-    ) -> Vec<Vec<&'a mut Rgb<u8>>> {
-
-        let mut spans: Vec<Vec<&'a mut Rgb<u8>>> = Vec::new();
-
-        // Prevent an endless loop
-        if self.len == 0 {
-            return spans;
+    pub fn info_string<'a>(self) -> String {
+        match self {
+            PixelSelector::Full => String::from("Selecing all pixels"),
+            PixelSelector::Fixed { len } => format!("Selecting ranges of fixed length {}", len),
+            PixelSelector::Random { max } => format!("Random Selector with max length {}", max),
+            PixelSelector::Threshold { min, max, criteria } => format!(
+                "Selecting Pixels with: [{} < {:?} < {}]",
+                min, criteria, max
+            ),
         }
-
-        while pixels.len() >= self.len as usize {
-            // Take len pixels and put into new span
-            spans.push(pixels.drain(0..self.len as usize).collect());
-        }
-        // Push the rest
-        spans.push(pixels.drain(..).collect());
-
-        spans
     }
 }
 
-impl PixelSelector for RandomSelector {
-    fn info_string(&self) -> String {
-        format!("Random Selector with max length {}", self.max)
-    }
-    fn create_spans<'a>(
-        &'a self,
-        pixels: &mut VecDeque<&'a mut Rgb<u8>>,
-    ) -> Vec<Vec<&'a mut Rgb<u8>>> {
-        let mut spans: Vec<Vec<&'a mut Rgb<u8>>> = Vec::new();
-        // rng_range cannot be 1..1
-        if self.max <= 1 {
-            return spans;
-        }
-        let mut rng = thread_rng();
-        let rng_range = Uniform::from(1..self.max as usize);
+fn full_selector<'a>(pixels: &mut VecDeque<&'a mut Rgb<u8>>) -> Vec<Vec<&'a mut Rgb<u8>>> {
+    let mut spans: Vec<Vec<&'a mut Rgb<u8>>> = Vec::new();
 
-        loop {
-            let mut r = rng_range.sample(&mut rng);
-            if pixels.len() < r {break;}
-            // Take r pixels and put into new span
-            spans.push(pixels.drain(0..r).collect());
-        }
-        // Push the rest
-        spans.push(pixels.drain(..).collect());
-
-        spans
+    let mut span: Vec<&mut Rgb<u8>> = Vec::new();
+    while !pixels.is_empty() {
+        span.push(pixels.pop_front().unwrap());
     }
+    spans.push(span);
+    spans
 }
 
-impl PixelSelector for ThresholdSelector {
-    fn info_string(&self) -> String {
-        format!(
-            "Selecting Pixels with: [{} < {:?} < {}]",
-            self.min, self.criteria, self.max
-        )
+fn fixed_selector<'a>(
+    pixels: &mut VecDeque<&'a mut Rgb<u8>>,
+    len: u64,
+) -> Vec<Vec<&'a mut Rgb<u8>>> {
+    let mut spans: Vec<Vec<&'a mut Rgb<u8>>> = Vec::new();
+
+    // Prevent an endless loop
+    if len == 0 {
+        return spans;
     }
-    fn create_spans<'a>(
-        &'a self,
-        pixels: &mut VecDeque<&'a mut Rgb<u8>>,
-    ) -> Vec<Vec<&'a mut Rgb<u8>>> {
-        let mut spans: Vec<Vec<&'a mut Rgb<u8>>> = Vec::new();
 
-        let value_function = match self.criteria {
-            PixelSelectCriteria::Hue => get_hue,
-            PixelSelectCriteria::Brightness => get_brightness,
-            PixelSelectCriteria::Saturation => get_saturation,
-        };
+    while pixels.len() >= len as usize {
+        // Take len pixels and put into new span
+        spans.push(pixels.drain(0..len as usize).collect());
+    }
+    // Push the rest
+    spans.push(pixels.drain(..).collect());
 
-        // Function that checks if a value is valid
-        let valid = |val| { (val as u64) >= self.min && (val as u64) <= self.max };
+    spans
+}
 
-        let mut span: Vec<&mut Rgb<u8>> = Vec::new();
-        for _ in 0..pixels.len() {
-            let value = value_function(pixels.get(0).unwrap());
-            let px = pixels.pop_front().unwrap();
+fn random_selector<'a>(
+    pixels: &mut VecDeque<&'a mut Rgb<u8>>,
+    max: u32,
+) -> Vec<Vec<&'a mut Rgb<u8>>> {
+    let mut spans: Vec<Vec<&'a mut Rgb<u8>>> = Vec::new();
+    // rng_range cannot be 1..1
+    if max <= 1 {
+        return spans;
+    }
+    let mut rng = thread_rng();
+    let rng_range = Uniform::from(1..max as usize);
 
-            if valid(value) {
-                // A valid pixel. Add to span
-                span.push(px);
-            } else {
-                // A invalid pixel, close the span and create a new one
-                // Only do that when the current span isn't empty anyway
-                if span.len() > 0 {
-                    spans.push(span);
-                    span = Vec::new();
-                }
+    loop {
+        let mut r = rng_range.sample(&mut rng);
+        if pixels.len() < r {
+            break;
+        }
+        // Take r pixels and put into new span
+        spans.push(pixels.drain(0..r).collect());
+    }
+    // Push the rest
+    spans.push(pixels.drain(..).collect());
+
+    spans
+}
+
+fn threshold_selector<'a>(
+    pixels: &mut VecDeque<&'a mut Rgb<u8>>,
+    criteria: PixelSelectCriteria,
+    min: u64,
+    max: u64,
+) -> Vec<Vec<&'a mut Rgb<u8>>> {
+    let mut spans: Vec<Vec<&'a mut Rgb<u8>>> = Vec::new();
+
+    let value_function = match criteria {
+        PixelSelectCriteria::Hue => get_hue,
+        PixelSelectCriteria::Brightness => get_brightness,
+        PixelSelectCriteria::Saturation => get_saturation,
+    };
+
+    // Function that checks if a value is valid
+    let valid = |val| (val as u64) >= min && (val as u64) <= max;
+
+    let mut span: Vec<&mut Rgb<u8>> = Vec::new();
+    for _ in 0..pixels.len() {
+        let value = value_function(pixels.get(0).unwrap());
+        let px = pixels.pop_front().unwrap();
+
+        if valid(value) {
+            // A valid pixel. Add to span
+            span.push(px);
+        } else {
+            // A invalid pixel, close the span and create a new one
+            // Only do that when the current span isn't empty anyway
+            if span.len() > 0 {
+                spans.push(span);
+                span = Vec::new();
             }
         }
-        spans.push(span);
-        spans
     }
+    spans.push(span);
+    spans
 }

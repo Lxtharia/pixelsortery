@@ -11,7 +11,10 @@ use inflections::case::to_title_case;
 use log::{info, warn};
 use pixelsortery::{
     path_creator::PathCreator,
-    pixel_selector::{FixedSelector, PixelSelectCriteria, RandomSelector, ThresholdSelector},
+    pixel_selector::{
+        PixelSelectCriteria,
+        PixelSelector::{self, *},
+    },
     span_sorter::{SortingAlgorithm, SortingCriteria},
 };
 use std::{
@@ -57,21 +60,14 @@ struct PixelsorterGui {
 struct PixelsorterValues {
     reverse: bool,
     path: PathCreator,
-    selector_type: SelectorType,
+    selector: PixelSelector,
     criteria: SortingCriteria,
     algorithmn: SortingAlgorithm,
     /// We can select these with the real structs tbh
     path_diagonally_val: f32,
-    selector_random: RandomSelector,
-    selector_fixed: FixedSelector,
-    selector_thres: ThresholdSelector,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq)]
-enum SelectorType {
-    Fixed,
-    Random,
-    Threshold,
+    selector_random: PixelSelector,
+    selector_fixed: PixelSelector,
+    selector_thres: PixelSelector,
 }
 
 impl Default for PixelsorterGui {
@@ -83,16 +79,20 @@ impl Default for PixelsorterGui {
                 reverse: false,
                 path: PathCreator::VerticalLines,
                 criteria: SortingCriteria::Brightness,
-                selector_type: SelectorType::Threshold,
-                algorithmn: SortingAlgorithm::Shellsort,
-
-                path_diagonally_val: 0.0,
-                selector_random: RandomSelector { max: 30 },
-                selector_fixed: FixedSelector { len: 100 },
-                selector_thres: ThresholdSelector {
+                selector: PixelSelector::Threshold {
                     min: 0,
                     max: 360,
                     criteria: PixelSelectCriteria::Hue,
+                },
+                algorithmn: SortingAlgorithm::Shellsort,
+
+                path_diagonally_val: 0.0,
+                selector_random: PixelSelector::Random { max: 30 },
+                selector_fixed: PixelSelector::Fixed { len: 100 },
+                selector_thres: PixelSelector::Threshold {
+                    min: 0,
+                    max: 360,
+                    criteria: PixelSelectCriteria::Brightness,
                 },
             },
             time_last_sort: Duration::default(),
@@ -167,26 +167,20 @@ impl PixelsorterGui {
     fn selector_combo_box(&mut self, ui: &mut Ui, id: u64) {
         ui.visuals_mut().weak_text_color();
         ui.horizontal(|ui| {
-            vec![
-                SelectorType::Fixed,
-                SelectorType::Random,
-                SelectorType::Threshold,
-            ]
-            .into_iter()
-            .for_each(|c| {
-                ui.selectable_value(&mut self.values.selector_type, c, format!("{:?}", c));
-            });
+            ui.selectable_value(&mut self.values.selector, self.values.selector_fixed, "Fixed");
+            ui.selectable_value(&mut self.values.selector, self.values.selector_random, "Random");
+            ui.selectable_value(&mut self.values.selector, self.values.selector_thres, "Threshold");
         });
         ui.end_row();
+
         // Nested Grid for sub-options
         ui.label("");
         egui::Grid::new(format!("selector_options_grid_{}", id))
             .num_columns(2)
             .min_row_height(25.0)
             .show(ui, |ui| {
-                match self.values.selector_type {
-                    SelectorType::Fixed => {
-                        let len = &mut self.values.selector_fixed.len;
+                match &mut self.values.selector {
+                    PixelSelector::Fixed { len } => {
                         ui.label("Length");
                         let slider = egui::Slider::new(len, 0..=2000)
                             .logarithmic(true)
@@ -195,9 +189,10 @@ impl PixelsorterGui {
                             .smart_aim(false);
                         ui.add(slider);
                         ui.end_row();
+                        // Save selector state
+                        self.values.selector_fixed = self.values.selector;
                     }
-                    SelectorType::Random => {
-                        let max = &mut self.values.selector_random.max;
+                    PixelSelector::Random { max } => {
                         ui.label("Max");
                         let slider = egui::Slider::new(max, 0..=2000)
                             .logarithmic(true)
@@ -207,12 +202,10 @@ impl PixelsorterGui {
                             .step_by(1.0);
                         ui.add(slider);
                         ui.end_row();
+                        // Save selector state
+                        self.values.selector_random = self.values.selector;
                     }
-                    SelectorType::Threshold => {
-                        let min = &mut self.values.selector_thres.min;
-                        let max = &mut self.values.selector_thres.max;
-                        let criteria = &mut self.values.selector_thres.criteria;
-
+                    PixelSelector::Threshold { min, max, criteria } => {
                         ui.label("Criteria");
                         ui.horizontal(|ui| {
                             vec![
@@ -235,11 +228,7 @@ impl PixelsorterGui {
 
                         // Get slider colors and image
                         // HSVA::new(hue, saturation, brightness, alpha)
-                        let (mincol, maxcol, criteria_image) = match self
-                            .values
-                            .selector_thres
-                            .criteria
-                        {
+                        let (mincol, maxcol, criteria_image) = match criteria {
                             PixelSelectCriteria::Hue => (
                                 Hsva::new(*min as f32 / 360.0, 1.0, 1.0, 1.0).into(),
                                 Hsva::new(*max as f32 / 360.0, 1.0, 1.0, 1.0).into(),
@@ -296,8 +285,10 @@ impl PixelsorterGui {
                         });
                         ui.end_row();
 
-                        // TODO: clamping, depending on which slider is dragged
-                    }
+                        // Save selector state
+                        self.values.selector_thres = self.values.selector;
+                    },
+                    _ => todo!(),
                 }
             });
         ui.end_row();
@@ -379,11 +370,7 @@ impl PixelsorterGui {
             ps.sorter.criteria = self.values.criteria;
             ps.sorter.algorithm = self.values.algorithmn;
             ps.reverse = self.values.reverse;
-            ps.selector = match self.values.selector_type {
-                SelectorType::Fixed => Box::new(self.values.selector_fixed),
-                SelectorType::Random => Box::new(self.values.selector_random),
-                SelectorType::Threshold => Box::new(self.values.selector_thres),
-            };
+            ps.selector = self.values.selector;
             ps.sort();
             return Some(ps.get_img());
         }
