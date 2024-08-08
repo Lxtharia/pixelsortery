@@ -58,6 +58,7 @@ struct PixelsorterGui {
 /// Adjustable components of the pixelsorter
 #[derive(Clone, Copy, PartialEq)]
 struct PixelsorterValues {
+    show_mask: bool,
     reverse: bool,
     path: PathCreator,
     selector: PixelSelector,
@@ -76,6 +77,7 @@ impl Default for PixelsorterGui {
             img: None,
             texture: None,
             values: PixelsorterValues {
+                show_mask: false,
                 reverse: false,
                 path: PathCreator::VerticalLines,
                 criteria: SortingCriteria::Brightness,
@@ -359,6 +361,9 @@ impl PixelsorterGui {
                 ui.end_row();
 
                 ui.checkbox(&mut self.values.reverse, "Reverse?");
+                ui.add_enabled_ui(selector_is_threshold(self.values.selector), |ui| {
+                    ui.checkbox(&mut self.values.show_mask, "Show mask");
+                });
                 ui.end_row();
             });
     }
@@ -371,7 +376,11 @@ impl PixelsorterGui {
             ps.sorter.algorithm = self.values.algorithmn;
             ps.reverse = self.values.reverse;
             ps.selector = self.values.selector;
-            ps.sort();
+            if (selector_is_threshold(self.values.selector) && self.values.show_mask) {
+                ps.mask();
+            } else {
+                ps.sort();
+            }
             return Some(ps.get_img());
         }
         return None;
@@ -581,4 +590,14 @@ fn full_width(ui: &Ui) -> f32 {
 
 fn full_height(ui: &Ui) -> f32 {
     ui.max_rect().max.y - ui.max_rect().min.y
+}
+fn selector_is_threshold(sel: PixelSelector) -> bool {
+    matches!(
+        sel,
+        Threshold {
+            min: _,
+            max: _,
+            criteria: _
+        }
+    )
 }
