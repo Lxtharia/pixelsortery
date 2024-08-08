@@ -58,6 +58,25 @@ impl PixelSelector {
             ),
         }
     }
+    pub fn mask(self, pixels: &mut Vec<&mut Rgb<u8>>) -> Result<(), ()> {
+        if let PixelSelector::Threshold { min, max, criteria } = self {
+            let value_function = match criteria {
+                PixelSelectCriteria::Hue => get_hue,
+                PixelSelectCriteria::Brightness => get_brightness,
+                PixelSelectCriteria::Saturation => get_saturation,
+            };
+            let valid = |val| (val as u64) >= min && (val as u64) <= max;
+            pixels.iter_mut().for_each(|p| {
+                if valid(value_function(p)) {
+                    **p = Rgb { 0: [255, 255, 255] };
+                } else {
+                    **p = Rgb { 0: [0, 0, 0] };
+                }
+            });
+            return Ok(());
+        }
+        Err(())
+    }
 }
 
 fn full_selector<'a>(pixels: &mut VecDeque<&'a mut Rgb<u8>>) -> Vec<Vec<&'a mut Rgb<u8>>> {
@@ -155,3 +174,4 @@ fn threshold_selector<'a>(
     spans.push(span);
     spans
 }
+

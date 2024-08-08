@@ -1,5 +1,5 @@
 use image::RgbImage;
-use log::info;
+use log::{error, info};
 use pixelsortery::{
     path_creator::PathCreator,
     pixel_selector::{
@@ -65,6 +65,7 @@ const HELP_STRING: &str = "
 
    -h | --help   : Show this
    --quiet       : Make the program shut up
+   --show-mask   : Outputs a mask showing what areas would be sorted (needs --thres)
 
 ================ Direction Options ==============
 
@@ -151,6 +152,7 @@ fn main() {
     let mut do_reverse = false;
 
     let mut output_path = String::new();
+    let mut show_mask = false;
     
     
 
@@ -186,6 +188,8 @@ fn main() {
             "--shellsort"   => ps.sorter.algorithm = SortingAlgorithm::Shellsort,
             "--mapsort"     => ps.sorter.algorithm = SortingAlgorithm::Mapsort,
 
+            "--show-mask" => show_mask = true,
+
             _ => {
                 eprintln!("Unrecognized argument: {}", arg);
                 exit(-1)
@@ -198,13 +202,22 @@ fn main() {
         exit(-1)
     }
 
+
     if do_reverse {
         ps.reverse = ! ps.reverse;
     }
     let start = Instant::now();
 
-    // SORTING
-    ps.sort();
+    if show_mask {
+        // Drawing a mask
+        if let Err(_) = ps.mask(){
+            error!("Couldn't create mask. Masking is only possible with the threshold selector.");
+            exit(-1);
+        }
+    } else {
+        // SORTING
+        ps.sort();
+    }
 
     let duration = start.elapsed();
     info!("=> TIME [Total]:\t{:?}\n", duration);

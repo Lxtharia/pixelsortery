@@ -98,4 +98,14 @@ impl Pixelsorter {
         let timeend = timestart.elapsed();
         info!("TIME [Sorting]: \t{:?}", timeend);
     }
+
+    pub fn mask(&mut self) -> Result<(), ()> {
+        let mut all_pixels: Vec<&mut Rgb<u8>> = self.img.pixels_mut().collect();
+        if let PixelSelector::Threshold { min, max, criteria } = self.selector {
+            self.selector.mask(&mut all_pixels);
+            return Ok(())
+        }
+        return Err(());
+    }
+
 }
