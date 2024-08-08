@@ -169,9 +169,13 @@ impl PixelsorterGui {
     fn selector_combo_box(&mut self, ui: &mut Ui, id: u64) {
         ui.visuals_mut().weak_text_color();
         ui.horizontal(|ui| {
-            ui.selectable_value(&mut self.values.selector, self.values.selector_fixed, "Fixed");
-            ui.selectable_value(&mut self.values.selector, self.values.selector_random, "Random");
-            ui.selectable_value(&mut self.values.selector, self.values.selector_thres, "Threshold");
+            for (s, n) in vec![
+                (self.values.selector_fixed, "Fixed"),
+                (self.values.selector_random, "Random"),
+                (self.values.selector_thres, "Threshold"),
+            ] {
+                ui.selectable_value(&mut self.values.selector, s, n);
+            }
         });
         ui.end_row();
 
@@ -289,7 +293,7 @@ impl PixelsorterGui {
 
                         // Save selector state
                         self.values.selector_thres = self.values.selector;
-                    },
+                    }
                     _ => todo!(),
                 }
             });
