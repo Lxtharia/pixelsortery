@@ -266,7 +266,9 @@ impl PixelsorterGui {
                                 .suffix(selector_suffix)
                                 .drag_value_speed(0.2)
                                 .smart_aim(false);
-                            ui.add(min_slider);
+                            if ui.add(min_slider).dragged() {
+                                *max = (*max).clamp(*min, u64::MAX);
+                            };
                         });
                         ui.end_row();
 
@@ -287,7 +289,10 @@ impl PixelsorterGui {
                                 .suffix(selector_suffix)
                                 .drag_value_speed(0.2)
                                 .smart_aim(false);
-                            ui.add(max_slider);
+
+                            if ui.add(max_slider).dragged() {
+                                *min = (*min).clamp(u64::MIN, *max);
+                            };
                         });
                         ui.end_row();
 
