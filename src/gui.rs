@@ -460,6 +460,10 @@ impl PixelsorterGui {
 
 impl eframe::App for PixelsorterGui {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+        ctx.style_mut(|style|{
+            style.spacing.slider_width = 170.0;
+        });
+
         let prev_values = self.values.clone();
         egui::SidePanel::left("my-left-pane")
             .resizable(true)
