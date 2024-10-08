@@ -1,8 +1,7 @@
 #![allow(unused)]
 use eframe::{
     egui::{
-        self, style::HandleShape, Align, Image, Layout, RichText, TextureFilter, TextureHandle,
-        TextureOptions, Ui,
+        self, style::HandleShape, Align, Image, Key, Layout, Modifiers, RichText, TextureFilter, TextureHandle, TextureOptions, Ui
     },
     epaint::Hsva,
 };
@@ -468,6 +467,20 @@ impl PixelsorterGui {
 
 impl eframe::App for PixelsorterGui {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+
+        let mut do_open_file = false;
+        // Shortcuts
+        ctx.input_mut(|i| {
+            if i.consume_key(Modifiers::CTRL.plus(Modifiers::SHIFT), Key::S) {
+                self.save_file();
+            }
+            if i.consume_key(Modifiers::CTRL, Key::O) {
+                do_open_file = true;
+            }
+        });
+        if do_open_file {
+            self.open_file(ctx);
+        }
         ctx.style_mut(|style| {
             style.spacing.slider_width = 170.0;
         });
