@@ -51,10 +51,12 @@ There are multiple stages to allow for easy (future) customization:
 
 <details>
 <summary>
-<b>A COOL CHART, CLICK HERE, LOOK AT IT</b>
+<h3> ~=~=~=~=~= A COOL CHART, CLICK HERE, LOOK AT IT =~=~=~=~=~ </h3>
 </summary>
 
-[Pixelsortery-Chart](./assets/Pixelsortery-Chart.png)
+![Pixelsortery-Chart](assets/Pixelsortery-Chart.png)
+it will get better hopefully, maybe, eventually
+
 </details>
 
 ## Features
