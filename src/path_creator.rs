@@ -328,6 +328,9 @@ fn path_circles(w: u64, h: u64) -> Vec<Vec<u64>> {
 }
 
 fn path_hilbert(width: u64, height: u64) -> Vec<Vec<u64>> {
+    // Most of this code here is stolen from here: https://github.com/jakubcerveny/gilbert/blob/master/gilbert2d.py
+    // Which i apparently translated into c at some point and then transformed the c doe into rust
+
     fn sgn(x: i64) -> i64 {
         if x < 0 {
             -1
@@ -338,13 +341,14 @@ fn path_hilbert(width: u64, height: u64) -> Vec<Vec<u64>> {
         }
     };
 
+    /// To bring a bit of glitchiness into it, switch ay and bx as parameters (or any other and try experimenting!)
     fn generate2dhilbert(
         coords: &mut Vec<(u64, u64)>,
         mut x: i64,
         mut y: i64,
         ax: i64,
-        bx: i64,
         ay: i64,
+        bx: i64,
         by: i64,
     ) {
         // width and height
@@ -356,12 +360,10 @@ fn path_hilbert(width: u64, height: u64) -> Vec<Vec<u64>> {
         let dbx = sgn(bx);
         let dby = sgn(by);
 
+
         if (h == 1) {
             // trivial row fill
             for i in 0..w {
-                //            printf("%d (%d,%d)\n",*ind, x, y);
-                // coords[*ind] = (vector_t) {x, y};
-                // *ind += 1;
                 coords.push((x as u64, y as u64));
                 x += dax;
                 y += day;
@@ -372,8 +374,6 @@ fn path_hilbert(width: u64, height: u64) -> Vec<Vec<u64>> {
         if (w == 1) {
             // trivial column fill
             for i in 0..h {
-                //            printf("%d (%d,%d)\n",*ind, x, y);
-                // coords[*ind] = (vector_t) {x, y};
                 coords.push((x as u64, y as u64));
                 x += dbx;
                 y += dby;
