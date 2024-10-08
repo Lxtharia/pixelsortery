@@ -55,19 +55,20 @@ There are multiple stages to allow for easy (future) customization:
 
 - [x] Choose to sort lines in all 4 directions
 - [x] Sort pixels _diagonally_, in rectangular shape, in circles, 
+- [x] Sort pixels in the shape of the space filling hilbert curve
 - [x] Choose to select spans of random or fixed length
 - [x] Choose to select spans based on their hue/brightness/saturation
-- [x] Sorts pixel with MAPSORT, HELL YEAH!!
-- [x] Also allows to sort pixels COMPLETELY BROKEN creating a super rad glitch effect (works best when sorting by hue)
+- [x] Sorts pixel with MAPSORT (HELL YEAH!!)
+- [x] Also allows to sort pixels COMPLETELY BROKEN creating a super rad glitch effect (try out)
 - [x] A super cool CLI interface! (it's ok)
 - [x] Read input from stdin and write to stdout, allowing easy chaining
+- [x] a GUI (holy damn)
 
 ## Planned Features
 
-- [ ] a GUI (holy damn)
 - [ ] a really good GUI (damn holy)
 - [ ] a godlike GUI where you can draw in real time (god damn holy jesus)
-- [ ] Sort by more advanced patterns (sin waves, hilbert curve)
+- [ ] Sort by more more patterns (sin waves, star shape, ...)
 - [ ] Allow to read iteration data from file
 - [ ] Allow to use MASKS instead of the path creator
 - [ ] Allow to use MASKS instead of the selector
