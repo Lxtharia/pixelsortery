@@ -49,7 +49,13 @@ There are multiple stages to allow for easy (future) customization:
     - Brightness looks the most smooth
     - Also allows to change the sorting algorithm, which can create different results (see [Sorting algorithm stability](https://en.wikipedia.org/wiki/Sorting_algorithm#Stability))
 
-- I will create such a great visualisation graphic at some point and add it here (it's gonna be so good)
+<details>
+<summary>
+<b>A COOL CHART, CLICK HERE, LOOK AT IT</b>
+</summary>
+
+[Pixelsortery-Chart](./assets/Pixelsortery-Chart.png)
+</details>
 
 ## Features
 
