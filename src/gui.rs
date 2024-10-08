@@ -118,6 +118,7 @@ impl PixelsorterGui {
                 PathCreator::Diagonally(self.values.path_diagonally_val),
                 &format!("Diagonally ({}°)", self.values.path_diagonally_val),
             ),
+            (PathCreator::Hilbert, "Hilbert Curve"),
         ];
         // The text that's shown in the combobox, debug as default
         let path_debug_name = &format!("{:?}", &self.values.path);

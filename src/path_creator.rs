@@ -14,6 +14,7 @@ pub enum PathCreator {
     SquareSpiral,
     RectSpiral,
     Diagonally(f32),
+    Hilbert,
 }
 
 impl PathCreator {
@@ -46,6 +47,7 @@ impl PathCreator {
             PathCreator::Diagonally(angle) => path_diagonal_lines(w, h, angle),
             PathCreator::Circles => path_circles(w, h),
             PathCreator::Spiral => path_round_spiral(w, h),
+            PathCreator::Hilbert => path_hilbert(w, h),
         };
         let timeend_pathing = timestart.elapsed();
         timestart = Instant::now();
@@ -77,7 +79,7 @@ impl PathCreator {
 }
 
 fn path_all_horizontally(w: u64, h: u64) -> Vec<Vec<u64>> {
-    vec![(0..w*h).collect()]
+    vec![(0..w * h).collect()]
 }
 
 fn path_all_vertically(w: u64, h: u64) -> Vec<Vec<u64>> {
@@ -323,6 +325,110 @@ fn path_circles(w: u64, h: u64) -> Vec<Vec<u64>> {
     // THREADING, WOOO
     paths.par_extend((1..max_size / 2).into_par_iter().map(line_path).flatten());
     return paths;
+}
+
+fn path_hilbert(width: u64, height: u64) -> Vec<Vec<u64>> {
+    fn sgn(x: i64) -> i64 {
+        if x < 0 {
+            -1
+        } else if x > 0 {
+            1
+        } else {
+            0
+        }
+    };
+
+    fn generate2dhilbert(
+        coords: &mut Vec<(u64, u64)>,
+        mut x: i64,
+        mut y: i64,
+        ax: i64,
+        bx: i64,
+        ay: i64,
+        by: i64,
+    ) {
+        // width and height
+        let w = (ax + ay).abs();
+        let h = (bx + by).abs();
+
+        let dax = sgn(ax);
+        let day = sgn(ay);
+        let dbx = sgn(bx);
+        let dby = sgn(by);
+
+        if (h == 1) {
+            // trivial row fill
+            for i in 0..w {
+                //            printf("%d (%d,%d)\n",*ind, x, y);
+                // coords[*ind] = (vector_t) {x, y};
+                // *ind += 1;
+                coords.push((x as u64, y as u64));
+                x += dax;
+                y += day;
+            }
+            return;
+        }
+
+        if (w == 1) {
+            // trivial column fill
+            for i in 0..h {
+                //            printf("%d (%d,%d)\n",*ind, x, y);
+                // coords[*ind] = (vector_t) {x, y};
+                coords.push((x as u64, y as u64));
+                x += dbx;
+                y += dby;
+            }
+            return;
+        }
+
+        let mut ax2 = ax / 2;
+        let mut ay2 = ay / 2;
+        let mut bx2 = bx / 2;
+        let mut by2 = by / 2;
+
+        let w2 = (ax2 + ay2).abs();
+        let h2 = (bx2 + by2).abs();
+
+        if (2 * w > 3 * h) {
+            if (w2 % 2 != 0 && w > 2) {
+                // prefer even steps
+                ax2 += dax;
+                ay2 += day;
+            }
+
+            // long case: split in two parts only
+            generate2dhilbert(coords, x, y, ax2, ay2, bx, by);
+            generate2dhilbert(coords, x + ax2, y + ay2, ax - ax2, ay - ay2, bx, by);
+        } else {
+            if (h2 % 2 != 0 && h > 2) {
+                // prefer even steps
+                bx2 += dbx;
+                by2 += dby;
+            }
+
+            // standard case: one step up, one long horizontal, one step down
+            generate2dhilbert(coords, x, y, bx2, by2, ax2, ay2);
+            generate2dhilbert(coords, x + bx2, y + by2, ax, ay, bx - bx2, by - by2);
+            generate2dhilbert(
+                coords,
+                x + (ax - dax) + (bx2 - dbx),
+                y + (ay - day) + (by2 - dby),
+                -bx2,
+                -by2,
+                -(ax - ax2),
+                -(ay - ay2),
+            );
+        }
+    };
+
+    let mut path = Vec::new();
+    if (width >= height) {
+        generate2dhilbert(&mut path, 0, 0, width as i64, 0, 0, height as i64)
+    } else {
+        generate2dhilbert(&mut path, 0, 0, 0, height as i64, width as i64, 0)
+    };
+
+    vec![path.into_iter().map(|(x,y)| y*width+x).collect()]
 }
 
 /// Creates and returns ranges of mutable Pixels.
