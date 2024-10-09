@@ -1,5 +1,4 @@
 #![allow(unused_parens, unused)]
-#![feature(box_patterns)]
 use image::{codecs::png::PngEncoder, ImageResult, Rgb, RgbImage};
 use log::{info, warn, error};
 use path_creator::PathCreator;
