@@ -17,8 +17,7 @@ use pixelsortery::{
     span_sorter::{SortingAlgorithm, SortingCriteria},
 };
 use std::{
-    path::PathBuf,
-    time::{Duration, Instant},
+    path::PathBuf, time::{Duration, Instant}
 };
 
 pub fn start_gui() -> eframe::Result {
@@ -129,14 +128,21 @@ impl PixelsorterGui {
             None => path_debug_name,
         };
 
-        // Build ComboBox from entries in the path_name_mappings
-        egui::ComboBox::from_id_source(format!("path_combo_{}", id))
-            .selected_text(selected_text)
-            .show_ui(ui, |ui| {
-                for (v, t) in path_name_mappings {
-                    ui.selectable_value(&mut self.values.path, v, t);
-                }
+        ui.horizontal(|ui|{
+            // Build ComboBox from entries in the path_name_mappings
+            egui::ComboBox::from_id_source(format!("path_combo_{}", id))
+                .selected_text(selected_text)
+                .show_ui(ui, |ui| {
+                    for (v, t) in path_name_mappings {
+                        ui.selectable_value(&mut self.values.path, v, t);
+                    }
+                });
+
+            // Reverse checkbox
+            ui.with_layout(egui::Layout::right_to_left(Align::Center), |ui|{
+                ui.checkbox(&mut self.values.reverse, "Reverse?");
             });
+        });
         ui.end_row();
 
         // Path specific tweaks for some pathings
@@ -364,7 +370,7 @@ impl PixelsorterGui {
                 self.algorithmn_combo_box(ui, id);
                 ui.end_row();
 
-                ui.checkbox(&mut self.values.reverse, "Reverse?");
+                ui.label("");
                 ui.add_enabled_ui(selector_is_threshold(self.values.selector), |ui| {
                     ui.checkbox(&mut self.values.show_mask, "Show mask");
                 });
