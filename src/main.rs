@@ -11,8 +11,12 @@ use std::{io::Read, str::FromStr};
 use std::time::Instant;
 use std::{collections::VecDeque, env, process::exit};
 
-
 mod gui;
+
+const VERSION: &str = env!("CARGO_PKG_VERSION");
+const AUTHORS: &str = env!("CARGO_PKG_AUTHORS");
+const PACKAGE_NAME: &str = env!("CARGO_PKG_NAME");
+
 
 fn parse_parameter<T: FromStr>(arg: Option<String>, usage: &str) -> T {
     if let Some(s) = arg {
@@ -63,9 +67,10 @@ const HELP_STRING: &str = "
 
 ===================== Options ====================
 
-   -h | --help   : Show this
-   --quiet       : Make the program shut up
-   --show-mask   : Outputs a mask showing what areas would be sorted (needs --thres)
+   -h | --help    : Show this and exit
+   -v | --version : Show version and exit
+   --quiet        : Make the program shut up
+   --show-mask    : Outputs a mask showing what areas would be sorted (needs --thres)
 
 ================ Direction Options ==============
 
@@ -124,10 +129,12 @@ fn main() {
         exit(0);
     }
 
+    // Try to match first argument as path
     let path;
     if let Some(s) = args.pop_front() {
         match s.as_str() {
             "--help" | "-h" | "" => { println!("{}", HELP_STRING); exit(0); }
+            "--version" | "-V" => { println!("{} {}", PACKAGE_NAME, VERSION); exit(0); }
             _ => path = s,
         };
     } else {
@@ -153,14 +160,13 @@ fn main() {
 
     let mut output_path = String::new();
     let mut show_mask = false;
-    
-    
 
     // I should just use some argument library tbh
     while let Some(arg) = args.pop_front() {
         match arg.as_str() {
-            "-h" | "--help" => { println!("{}", HELP_STRING); exit(0); }
-            "-o" | "--output" => { output_path = parse_parameter::<String>(args.pop_front(), "--output") }
+            "-h" | "--help"    => { println!("{}", HELP_STRING); exit(0); }
+            "-V" | "--version" => { println!("{} {}", PACKAGE_NAME, VERSION); exit(0); }
+            "-o" | "--output"  => { output_path = parse_parameter::<String>(args.pop_front(), "--output") }
 
             "--random" => ps.selector = PixelSelector::Random { max: parse_parameter(args.pop_front(), "--random <max>")},
             "--fixed"  => ps.selector = PixelSelector::Fixed  { len: parse_parameter(args.pop_front(), "--fixed <len>")},

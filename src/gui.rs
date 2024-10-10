@@ -20,6 +20,8 @@ use std::{
     path::PathBuf, time::{Duration, Instant}
 };
 
+use crate::{VERSION, AUTHORS, PACKAGE_NAME};
+
 pub fn start_gui() -> eframe::Result {
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default().with_inner_size([1000.0, 600.0]),
@@ -36,10 +38,6 @@ pub fn start_gui() -> eframe::Result {
         }),
     )
 }
-
-const VERSION: &str = env!("CARGO_PKG_VERSION");
-const AUTHORS: &str = env!("CARGO_PKG_AUTHORS");
-const PACKAGE_NAME: &str = env!("CARGO_PKG_NAME");
 
 /// Struct holding all the states of the gui and values of sliders etc.
 struct PixelsorterGui {
