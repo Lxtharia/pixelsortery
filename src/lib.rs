@@ -39,6 +39,58 @@ impl Pixelsorter {
         }
     }
 
+    pub fn to_compact_string(&self) -> String {
+        let mut s = String::new();
+        s += match self.path_creator {
+            PathCreator::AllHorizontally => "hor".into(),
+            PathCreator::AllVertically => "vert".into(),
+            PathCreator::HorizontalLines => "lr".into(),
+            PathCreator::VerticalLines => "ud".into(),
+            PathCreator::Circles => "circ".into(),
+            PathCreator::Spiral => "sprl".into(),
+            PathCreator::SquareSpiral => "spSq".into(),
+            PathCreator::RectSpiral => "spRe".into(),
+            PathCreator::Diagonally(a) => format!("diag{}", a),
+            PathCreator::Hilbert => "hilb".into(),
+        }
+        .as_str();
+        s += "-";
+        if self.reverse {
+            s += "R-"
+        };
+        s += match self.selector {
+            PixelSelector::Full => "".into(),
+            PixelSelector::Fixed { len } => format!("fixed{}", len),
+            PixelSelector::Random { max } => format!("rand{}", max),
+            PixelSelector::Threshold { min, max, criteria } => format!(
+                "{}{}-{}",
+                match criteria {
+                    pixel_selector::PixelSelectCriteria::Hue => "hue",
+                    pixel_selector::PixelSelectCriteria::Brightness => "bright",
+                    pixel_selector::PixelSelectCriteria::Saturation => "sat",
+                },
+                min,
+                max
+            ),
+        }
+        .as_str();
+        s += "-";
+        s += match self.sorter.algorithm {
+            span_sorter::SortingAlgorithm::Mapsort => "map",
+            span_sorter::SortingAlgorithm::Shellsort => "shell",
+            span_sorter::SortingAlgorithm::Glitchsort => "gl",
+            span_sorter::SortingAlgorithm::DebugColor => "debug",
+        };
+        s += "-";
+        s += match self.sorter.criteria {
+            SortingCriteria::Hue => "hue",
+            SortingCriteria::Brightness => "bright",
+            SortingCriteria::Saturation => "sat",
+        };
+
+        s
+    }
+
     pub fn get_img(&self) -> RgbImage {
         self.img.clone()
     }
