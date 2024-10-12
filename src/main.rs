@@ -7,7 +7,7 @@ use pixelsortery::{
     },
     span_sorter::{SortingAlgorithm, SortingCriteria},
 };
-use std::{io::Read, str::FromStr};
+use std::{io::Read, path::PathBuf, str::FromStr};
 use std::time::Instant;
 use std::{collections::VecDeque, env, process::exit};
 
@@ -123,12 +123,6 @@ fn main() {
     }
     log_builder.init();
 
-    // Start gui
-    if args.contains(&String::from("--gui")){
-        gui::start_gui().unwrap();
-        exit(0);
-    }
-
     // Try to match first argument as path
     let path;
     if let Some(s) = args.pop_front() {
@@ -150,7 +144,7 @@ fn main() {
             std::io::stdin().read_to_end(&mut buf).unwrap();
             image::load_from_memory(&buf).unwrap().into_rgb8()
         },
-        _ => image::open(path).unwrap().into_rgb8(),
+        _ => image::open(&path).unwrap().into_rgb8(),
     };
 
 
@@ -160,6 +154,8 @@ fn main() {
 
     let mut output_path = String::new();
     let mut show_mask = false;
+
+    let mut start_gui = false;
 
     // I should just use some argument library tbh
     while let Some(arg) = args.pop_front() {
@@ -197,22 +193,31 @@ fn main() {
 
             "--show-mask" => show_mask = true,
 
+            "--gui" => start_gui = true,
+
             _ => {
                 eprintln!("Unrecognized argument: {}", arg);
                 exit(-1)
             }
         }
     }
+    if do_reverse {
+        ps.reverse = ! ps.reverse;
+    }
 
+    // Start gui with set options
+    if start_gui {
+        gui::start_gui_with_sorter(&ps, PathBuf::from(&path)).unwrap();
+        exit(0);
+    }
+
+    // If no gui is opened, we need an output path
     if output_path.is_empty() {
         eprintln!("You need to specify the output! Usage: --output <FILE> | -o <FILE>");
         exit(-1)
     }
 
-
-    if do_reverse {
-        ps.reverse = ! ps.reverse;
-    }
+    // LET'S GO SORT
     let start = Instant::now();
 
     if show_mask {

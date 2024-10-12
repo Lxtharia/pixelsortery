@@ -6,7 +6,7 @@ use eframe::{
     },
     epaint::Hsva,
 };
-use image::RgbImage;
+use image::{Pixel, RgbImage};
 use inflections::case::to_title_case;
 use log::{info, warn};
 use pixelsortery::{
@@ -16,6 +16,7 @@ use pixelsortery::{
         PixelSelector::{self, *},
     },
     span_sorter::{SortingAlgorithm, SortingCriteria},
+    Pixelsorter,
 };
 use std::{
     borrow::Cow,
@@ -27,9 +28,23 @@ use std::{
 use crate::{AUTHORS, PACKAGE_NAME, VERSION};
 
 pub fn start_gui() -> eframe::Result {
+    init(None)
+}
+
+pub fn start_gui_with_sorter(ps: &Pixelsorter, image_path: PathBuf) -> eframe::Result {
+    init(Some((ps, image_path)))
+}
+
+fn init(ps: Option<(&Pixelsorter, PathBuf)>) -> eframe::Result {
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default().with_inner_size([1000.0, 600.0]),
         ..Default::default()
+    };
+
+    let psgui = if let Some((ps, img_path)) = ps {
+        PixelsorterGui::from_pixelsorter(ps, img_path)
+    } else {
+        PixelsorterGui::default()
     };
 
     eframe::run_native(
@@ -38,7 +53,7 @@ pub fn start_gui() -> eframe::Result {
         Box::new(|cc| {
             // This gives us image support
             egui_extras::install_image_loaders(&cc.egui_ctx);
-            Ok(Box::<PixelsorterGui>::default())
+            Ok(Box::new(psgui))
         }),
     )
 }
@@ -108,6 +123,34 @@ impl Default for PixelsorterGui {
 }
 
 impl PixelsorterGui {
+    // Given a pixelsorter, return a PixelsorterGui with the values set
+    fn from_pixelsorter(ps: &Pixelsorter, image_path: PathBuf) -> Self {
+        let mut psgui = PixelsorterGui::default();
+        psgui.img = Some((ps.get_img(), image_path));
+        let v = &mut psgui.values;
+        v.path = ps.path_creator;
+        v.criteria = ps.sorter.criteria;
+        v.algorithmn = ps.sorter.algorithm;
+        v.reverse = ps.reverse;
+        v.selector = ps.selector;
+        psgui
+    }
+
+    // Reads values and returns a Pixelsorter
+    fn to_pixelsorter(&self) -> Option<Pixelsorter> {
+        if let Some((img, _)) = &self.img {
+            let mut ps = pixelsortery::Pixelsorter::new(img.clone());
+            ps.path_creator = self.values.path;
+            ps.sorter.criteria = self.values.criteria;
+            ps.sorter.algorithm = self.values.algorithmn;
+            ps.reverse = self.values.reverse;
+            ps.selector = self.values.selector;
+            Some(ps)
+        } else {
+            None
+        }
+    }
+
     fn path_combo_box(&mut self, ui: &mut Ui, id: u64) {
         let path_name_mappings = [
             (PathCreator::AllHorizontally, "All Horizontally"),
@@ -306,7 +349,8 @@ impl PixelsorterGui {
                         // Save selector state
                         self.values.selector_thres = self.values.selector;
                     }
-                    _ => todo!(),
+                    // We don't expose the Full Selector to the gui, so I don't wanna support it
+                    PixelSelector::Full => self.values.selector = PixelsorterGui::default().values.selector,
                 }
             });
         ui.end_row();
@@ -385,13 +429,7 @@ impl PixelsorterGui {
     }
 
     fn sort_img(&self) -> Option<RgbImage> {
-        if let Some((img, _)) = &self.img {
-            let mut ps = pixelsortery::Pixelsorter::new(img.clone());
-            ps.path_creator = self.values.path;
-            ps.sorter.criteria = self.values.criteria;
-            ps.sorter.algorithm = self.values.algorithmn;
-            ps.reverse = self.values.reverse;
-            ps.selector = self.values.selector;
+        if let Some(ps) = &mut self.to_pixelsorter() {
             if (selector_is_threshold(self.values.selector) && self.values.show_mask) {
                 ps.mask();
             } else {
@@ -687,9 +725,9 @@ impl eframe::App for PixelsorterGui {
         let current_values = self.values;
         if self.auto_sort && prev_values != current_values {
             let timestart = Instant::now();
+            info!("[Change detected, sorting image...]");
             if let Some(img) = self.sort_img() {
                 self.time_last_sort = timestart.elapsed();
-                info!("[Change detected, sorting image...]");
                 self.set_texture(ctx, &img, String::from("Image-sorted"));
             }
         }
