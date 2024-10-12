@@ -1,16 +1,13 @@
 #![allow(unused_parens, unused)]
+use eframe::egui::TextBuffer;
 use image::{codecs::png::PngEncoder, ImageResult, Rgb, RgbImage};
-use log::{info, warn, error};
+use log::{error, info, warn};
 use path_creator::PathCreator;
-use span_sorter::{SortingCriteria, SpanSorter};
-use std::{
-    path::Path,
-    time::Instant,
-};
 use rayon::prelude::*;
+use span_sorter::{SortingCriteria, SpanSorter};
+use std::{path::Path, time::Instant};
 
 use crate::pixel_selector::PixelSelector;
-
 
 mod color_helpers;
 pub mod path_creator;
@@ -35,7 +32,7 @@ impl Pixelsorter {
             sorter: SpanSorter::new(SortingCriteria::Brightness),
             selector: PixelSelector::Full,
             path_creator: PathCreator::AllHorizontally,
-            reverse: false
+            reverse: false,
         }
     }
 
@@ -100,7 +97,8 @@ impl Pixelsorter {
     }
 
     pub fn save_to_stdout(&self) -> ImageResult<()> {
-        self.img.write_with_encoder(PngEncoder::new(std::io::stdout()))
+        self.img
+            .write_with_encoder(PngEncoder::new(std::io::stdout()))
     }
 
     // sorting without creating spans
@@ -113,12 +111,17 @@ impl Pixelsorter {
         let mut timestart = Instant::now();
         // a vector containing pointers to each pixel
         let pixelcount = self.img.width() * self.img.height();
-        info!("Image information: {} x {} ({} pixels)", self.img.width(), self.img.height(), pixelcount);
+        info!(
+            "Image information: {} x {} ({} pixels)",
+            self.img.width(),
+            self.img.height(),
+            pixelcount
+        );
 
         info!(
             "Sorting with:\n   | {}{}\n   | {}\n   | {}",
             self.path_creator.info_string(),
-            if self.reverse {" [Reversed]"} else {""},
+            if self.reverse { " [Reversed]" } else { "" },
             self.selector.info_string(),
             self.sorter.info_string(),
         );
@@ -132,9 +135,12 @@ impl Pixelsorter {
 
         // CREATE SPANS ON EVERY PATH
         let mut spans: Vec<Vec<&mut Rgb<u8>>> = Vec::new();
-        spans.par_extend(ranges.into_par_iter().map(|r| {
-            self.selector.create_spans(&mut r.into())
-        }).flatten());
+        spans.par_extend(
+            ranges
+                .into_par_iter()
+                .map(|r| self.selector.create_spans(&mut r.into()))
+                .flatten(),
+        );
 
         info!("TIME [Selector]:\t{:?}", timestart.elapsed());
 
@@ -154,9 +160,8 @@ impl Pixelsorter {
         let mut all_pixels: Vec<&mut Rgb<u8>> = self.img.pixels_mut().collect();
         if let PixelSelector::Threshold { min, max, criteria } = self.selector {
             self.selector.mask(&mut all_pixels);
-            return Ok(())
+            return Ok(());
         }
         return Err(());
     }
-
 }
