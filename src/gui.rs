@@ -1,7 +1,8 @@
 #![allow(unused)]
 use eframe::{
     egui::{
-        self, style::HandleShape, Align, Image, Key, Layout, Modifiers, RichText, TextureFilter, TextureHandle, TextureOptions, Ui
+        self, style::HandleShape, Align, Image, Key, Layout, Modifiers, RichText, TextureFilter,
+        TextureHandle, TextureOptions, Ui,
     },
     epaint::Hsva,
 };
@@ -17,10 +18,13 @@ use pixelsortery::{
     span_sorter::{SortingAlgorithm, SortingCriteria},
 };
 use std::{
-    path::PathBuf, time::{Duration, Instant}
+    borrow::Cow,
+    ffi::OsString,
+    path::{Path, PathBuf},
+    time::{Duration, Instant},
 };
 
-use crate::{VERSION, AUTHORS, PACKAGE_NAME};
+use crate::{AUTHORS, PACKAGE_NAME, VERSION};
 
 pub fn start_gui() -> eframe::Result {
     let options = eframe::NativeOptions {
@@ -47,6 +51,8 @@ struct PixelsorterGui {
     texture: Option<TextureHandle>,
     /// All the adjustable values for the pixelsorter
     values: PixelsorterValues,
+    output_directory: Option<PathBuf>,
+    save_into_parent_dir: bool,
     time_last_sort: Duration,
     auto_sort: bool,
 }
@@ -95,6 +101,8 @@ impl Default for PixelsorterGui {
             },
             time_last_sort: Duration::default(),
             auto_sort: true,
+            output_directory: None,
+            save_into_parent_dir: false,
         }
     }
 }
@@ -126,7 +134,7 @@ impl PixelsorterGui {
             None => path_debug_name,
         };
 
-        ui.horizontal(|ui|{
+        ui.horizontal(|ui| {
             // Build ComboBox from entries in the path_name_mappings
             egui::ComboBox::from_id_source(format!("path_combo_{}", id))
                 .selected_text(selected_text)
@@ -137,7 +145,7 @@ impl PixelsorterGui {
                 });
 
             // Reverse checkbox
-            ui.with_layout(egui::Layout::right_to_left(Align::Center), |ui|{
+            ui.with_layout(egui::Layout::right_to_left(Align::Center), |ui| {
                 ui.checkbox(&mut self.values.reverse, "Reverse?");
             });
         });
@@ -437,8 +445,58 @@ impl PixelsorterGui {
         }
     }
 
+    /// Sorts and saves the image to the current output directory with a given filename
+    fn save_file_to_out_dir(&self) -> () {
+        if let Some((img, path)) = &self.img {
+            let mut ps = pixelsortery::Pixelsorter::new(img.clone());
+            ps.path_creator = self.values.path;
+            ps.sorter.criteria = self.values.criteria;
+            ps.sorter.algorithm = self.values.algorithmn;
+            ps.reverse = self.values.reverse;
+            ps.selector = self.values.selector;
+
+            let (basename, ext) = (
+                path.file_stem()
+                    .map(|s| s.to_os_string())
+                    .unwrap_or(OsString::from("img")),
+                path.extension()
+                    .map(|s| s.to_os_string())
+                    .unwrap_or(OsString::from("png")),
+            );
+            let filename = format!(
+                "{}_sorted_[{}].{}",
+                basename.to_string_lossy(),
+                ps.to_compact_string(),
+                ext.to_string_lossy()
+            );
+
+            let outpath = if self.save_into_parent_dir {
+                Some(path.clone())
+            } else {
+                self.output_directory.clone()
+            };
+
+            if let Some(mut outpath) = outpath {
+                outpath.set_file_name(filename);
+                if let Some(sorted) = self.sort_img() {
+                    if let Err(err_msg) = sorted.save(&outpath) {
+                        warn!(
+                            "Saving image to {} failed: {}",
+                            outpath.to_string_lossy(),
+                            err_msg
+                        );
+                    } else {
+                        info!("Saving file to '{}' ...", outpath.to_string_lossy());
+                    };
+                }
+            } else {
+                warn!("No output directory set");
+            }
+        }
+    }
+
     /// Sorts and saves the image to a chosen location
-    fn save_file(&self) -> () {
+    fn save_file_as(&self) -> () {
         if let Some((_, s)) = &self.img {
             let suggested_filename = if let (Some(stem), Some(ext)) = (s.file_stem(), s.extension())
             {
@@ -471,12 +529,11 @@ impl PixelsorterGui {
 
 impl eframe::App for PixelsorterGui {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
-
         let mut do_open_file = false;
         // Shortcuts
         ctx.input_mut(|i| {
             if i.consume_key(Modifiers::CTRL.plus(Modifiers::SHIFT), Key::S) {
-                self.save_file();
+                self.save_file_as();
             }
             if i.consume_key(Modifiers::CTRL, Key::O) {
                 do_open_file = true;
@@ -545,17 +602,54 @@ impl eframe::App for PixelsorterGui {
                     });
                     ui.separator();
 
-                    ui.group(|ui| {
-                        ui.set_width(full_width(&ui));
-                        // let w = ui.max_rect().max.x - ui.max_rect().min.x;
-                        // ui.set_width(w);
-                        if ui
-                            .add_enabled(self.img.is_some(), egui::Button::new("Save as..."))
-                            .clicked()
-                        {
-                            info!("Saving image...");
-                            self.save_file();
-                        }
+                    // SAVING OPTIONS
+                    ui.add_enabled_ui(self.img.is_some(), |ui| {
+                        ui.group(|ui| {
+                            ui.horizontal(|ui| {
+                                ui.set_width(full_width(&ui));
+                                // let w = ui.max_rect().max.x - ui.max_rect().min.x;
+                                // ui.set_width(w);
+                                if ui.button("Save as...").clicked() {
+                                    info!("Saving image...");
+                                    self.save_file_as();
+                                }
+
+                                // Enable Save button, if a dir is set, or if we are saving into the parent directory
+                                ui.add_enabled_ui(
+                                    self.output_directory.is_some() || self.save_into_parent_dir,
+                                    |ui| {
+                                        if ui.button("Save").clicked() {
+                                            info!("Saving image...");
+                                            self.save_file_to_out_dir();
+                                        }
+                                    },
+                                );
+                                if ui.button("Choose destination...").clicked() {
+                                    // TODO filepick
+                                    if let Some(dir) = rfd::FileDialog::new().pick_folder() {
+                                        self.output_directory = Some(dir);
+                                        self.save_into_parent_dir = false;
+                                    } else {
+                                    }
+                                }
+                                ui.checkbox(&mut self.save_into_parent_dir, "Same directory");
+                            });
+                            ui.horizontal(|ui| {
+                                ui.group(|ui| {
+                                    ui.label("Saving into: ");
+                                    let text = if self.save_into_parent_dir {
+                                        let mut parent_dir = self.img.as_ref().unwrap().1.clone();
+                                        parent_dir.pop();
+                                        RichText::new(parent_dir.to_string_lossy()).monospace()
+                                    } else if let Some(output_dir) = &self.output_directory {
+                                        RichText::new(output_dir.to_string_lossy()).monospace()
+                                    } else {
+                                        RichText::new("No output directory set").italics()
+                                    };
+                                    ui.label(text);
+                                });
+                            });
+                        });
                     });
 
                     ui.separator();
