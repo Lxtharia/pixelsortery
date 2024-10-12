@@ -376,8 +376,8 @@ impl PixelsorterGui {
             .show_ui(ui, |ui| {
                 vec![
                     SortingAlgorithm::Mapsort,
-                    SortingAlgorithm::Glitchsort,
                     SortingAlgorithm::Shellsort,
+                    SortingAlgorithm::Glitchsort,
                     SortingAlgorithm::DebugColor,
                 ]
                 .into_iter()
