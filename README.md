@@ -33,6 +33,8 @@ There are multiple stages to allow for easy (future) customization:
     - Defines the order in which pixels are processed
     - Allows to sort in horizontal or vertical lines
     - Allows to sort in different shapes like spirals
+    - Allows to sort in a space filling fractal, the [hilbert curve](https://en.wikipedia.org/wiki/Hilbert_curve)
+        - Gilbert algorithm taken from [jakubcerveny](https://github.com/jakubcerveny/gilbert)
 2. **Selecting**
     - The magic behind the cool pixelsort-effect: we only sort _intervals_ of pixels (calling them spans)
     - We are iterating pixels in whatever order the iteration has yielded to us
