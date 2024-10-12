@@ -580,8 +580,10 @@ impl eframe::App for PixelsorterGui {
         if do_open_file {
             self.open_file(ctx);
         }
+        // Set default styles
         ctx.style_mut(|style| {
             style.spacing.slider_width = 170.0;
+            style.spacing.combo_height = 300.0;
         });
 
         let prev_values = self.values.clone();
