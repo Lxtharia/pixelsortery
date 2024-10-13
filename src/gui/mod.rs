@@ -296,6 +296,9 @@ impl eframe::App for PixelsorterGui {
             if i.consume_key(Modifiers::CTRL.plus(Modifiers::SHIFT), Key::S) {
                 self.save_file_as();
             }
+            if i.consume_key(Modifiers::CTRL, Key::S) {
+                self.save_file_to_out_dir();
+            }
             if i.consume_key(Modifiers::CTRL, Key::O) {
                 do_open_file = true;
             }
