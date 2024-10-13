@@ -326,20 +326,19 @@ impl PixelsorterGui {
             }
             ui.checkbox(&mut self.save_into_parent_dir, "Same directory");
         });
-        ui.horizontal(|ui| {
-            ui.group(|ui| {
-                ui.label("Saving into: ");
-                let text = if self.save_into_parent_dir {
-                    let mut parent_dir = self.base_img.as_ref().unwrap().1.clone();
-                    parent_dir.pop();
-                    RichText::new(parent_dir.to_string_lossy()).monospace()
-                } else if let Some(output_dir) = &self.output_directory {
-                    RichText::new(output_dir.to_string_lossy()).monospace()
-                } else {
-                    RichText::new("No output directory set").italics()
-                };
-                ui.label(text);
-            });
+        ui.add_space(5.0);
+        ui.horizontal_wrapped(|ui| {
+            ui.label("Saving into: ");
+            let text = if self.save_into_parent_dir {
+                let mut parent_dir = self.base_img.as_ref().unwrap().1.clone();
+                parent_dir.pop();
+                RichText::new(parent_dir.to_string_lossy()).monospace()
+            } else if let Some(output_dir) = &self.output_directory {
+                RichText::new(output_dir.to_string_lossy()).monospace()
+            } else {
+                RichText::new("No output directory set").italics()
+            };
+            ui.label(text);
         });
     }
 }

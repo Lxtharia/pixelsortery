@@ -1,6 +1,6 @@
 #![allow(unused)]
 use eframe::egui::{
-    self, Align, Image, Key, Layout, Modifiers, RichText, TextureFilter, TextureHandle,
+    self, Align, Color32, Image, Key, Layout, Modifiers, RichText, TextureFilter, TextureHandle,
     TextureOptions, Ui,
 };
 use image::RgbImage;
@@ -22,6 +22,9 @@ use std::{
 };
 
 use crate::{AUTHORS, PACKAGE_NAME, VERSION};
+
+/// How long the "Saved" Label should be visible before it vanishes
+const SAVED_LABEL_VANISH_TIMEOUT: f32 = 2.0;
 
 mod components;
 
@@ -72,6 +75,7 @@ struct PixelsorterGui {
     save_into_parent_dir: bool,
     time_last_sort: Duration,
     auto_sort: bool,
+    saving_success_timeout: Option<Instant>,
 }
 
 /// Adjustable components of the pixelsorter
@@ -120,6 +124,7 @@ impl Default for PixelsorterGui {
             auto_sort: true,
             output_directory: None,
             save_into_parent_dir: false,
+            saving_success_timeout: None,
         }
     }
 }
@@ -207,7 +212,7 @@ impl PixelsorterGui {
     }
 
     /// Sorts and saves the image to the current output directory with a given filename
-    fn save_file_to_out_dir(&self) -> () {
+    fn save_file_to_out_dir(&mut self) -> () {
         if let Some((img, path)) = &self.base_img {
             let mut ps = Pixelsorter::new();
             ps.path_creator = self.values.path;
@@ -247,7 +252,8 @@ impl PixelsorterGui {
                             err_msg
                         );
                     } else {
-                        info!("Saving file to '{}' ...", outpath.to_string_lossy());
+                        info!("Saved file to '{}' ...", outpath.to_string_lossy());
+                        self.saving_success_timeout = Some(Instant::now());
                     };
                 }
             } else {
@@ -257,7 +263,7 @@ impl PixelsorterGui {
     }
 
     /// Sorts and saves the image to a chosen location
-    fn save_file_as(&self) -> () {
+    fn save_file_as(&mut self) -> () {
         if let Some((_, s)) = &self.base_img {
             let suggested_filename = if let (Some(stem), Some(ext)) = (s.file_stem(), s.extension())
             {
@@ -281,6 +287,9 @@ impl PixelsorterGui {
                             f.to_string_lossy(),
                             err_msg
                         );
+                    } else {
+                        info!("Saved file to '{}' ...", f.to_string_lossy());
+                        self.saving_success_timeout = Some(Instant::now());
                     };
                 }
             }
@@ -313,13 +322,21 @@ impl eframe::App for PixelsorterGui {
         });
 
         egui::TopBottomPanel::bottom("info-bar").show(ctx, |ui| {
-            ui.horizontal(|ui|{
+            ui.horizontal(|ui| {
                 ui.label(format!("Time of last sort:\t{:?}", self.time_last_sort));
                 ui.label(format!(
                     "({:.3} fps)",
                     (1.0 / self.time_last_sort.as_secs_f32())
                 ));
                 ui.separator();
+                if let Some(inst) = self.saving_success_timeout {
+                    if inst.elapsed() > Duration::from_secs_f32(SAVED_LABEL_VANISH_TIMEOUT) {
+                        self.saving_success_timeout = None;
+                    } else {
+                        ui.label(RichText::new("Saved!").color(Color32::DARK_GREEN));
+                        ui.separator();
+                    }
+                }
                 ui.with_layout(Layout::right_to_left(Align::Max), |ui| {
                     ui.label(format!(
                         "{} v{} by {}",
@@ -343,7 +360,6 @@ impl eframe::App for PixelsorterGui {
             //.exact_width(380.0)
             .max_width(420.0)
             .show(ctx, |ui| {
-
                 ui.add_space(5.0);
 
                 ui.group(|ui| {
@@ -396,7 +412,6 @@ impl eframe::App for PixelsorterGui {
                     ui.group(|ui| {
                         self.save_options_panel(ui);
                     });
-
                 });
             });
 
