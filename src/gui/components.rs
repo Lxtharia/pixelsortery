@@ -348,20 +348,25 @@ impl PixelsorterGui {
         ui.separator();
         if let Some(ls) = &mut self.layered_sorter {
             let mut layer_to_select = None;
+            let mut layer_to_delete = None;
             for (i, layer) in ls.get_layers().iter().enumerate() {
                 let button = SelectableLabel::new(
                     ls.get_selected_index() == i,
                     RichText::new(i.to_string()).monospace(),
                 );
-                if ui
-                    .add_sized(vec2(ui.available_width(), 30.0), button)
-                    .clicked()
-                {
+                let res = ui .add_sized(vec2(ui.available_width(), 30.0), button);
+                if res.clicked() {
                     layer_to_select = Some(i);
+                }
+                if res.middle_clicked() {
+                    layer_to_delete = Some(i);
                 }
             }
             if let Some(i) = layer_to_select {
                 ls.select_layer(i);
+            }
+            if let Some(i) = layer_to_delete {
+                ls.remove_layer(i);
             }
             let button = Button::new(RichText::new("+").heading());
             if ui
