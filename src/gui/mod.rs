@@ -21,12 +21,13 @@ use std::{
     time::{Duration, Instant},
 };
 
-use crate::{AUTHORS, PACKAGE_NAME, VERSION};
+use crate::{layers::LayeredSorter, AUTHORS, PACKAGE_NAME, VERSION};
 
 /// How long the "Saved" Label should be visible before it vanishes
 const SAVED_LABEL_VANISH_TIMEOUT: f32 = 2.0;
 
 mod components;
+use crate::layers;
 
 pub fn start_gui() -> eframe::Result {
     init(None)
@@ -71,6 +72,7 @@ struct PixelsorterGui {
     texture: Option<TextureHandle>,
     /// All the adjustable values for the pixelsorter
     values: PixelsorterValues,
+    layered_sorter: Option<LayeredSorter>,
     output_directory: Option<PathBuf>,
     save_into_parent_dir: bool,
     time_last_sort: Duration,
@@ -125,6 +127,7 @@ impl Default for PixelsorterGui {
             output_directory: None,
             save_into_parent_dir: false,
             saving_success_timeout: None,
+            layered_sorter: None,
         }
     }
 }
@@ -202,7 +205,7 @@ impl PixelsorterGui {
                     Ok(i) => {
                         let img = i.into_rgb8();
                         self.set_texture(ctx, &img, f.to_string_lossy().to_string());
-                        self.base_img = Some((img, f));
+                        self.base_img = Some((img.clone(), f));
                         break;
                     }
                     Err(_) => {}
@@ -311,9 +314,18 @@ impl eframe::App for PixelsorterGui {
             if i.consume_key(Modifiers::CTRL, Key::O) {
                 do_open_file = true;
             }
+            if i.consume_key(Modifiers::NONE, Key::Questionmark) {
+                self.layered_sorter.as_ref().unwrap().print_state();
+            }
         });
         if do_open_file {
             self.open_file(ctx);
+        }
+        // Create a layering thingy if we don't have one yet
+        if self.layered_sorter.is_none() {
+            if let Some((img, _)) = &self.base_img {
+                self.layered_sorter = Some(LayeredSorter::new(img.clone(), self.to_pixelsorter()));
+            }
         }
         // Set default styles
         ctx.style_mut(|style| {
@@ -412,6 +424,9 @@ impl eframe::App for PixelsorterGui {
                     ui.group(|ui| {
                         self.save_options_panel(ui);
                     });
+
+                    // LAYERING
+                    self.layering_panel(ui);
                 });
             });
 

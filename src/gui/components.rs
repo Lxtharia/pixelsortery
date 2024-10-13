@@ -1,5 +1,7 @@
 use eframe::{
-    egui::{self, style::HandleShape, Align, Image, Layout, RichText, Ui},
+    egui::{
+        self, style::HandleShape, vec2, Align, Button, Image, Layout, RichText, SelectableLabel, Ui,
+    },
     epaint::Hsva,
 };
 use log::info;
@@ -340,5 +342,34 @@ impl PixelsorterGui {
             };
             ui.label(text);
         });
+    }
+
+    pub(super) fn layering_panel(&mut self, ui: &mut Ui) {
+        ui.separator();
+        if let Some(ls) = &mut self.layered_sorter {
+            let mut layer_to_select = None;
+            for (i, layer) in ls.get_layers().iter().enumerate() {
+                let button = SelectableLabel::new(
+                    ls.get_selected_index() == i,
+                    RichText::new(i.to_string()).monospace(),
+                );
+                if ui
+                    .add_sized(vec2(ui.available_width(), 30.0), button)
+                    .clicked()
+                {
+                    layer_to_select = Some(i);
+                }
+            }
+            if let Some(i) = layer_to_select {
+                ls.select_layer(i);
+            }
+            let button = Button::new(RichText::new("+").heading());
+            if ui
+                .add_sized(vec2(ui.available_width(), 20.0), button)
+                .clicked()
+            {
+                ls.add_layer(ls.get_selected_layer().unwrap().get_sorter().clone());
+            }
+        }
     }
 }

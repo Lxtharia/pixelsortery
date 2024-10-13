@@ -13,7 +13,7 @@ use std::{collections::VecDeque, env, process::exit};
 
 mod gui;
 
-mod layers;
+pub(crate) mod layers;
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 const AUTHORS: &str = env!("CARGO_PKG_AUTHORS");
