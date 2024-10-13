@@ -1,12 +1,9 @@
 #![allow(unused)]
-use eframe::{
-    egui::{
-        self, style::HandleShape, Align, Image, Key, Layout, Modifiers, RichText, TextureFilter,
-        TextureHandle, TextureOptions, Ui,
-    },
-    epaint::Hsva,
+use eframe::egui::{
+    self, Align, Image, Key, Layout, Modifiers, RichText, TextureFilter, TextureHandle,
+    TextureOptions, Ui,
 };
-use image::{Pixel, RgbImage};
+use image::RgbImage;
 use inflections::case::to_title_case;
 use log::{info, warn};
 use pixelsortery::{
@@ -19,9 +16,8 @@ use pixelsortery::{
     Pixelsorter,
 };
 use std::{
-    borrow::Cow,
     ffi::OsString,
-    path::{Path, PathBuf},
+    path::PathBuf,
     time::{Duration, Instant},
 };
 
@@ -313,17 +309,39 @@ impl eframe::App for PixelsorterGui {
             style.spacing.combo_height = 300.0;
         });
 
+        egui::TopBottomPanel::bottom("info-bar").show(ctx, |ui| {
+            ui.horizontal(|ui|{
+                ui.label(format!("Time of last sort:\t{:?}", self.time_last_sort));
+                ui.label(format!(
+                    "({:.3} fps)",
+                    (1.0 / self.time_last_sort.as_secs_f32())
+                ));
+                ui.separator();
+                ui.with_layout(Layout::right_to_left(Align::Max), |ui| {
+                    ui.label(format!(
+                        "{} v{} by {}",
+                        to_title_case(PACKAGE_NAME),
+                        VERSION,
+                        AUTHORS
+                    ));
+                    ui.separator();
+                    if let Some(tex) = &self.texture {
+                        let [w, h] = tex.size();
+                        ui.label(format!("{} x {} ({} pixels)", w, h, w * h));
+                        ui.separator();
+                    }
+                });
+            });
+        });
+
         let prev_values = self.values.clone();
         egui::SidePanel::left("my-left-pane")
             .resizable(false)
             //.exact_width(380.0)
             .max_width(420.0)
             .show(ctx, |ui| {
-                ui.vertical_centered(|ui| {
-                    ui.separator();
-                    ui.heading("Options");
-                    ui.separator();
-                });
+
+                ui.add_space(5.0);
 
                 ui.group(|ui| {
                     ui.set_width(full_width(&ui));
@@ -338,6 +356,8 @@ impl eframe::App for PixelsorterGui {
                     }
                 });
 
+                ui.add_space(5.0);
+
                 ui.group(|ui| {
                     egui::ScrollArea::vertical()
                         .max_height(f32::INFINITY)
@@ -347,11 +367,10 @@ impl eframe::App for PixelsorterGui {
                         });
                 });
 
+                ui.add_space(5.0);
+
                 ui.add_enabled_ui(self.base_img.is_some(), |ui| {
-                    // ui.add_space(full_height(ui) - 50.0);
-
-                    ui.separator();
-
+                    // SORT IMAGE button
                     ui.columns(3, |columns| {
                         let ui = &mut columns[1];
                         ui.with_layout(Layout::top_down(Align::Center), |ui| {
@@ -368,35 +387,15 @@ impl eframe::App for PixelsorterGui {
                         ui.checkbox(&mut self.auto_sort, "Auto-sort");
                     });
 
+                    ui.add_space(5.0);
+
                     // SAVING OPTIONS
                     ui.group(|ui| {
                         self.save_options_panel(ui);
                     });
 
-                    ui.label(format!("Time of last sort:\t{:?}", self.time_last_sort));
-                    ui.label(format!(
-                        "Frames per second:\t{:.3} fps",
-                        (1.0 / self.time_last_sort.as_secs_f32())
-                    ));
                 });
             });
-
-        egui::TopBottomPanel::bottom("info-bar").show(ctx, |ui| {
-            ui.with_layout(Layout::right_to_left(Align::Max), |ui| {
-                ui.label(format!(
-                    "{} v{} by {}",
-                    to_title_case(PACKAGE_NAME),
-                    VERSION,
-                    AUTHORS
-                ));
-                ui.separator();
-                if let Some(tex) = &self.texture {
-                    let [w, h] = tex.size();
-                    ui.label(format!("{} x {} ({} pixels)", w, h, w * h));
-                    ui.separator();
-                }
-            });
-        });
 
         egui::CentralPanel::default().show(ctx, |ui| {
             self.show_img(ui);

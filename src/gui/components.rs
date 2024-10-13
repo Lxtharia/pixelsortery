@@ -264,7 +264,9 @@ impl PixelsorterGui {
             .min_row_height(25.0)
             .striped(true)
             .show(ui, |ui| {
-                ui.label("");
+                ui.vertical_centered(|ui| {
+                    ui.label(RichText::new("Options").size(16.0));
+                });
                 ui.separator();
                 ui.end_row();
 
