@@ -65,7 +65,7 @@ fn init(ps: Option<(&Pixelsorter, RgbImage, PathBuf)>) -> eframe::Result {
 /// Struct holding all the states of the gui and values of sliders etc.
 struct PixelsorterGui {
     /// The image, used to load and be sorted
-    img: Option<(RgbImage, PathBuf)>,
+    base_img: Option<(RgbImage, PathBuf)>,
     /// The image used by egui to draw every frame
     texture: Option<TextureHandle>,
     /// All the adjustable values for the pixelsorter
@@ -95,7 +95,7 @@ struct PixelsorterValues {
 impl Default for PixelsorterGui {
     fn default() -> Self {
         Self {
-            img: None,
+            base_img: None,
             texture: None,
             values: PixelsorterValues {
                 show_mask: false,
@@ -130,7 +130,7 @@ impl PixelsorterGui {
     // Given a pixelsorter, return a PixelsorterGui with the values set
     fn from_pixelsorter(ps: &Pixelsorter, img: RgbImage, image_path: PathBuf) -> Self {
         let mut psgui = PixelsorterGui::default();
-        psgui.img = Some((img, image_path));
+        psgui.base_img = Some((img, image_path));
         let v = &mut psgui.values;
         v.path = ps.path_creator;
         v.criteria = ps.sorter.criteria;
@@ -431,7 +431,7 @@ impl PixelsorterGui {
     }
 
     fn sort_img(&self) -> Option<RgbImage> {
-        if let Some((img, _)) = &self.img {
+        if let Some((img, _)) = &self.base_img {
             let ps = &self.to_pixelsorter();
             let mut img_to_sort = img.clone();
             if (selector_is_threshold(self.values.selector) && self.values.show_mask) {
@@ -478,7 +478,7 @@ impl PixelsorterGui {
                     Ok(i) => {
                         let img = i.into_rgb8();
                         self.set_texture(ctx, &img, f.to_string_lossy().to_string());
-                        self.img = Some((img, f));
+                        self.base_img = Some((img, f));
                         break;
                     }
                     Err(_) => {}
@@ -489,7 +489,7 @@ impl PixelsorterGui {
 
     /// Sorts and saves the image to the current output directory with a given filename
     fn save_file_to_out_dir(&self) -> () {
-        if let Some((img, path)) = &self.img {
+        if let Some((img, path)) = &self.base_img {
             let mut ps = Pixelsorter::new();
             ps.path_creator = self.values.path;
             ps.sorter.criteria = self.values.criteria;
@@ -539,7 +539,7 @@ impl PixelsorterGui {
 
     /// Sorts and saves the image to a chosen location
     fn save_file_as(&self) -> () {
-        if let Some((_, s)) = &self.img {
+        if let Some((_, s)) = &self.base_img {
             let suggested_filename = if let (Some(stem), Some(ext)) = (s.file_stem(), s.extension())
             {
                 format!(
@@ -608,7 +608,7 @@ impl eframe::App for PixelsorterGui {
                         self.open_file(ctx);
                     }
 
-                    if let Some((_, name)) = &self.img {
+                    if let Some((_, name)) = &self.base_img {
                         ui.label(RichText::new(name.to_string_lossy()));
                     } else {
                         ui.label(RichText::new("No image loaded...").italics());
@@ -624,7 +624,7 @@ impl eframe::App for PixelsorterGui {
                         });
                 });
 
-                ui.add_enabled_ui(self.img.is_some(), |ui| {
+                ui.add_enabled_ui(self.base_img.is_some(), |ui| {
                     // ui.add_space(full_height(ui) - 50.0);
 
                     ui.separator();
@@ -647,7 +647,7 @@ impl eframe::App for PixelsorterGui {
                     ui.separator();
 
                     // SAVING OPTIONS
-                    ui.add_enabled_ui(self.img.is_some(), |ui| {
+                    ui.add_enabled_ui(self.base_img.is_some(), |ui| {
                         ui.group(|ui| {
                             ui.horizontal(|ui| {
                                 ui.set_width(full_width(&ui));
@@ -682,7 +682,7 @@ impl eframe::App for PixelsorterGui {
                                 ui.group(|ui| {
                                     ui.label("Saving into: ");
                                     let text = if self.save_into_parent_dir {
-                                        let mut parent_dir = self.img.as_ref().unwrap().1.clone();
+                                        let mut parent_dir = self.base_img.as_ref().unwrap().1.clone();
                                         parent_dir.pop();
                                         RichText::new(parent_dir.to_string_lossy()).monospace()
                                     } else if let Some(output_dir) = &self.output_directory {
