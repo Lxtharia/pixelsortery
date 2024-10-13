@@ -352,9 +352,16 @@ impl PixelsorterGui {
             for (i, layer) in ls.get_layers().iter().enumerate() {
                 let button = SelectableLabel::new(
                     ls.get_selected_index() == i,
-                    RichText::new(i.to_string()).monospace(),
+                    RichText::new(format!(
+                        "[{}] {}",
+                        i,
+                        layer.get_sorter().to_compact_string()
+                    ))
+                    .monospace(),
                 );
-                let res = ui .add_sized(vec2(ui.available_width(), 30.0), button);
+
+                // Adding and removing on clicks
+                let res = ui.add_sized(vec2(ui.available_width(), 30.0), button);
                 if res.clicked() {
                     layer_to_select = Some(i);
                 }
@@ -374,6 +381,7 @@ impl PixelsorterGui {
                 .clicked()
             {
                 ls.add_layer(ls.get_selected_layer().unwrap().get_sorter().clone());
+                ls.select_layer(ls.get_layers().len() - 1);
             }
         }
     }
