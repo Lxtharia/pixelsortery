@@ -31,18 +31,22 @@ pub fn start_gui() -> eframe::Result {
     init(None)
 }
 
-pub fn start_gui_with_sorter(ps: &Pixelsorter, image_path: PathBuf) -> eframe::Result {
-    init(Some((ps, image_path)))
+pub fn start_gui_with_sorter(
+    ps: &Pixelsorter,
+    img: RgbImage,
+    image_path: PathBuf,
+) -> eframe::Result {
+    init(Some((ps, img, image_path)))
 }
 
-fn init(ps: Option<(&Pixelsorter, PathBuf)>) -> eframe::Result {
+fn init(ps: Option<(&Pixelsorter, RgbImage, PathBuf)>) -> eframe::Result {
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default().with_inner_size([1000.0, 600.0]),
         ..Default::default()
     };
 
-    let psgui = if let Some((ps, img_path)) = ps {
-        PixelsorterGui::from_pixelsorter(ps, img_path)
+    let psgui = if let Some((ps, img, img_path)) = ps {
+        PixelsorterGui::from_pixelsorter(ps, img, img_path)
     } else {
         PixelsorterGui::default()
     };
@@ -124,9 +128,9 @@ impl Default for PixelsorterGui {
 
 impl PixelsorterGui {
     // Given a pixelsorter, return a PixelsorterGui with the values set
-    fn from_pixelsorter(ps: &Pixelsorter, image_path: PathBuf) -> Self {
+    fn from_pixelsorter(ps: &Pixelsorter, img: RgbImage, image_path: PathBuf) -> Self {
         let mut psgui = PixelsorterGui::default();
-        psgui.img = Some((ps.get_img(), image_path));
+        psgui.img = Some((img, image_path));
         let v = &mut psgui.values;
         v.path = ps.path_creator;
         v.criteria = ps.sorter.criteria;
@@ -137,18 +141,14 @@ impl PixelsorterGui {
     }
 
     // Reads values and returns a Pixelsorter
-    fn to_pixelsorter(&self) -> Option<Pixelsorter> {
-        if let Some((img, _)) = &self.img {
-            let mut ps = pixelsortery::Pixelsorter::new(img.clone());
-            ps.path_creator = self.values.path;
-            ps.sorter.criteria = self.values.criteria;
-            ps.sorter.algorithm = self.values.algorithmn;
-            ps.reverse = self.values.reverse;
-            ps.selector = self.values.selector;
-            Some(ps)
-        } else {
-            None
-        }
+    fn to_pixelsorter(&self) -> Pixelsorter {
+        let mut ps = Pixelsorter::new();
+        ps.path_creator = self.values.path;
+        ps.sorter.criteria = self.values.criteria;
+        ps.sorter.algorithm = self.values.algorithmn;
+        ps.reverse = self.values.reverse;
+        ps.selector = self.values.selector;
+        ps
     }
 
     fn path_combo_box(&mut self, ui: &mut Ui, id: u64) {
@@ -350,7 +350,9 @@ impl PixelsorterGui {
                         self.values.selector_thres = self.values.selector;
                     }
                     // We don't expose the Full Selector to the gui, so I don't wanna support it
-                    PixelSelector::Full => self.values.selector = PixelsorterGui::default().values.selector,
+                    PixelSelector::Full => {
+                        self.values.selector = PixelsorterGui::default().values.selector
+                    }
                 }
             });
         ui.end_row();
@@ -429,13 +431,15 @@ impl PixelsorterGui {
     }
 
     fn sort_img(&self) -> Option<RgbImage> {
-        if let Some(ps) = &mut self.to_pixelsorter() {
+        if let Some((img, _)) = &self.img {
+            let ps = &self.to_pixelsorter();
+            let mut img_to_sort = img.clone();
             if (selector_is_threshold(self.values.selector) && self.values.show_mask) {
-                ps.mask();
+                ps.mask(&mut img_to_sort);
             } else {
-                ps.sort();
+                ps.sort(&mut img_to_sort);
             }
-            return Some(ps.get_img());
+            return Some(img_to_sort);
         }
         return None;
     }
@@ -486,7 +490,7 @@ impl PixelsorterGui {
     /// Sorts and saves the image to the current output directory with a given filename
     fn save_file_to_out_dir(&self) -> () {
         if let Some((img, path)) = &self.img {
-            let mut ps = pixelsortery::Pixelsorter::new(img.clone());
+            let mut ps = Pixelsorter::new();
             ps.path_creator = self.values.path;
             ps.sorter.criteria = self.values.criteria;
             ps.sorter.algorithm = self.values.algorithmn;

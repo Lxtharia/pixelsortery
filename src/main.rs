@@ -138,7 +138,7 @@ fn main() {
     }
 
     // OPEN IMAGE OR READ FROM STDIN
-    let img: RgbImage = match path.as_str(){
+    let mut img: RgbImage = match path.as_str(){
         "-" => {
             let mut buf = Vec::new();
             std::io::stdin().read_to_end(&mut buf).unwrap();
@@ -149,7 +149,7 @@ fn main() {
 
 
     // CREATE DEFAULT PIXELSORTER
-    let mut ps = pixelsortery::Pixelsorter::new(img);
+    let mut ps = pixelsortery::Pixelsorter::new();
     let mut do_reverse = false;
 
     let mut output_path = String::new();
@@ -207,7 +207,7 @@ fn main() {
 
     // Start gui with set options
     if start_gui {
-        gui::start_gui_with_sorter(&ps, PathBuf::from(&path)).unwrap();
+        gui::start_gui_with_sorter(&ps, img, PathBuf::from(&path)).unwrap();
         exit(0);
     }
 
@@ -222,13 +222,13 @@ fn main() {
 
     if show_mask {
         // Drawing a mask
-        if let Err(_) = ps.mask(){
+        if let Err(_) = ps.mask(&mut img){
             error!("Couldn't create mask. Masking is only possible with the threshold selector.");
             exit(-1);
         }
     } else {
         // SORTING
-        ps.sort();
+        ps.sort(&mut img);
     }
 
     let duration = start.elapsed();
@@ -238,12 +238,13 @@ fn main() {
     match output_path.as_str() {
         "-" => {
             info!("Saving to stdout");
-            ps.save_to_stdout().unwrap();
+            let _ = img.write_with_encoder(image::codecs::png::PngEncoder::new(std::io::stdout()));
         },
         _ => {
             info!("Saving to {}", output_path);
-            let _ = ps.save(&output_path);
+            let _ = img.save(&output_path);
         }
-        
     }
 }
+
+
