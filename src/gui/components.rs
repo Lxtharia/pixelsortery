@@ -1,0 +1,343 @@
+use eframe::{
+    egui::{self, style::HandleShape, Align, Image, Layout, RichText, Ui},
+    epaint::Hsva,
+};
+use log::info;
+use pixelsortery::{
+    path_creator::PathCreator,
+    pixel_selector::{
+        PixelSelectCriteria,
+        PixelSelector::{self, *},
+    },
+    span_sorter::{SortingAlgorithm, SortingCriteria},
+};
+
+use super::*;
+
+impl PixelsorterGui {
+    pub(super) fn path_combo_box(&mut self, ui: &mut Ui, id: u64) {
+        let path_name_mappings = [
+            (PathCreator::AllHorizontally, "All Horizontally"),
+            (PathCreator::AllVertically, "All Vertically"),
+            (PathCreator::HorizontalLines, "Left/Right"),
+            (PathCreator::VerticalLines, "Up/Down"),
+            (PathCreator::Circles, "Circles"),
+            (PathCreator::Spiral, "Spiral"),
+            (PathCreator::SquareSpiral, "Square Spiral"),
+            (PathCreator::RectSpiral, "Rectangular Spiral"),
+            (
+                PathCreator::Diagonally(self.values.path_diagonally_val),
+                &format!("Diagonally ({}°)", self.values.path_diagonally_val),
+            ),
+            (PathCreator::Hilbert, "Hilbert Curve"),
+        ];
+        // The text that's shown in the combobox, debug as default
+        let path_debug_name = &format!("{:?}", &self.values.path);
+        let selected_text = match path_name_mappings
+            .into_iter()
+            .find(|x| x.0 == self.values.path)
+        {
+            Some((_, t)) => t,
+            None => path_debug_name,
+        };
+
+        ui.horizontal(|ui| {
+            // Build ComboBox from entries in the path_name_mappings
+            egui::ComboBox::from_id_source(format!("path_combo_{}", id))
+                .selected_text(selected_text)
+                .show_ui(ui, |ui| {
+                    for (v, t) in path_name_mappings {
+                        ui.selectable_value(&mut self.values.path, v, t);
+                    }
+                });
+
+            // Reverse checkbox
+            ui.with_layout(egui::Layout::right_to_left(Align::Center), |ui| {
+                ui.checkbox(&mut self.values.reverse, "Reverse?");
+            });
+        });
+        ui.end_row();
+
+        // Path specific tweaks for some pathings
+        // Nested Grid for sub-options
+        match self.values.path {
+            PathCreator::Diagonally(ref mut angle) => {
+                ui.label("");
+                egui::Grid::new(format!("path_options_grid_{}", id))
+                    .num_columns(2)
+                    .min_row_height(25.0)
+                    .show(ui, |ui| {
+                        ui.label("Angle");
+                        let slider = egui::Slider::new(angle, 0.0..=360.0)
+                            .suffix("°")
+                            .clamp_to_range(false)
+                            .drag_value_speed(0.2)
+                            .max_decimals(1)
+                            .smart_aim(false);
+                        ui.add(slider);
+                        ui.end_row();
+                        // Save for when we reselect diagonally
+                        self.values.path_diagonally_val = angle.clone();
+                    });
+                ui.end_row();
+            }
+            _ => {}
+        };
+    }
+
+    pub(super) fn selector_combo_box(&mut self, ui: &mut Ui, id: u64) {
+        ui.visuals_mut().weak_text_color();
+        ui.horizontal(|ui| {
+            for (s, n) in vec![
+                (self.values.selector_fixed, "Fixed"),
+                (self.values.selector_random, "Random"),
+                (self.values.selector_thres, "Threshold"),
+            ] {
+                ui.selectable_value(&mut self.values.selector, s, n);
+            }
+        });
+        ui.end_row();
+
+        // Nested Grid for sub-options
+        ui.label("");
+        egui::Grid::new(format!("selector_options_grid_{}", id))
+            .num_columns(2)
+            .min_row_height(25.0)
+            .show(ui, |ui| {
+                match &mut self.values.selector {
+                    PixelSelector::Fixed { len } => {
+                        ui.label("Length");
+                        let slider = egui::Slider::new(len, 0..=2000)
+                            .logarithmic(true)
+                            .clamp_to_range(false)
+                            .drag_value_speed(0.2)
+                            .smart_aim(false);
+                        ui.add(slider);
+                        ui.end_row();
+                        // Save selector state
+                        self.values.selector_fixed = self.values.selector;
+                    }
+                    PixelSelector::Random { max } => {
+                        ui.label("Max");
+                        let slider = egui::Slider::new(max, 0..=2000)
+                            .logarithmic(true)
+                            .clamp_to_range(false)
+                            .drag_value_speed(0.2)
+                            .smart_aim(false)
+                            .step_by(1.0);
+                        ui.add(slider);
+                        ui.end_row();
+                        // Save selector state
+                        self.values.selector_random = self.values.selector;
+                    }
+                    PixelSelector::Threshold { min, max, criteria } => {
+                        ui.label("Criteria");
+                        ui.horizontal(|ui| {
+                            vec![
+                                PixelSelectCriteria::Hue,
+                                PixelSelectCriteria::Brightness,
+                                PixelSelectCriteria::Saturation,
+                            ]
+                            .into_iter()
+                            .for_each(|c| {
+                                ui.selectable_value(criteria, c, format!("{:?}", c));
+                            });
+                        });
+                        ui.end_row();
+
+                        let (cap, selector_suffix) = if *criteria == PixelSelectCriteria::Hue {
+                            (360, "°")
+                        } else {
+                            (256, "")
+                        };
+
+                        // Get slider colors and image
+                        // HSVA::new(hue, saturation, brightness, alpha)
+                        let (mincol, maxcol, criteria_image) = match criteria {
+                            PixelSelectCriteria::Hue => (
+                                Hsva::new(*min as f32 / 360.0, 1.0, 1.0, 1.0).into(),
+                                Hsva::new(*max as f32 / 360.0, 1.0, 1.0, 1.0).into(),
+                                Image::new(egui::include_image!("../../assets/hue-bar.png")),
+                            ),
+                            PixelSelectCriteria::Brightness => (
+                                Hsva::new(1.0, 0.0, *min as f32 / 256.0, 1.0).into(),
+                                Hsva::new(1.0, 0.0, *max as f32 / 256.0, 1.0).into(),
+                                Image::new(egui::include_image!("../../assets/brightness-bar.png")),
+                            ),
+                            PixelSelectCriteria::Saturation => (
+                                Hsva::new(1.0, *min as f32 / 256.0, 1.0, 1.0).into(),
+                                Hsva::new(1.0, *max as f32 / 256.0, 1.0, 1.0).into(),
+                                Image::new(egui::include_image!("../../assets/saturation-bar.png")),
+                            ),
+                        };
+
+                        ui.label("Min");
+                        ui.scope(|ui| {
+                            ui.style_mut().visuals.selection.bg_fill = mincol;
+                            let min_slider = egui::Slider::new(min, 0..=cap)
+                                .handle_shape(HandleShape::Rect { aspect_ratio: 0.5 })
+                                .trailing_fill(true)
+                                .suffix(selector_suffix)
+                                .drag_value_speed(0.2)
+                                .smart_aim(false);
+                            if ui.add(min_slider).dragged() {
+                                *max = (*max).clamp(*min, u64::MAX);
+                            };
+                        });
+                        ui.end_row();
+
+                        ui.label("");
+                        ui.add(
+                            criteria_image
+                                .maintain_aspect_ratio(false)
+                                .fit_to_exact_size([ui.style().spacing.slider_width, 15.0].into()),
+                        );
+                        ui.end_row();
+
+                        ui.label("Max");
+                        ui.scope(|ui| {
+                            ui.style_mut().visuals.selection.bg_fill = maxcol;
+                            let max_slider = egui::Slider::new(max, 0..=cap)
+                                .handle_shape(HandleShape::Rect { aspect_ratio: 0.5 })
+                                .trailing_fill(true)
+                                .suffix(selector_suffix)
+                                .drag_value_speed(0.2)
+                                .smart_aim(false);
+
+                            if ui.add(max_slider).dragged() {
+                                *min = (*min).clamp(u64::MIN, *max);
+                            };
+                        });
+                        ui.end_row();
+
+                        // Save selector state
+                        self.values.selector_thres = self.values.selector;
+                    }
+                    // We don't expose the Full Selector to the gui, so I don't wanna support it
+                    PixelSelector::Full => {
+                        self.values.selector = PixelsorterGui::default().values.selector
+                    }
+                }
+            });
+        ui.end_row();
+    }
+
+    pub(super) fn criteria_combo_box(&mut self, ui: &mut Ui, id: u64) {
+        ui.horizontal(|ui| {
+            vec![
+                SortingCriteria::Brightness,
+                SortingCriteria::Saturation,
+                SortingCriteria::Hue,
+            ]
+            .into_iter()
+            .for_each(|c| {
+                ui.selectable_value(&mut self.values.criteria, c, format!("{:?}", c));
+            });
+        });
+    }
+
+    pub(super) fn algorithmn_combo_box(&mut self, ui: &mut Ui, id: u64) {
+        egui::ComboBox::from_id_source(format!("algorithm_combo_{}", id))
+            .selected_text(format!("{:?}", self.values.algorithmn))
+            .show_ui(ui, |ui| {
+                vec![
+                    SortingAlgorithm::Mapsort,
+                    SortingAlgorithm::Shellsort,
+                    SortingAlgorithm::Glitchsort,
+                    SortingAlgorithm::DebugColor,
+                ]
+                .into_iter()
+                .for_each(|a| {
+                    ui.selectable_value(&mut self.values.algorithmn, a, format!("{:?}", a));
+                });
+            });
+    }
+
+    pub(super) fn sorting_options_panel(&mut self, ui: &mut Ui, id: u64) {
+        // ui.vertical_centered(|ui| {
+        // ui.colored_label(Color32::GOLD, "Sorting Options");
+        // });
+
+        egui::Grid::new(format!("sorting_options_grid_{}", id))
+            .num_columns(2)
+            .spacing([20.0, 4.0])
+            .min_row_height(25.0)
+            .striped(true)
+            .show(ui, |ui| {
+                ui.label("");
+                ui.separator();
+                ui.end_row();
+
+                // PATH
+                ui.label("Path");
+                self.path_combo_box(ui, id);
+
+                // SELECTOR
+                ui.label("Selector");
+                self.selector_combo_box(ui, id);
+
+                // SORTER
+                // SORTING CRITERIA
+                ui.label("Criteria");
+                self.criteria_combo_box(ui, id);
+                ui.end_row();
+                // SORTING ALGORITHM
+                ui.label("Algorithm");
+                self.algorithmn_combo_box(ui, id);
+                ui.end_row();
+
+                ui.label("");
+                ui.add_enabled_ui(super::selector_is_threshold(self.values.selector), |ui| {
+                    ui.checkbox(&mut self.values.show_mask, "Show mask");
+                });
+                ui.end_row();
+            });
+    }
+
+    pub(super) fn save_options_panel(&mut self, ui: &mut Ui) {
+        ui.horizontal(|ui| {
+            ui.set_width(full_width(&ui));
+            // let w = ui.max_rect().max.x - ui.max_rect().min.x;
+            // ui.set_width(w);
+            if ui.button("Save as...").clicked() {
+                info!("Saving image...");
+                self.save_file_as();
+            }
+
+            // Enable Save button, if a dir is set, or if we are saving into the parent directory
+            ui.add_enabled_ui(
+                self.output_directory.is_some() || self.save_into_parent_dir,
+                |ui| {
+                    if ui.button("Save").clicked() {
+                        info!("Saving image...");
+                        self.save_file_to_out_dir();
+                    }
+                },
+            );
+            if ui.button("Choose destination...").clicked() {
+                // TODO filepick
+                if let Some(dir) = rfd::FileDialog::new().pick_folder() {
+                    self.output_directory = Some(dir);
+                    self.save_into_parent_dir = false;
+                } else {
+                }
+            }
+            ui.checkbox(&mut self.save_into_parent_dir, "Same directory");
+        });
+        ui.horizontal(|ui| {
+            ui.group(|ui| {
+                ui.label("Saving into: ");
+                let text = if self.save_into_parent_dir {
+                    let mut parent_dir = self.base_img.as_ref().unwrap().1.clone();
+                    parent_dir.pop();
+                    RichText::new(parent_dir.to_string_lossy()).monospace()
+                } else if let Some(output_dir) = &self.output_directory {
+                    RichText::new(output_dir.to_string_lossy()).monospace()
+                } else {
+                    RichText::new("No output directory set").italics()
+                };
+                ui.label(text);
+            });
+        });
+    }
+}
