@@ -43,10 +43,9 @@ impl LayeredSorter {
             println!(
                 "[{}] {} {} {}",
                 i,
-                if l.needs_sorting {"*"} else {" "},
-                
+                if l.needs_sorting { "*" } else { " " },
                 l.sorter.to_compact_string(),
-                if i == self.current_layer {"<<<<"} else {""},
+                if i == self.current_layer { "<<<<" } else { "" },
             );
         }
     }
@@ -58,9 +57,18 @@ impl LayeredSorter {
         self.layers.push(layer);
     }
 
+    /// Removes the layer and selects the one below, or the one above if unavailable
     pub(crate) fn remove_layer<T: Into<usize>>(&mut self, ind: T) -> bool {
         let ind = ind.into();
+        // Don't allow removing if we only have one layer left
+        if self.layers.len() <= 1 {
+            return false;
+        }
         if ind < self.layers.len() {
+            // If the last layer was selected, adjust the selected index
+            if self.current_layer == self.layers.len() - 1 || ind < self.current_layer {
+                self.current_layer -= 1;
+            }
             self.invalidate_layers_above(ind);
             self.layers.remove(ind);
             true
