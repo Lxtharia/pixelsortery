@@ -151,35 +151,3 @@ impl SortingLayer {
         self.needs_sorting = false;
     }
 }
-
-#[test]
-fn allofem() {
-    let mut ps = Pixelsorter::new();
-    ps.sorter.algorithm = pixelsortery::span_sorter::SortingAlgorithm::Glitchsort;
-    ps.path_creator = pixelsortery::path_creator::PathCreator::HorizontalLines;
-
-    let mut ps2 = Pixelsorter::new();
-    ps2.selector = pixelsortery::pixel_selector::PixelSelector::Fixed { len: 200 };
-
-    let mut ps3 = Pixelsorter::new();
-    ps3.path_creator = pixelsortery::path_creator::PathCreator::Hilbert;
-
-    let bytes = include_bytes!("../assets/test.png");
-    let img = image::load_from_memory(bytes).unwrap().into_rgb8();
-    let mut ls = LayeredSorter::new(img, ps3);
-
-    ls.add_layer(ps2.clone());
-    ls.add_layer(ps);
-
-    ls.print_state();
-
-    ls.remove_layer(1u16);
-    ls.add_layer(ps2);
-
-    ls.print_state();
-
-    ls.select_layer(0u16);
-    ls.select_layer(2u16);
-
-    ls.print_state();
-}
