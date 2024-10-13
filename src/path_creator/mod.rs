@@ -5,6 +5,7 @@ use std::{f64::consts::PI, time::Instant};
 
 mod gilbert;
 
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum PathCreator {
     AllHorizontally,
@@ -78,6 +79,35 @@ impl PathCreator {
 
         return pixels;
     }
+}
+
+/// Creates and returns ranges of mutable Pixels.
+/// The picked pixels and their order are determined by the given vector of indices
+fn pick_pixels(all_pixels: Vec<&mut Rgb<u8>>, indices: Vec<Vec<u64>>) -> Vec<Vec<&mut Rgb<u8>>> {
+    let mut paths: Vec<Vec<&mut Rgb<u8>>> = Vec::new();
+    let mut all_pixels: Vec<Option<&mut Rgb<u8>>> =
+        all_pixels.into_iter().map(|p| Some(p)).collect();
+
+    for mut li in indices {
+        li.dedup();
+        let mut path = Vec::new();
+        for i in li {
+            // Check if the index is valid
+            if all_pixels.get(i as usize).is_some() {
+                all_pixels.push(None);
+                // Check if the pixel at index i is still available (not None)
+                if let Some(px) = all_pixels.swap_remove(i as usize) {
+                    path.push(px);
+                }
+            }
+        }
+        paths.push(path);
+    }
+    return paths;
+}
+
+fn is_in_bounds(x: u64, y: u64, w: u64, h: u64) -> bool {
+    x > 0 && x < w && y > 0 && y < h
 }
 
 fn path_all_horizontally(w: u64, h: u64) -> Vec<Vec<u64>> {
@@ -329,31 +359,3 @@ fn path_circles(w: u64, h: u64) -> Vec<Vec<u64>> {
     return paths;
 }
 
-/// Creates and returns ranges of mutable Pixels.
-/// The picked pixels and their order are determined by the given vector of indices
-fn pick_pixels(all_pixels: Vec<&mut Rgb<u8>>, indices: Vec<Vec<u64>>) -> Vec<Vec<&mut Rgb<u8>>> {
-    let mut paths: Vec<Vec<&mut Rgb<u8>>> = Vec::new();
-    let mut all_pixels: Vec<Option<&mut Rgb<u8>>> =
-        all_pixels.into_iter().map(|p| Some(p)).collect();
-
-    for mut li in indices {
-        li.dedup();
-        let mut path = Vec::new();
-        for i in li {
-            // Check if the index is valid
-            if all_pixels.get(i as usize).is_some() {
-                all_pixels.push(None);
-                // Check if the pixel at index i is still available (not None)
-                if let Some(px) = all_pixels.swap_remove(i as usize) {
-                    path.push(px);
-                }
-            }
-        }
-        paths.push(path);
-    }
-    return paths;
-}
-
-fn is_in_bounds(x: u64, y: u64, w: u64, h: u64) -> bool {
-    x > 0 && x < w && y > 0 && y < h
-}
