@@ -293,17 +293,17 @@ impl PixelsorterGui {
                             PixelSelectCriteria::Hue => (
                                 Hsva::new(*min as f32 / 360.0, 1.0, 1.0, 1.0).into(),
                                 Hsva::new(*max as f32 / 360.0, 1.0, 1.0, 1.0).into(),
-                                Image::new(egui::include_image!("../assets/hue-bar.png")),
+                                Image::new(egui::include_image!("../../assets/hue-bar.png")),
                             ),
                             PixelSelectCriteria::Brightness => (
                                 Hsva::new(1.0, 0.0, *min as f32 / 256.0, 1.0).into(),
                                 Hsva::new(1.0, 0.0, *max as f32 / 256.0, 1.0).into(),
-                                Image::new(egui::include_image!("../assets/brightness-bar.png")),
+                                Image::new(egui::include_image!("../../assets/brightness-bar.png")),
                             ),
                             PixelSelectCriteria::Saturation => (
                                 Hsva::new(1.0, *min as f32 / 256.0, 1.0, 1.0).into(),
                                 Hsva::new(1.0, *max as f32 / 256.0, 1.0, 1.0).into(),
-                                Image::new(egui::include_image!("../assets/saturation-bar.png")),
+                                Image::new(egui::include_image!("../../assets/saturation-bar.png")),
                             ),
                         };
 
