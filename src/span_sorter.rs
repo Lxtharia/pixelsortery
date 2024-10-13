@@ -6,7 +6,7 @@ mod mapsort;
 mod random_color;
 mod shellsort;
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct SpanSorter {
     pub criteria: SortingCriteria,
     pub algorithm: SortingAlgorithm,

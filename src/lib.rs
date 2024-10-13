@@ -14,6 +14,7 @@ pub mod path_creator;
 pub mod pixel_selector;
 pub mod span_sorter;
 
+#[derive(Clone)]
 pub struct Pixelsorter {
     pub sorter: span_sorter::SpanSorter,
     pub selector: PixelSelector,
@@ -54,7 +55,7 @@ impl Pixelsorter {
             s += "R-"
         };
         s += match self.selector {
-            PixelSelector::Full => "".into(),
+            PixelSelector::Full => "full".into(),
             PixelSelector::Fixed { len } => format!("fixed{}", len),
             PixelSelector::Random { max } => format!("rand{}", max),
             PixelSelector::Threshold { min, max, criteria } => format!(
