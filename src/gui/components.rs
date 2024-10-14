@@ -351,11 +351,11 @@ impl PixelsorterGui {
             let mut layer_to_delete = None;
             for (i, layer) in ls.get_layers().iter().enumerate() {
                 let button = SelectableLabel::new(
-                    ls.get_selected_index() == i,
+                    ls.get_current_index() == i,
                     RichText::new(format!(
                         "[{}] {}",
                         i,
-                        layer.get_sorter().to_pixelsorter().to_compact_string()
+                        layer.get_sorting_values().to_pixelsorter().to_compact_string()
                     ))
                     .monospace(),
                 );
@@ -380,7 +380,7 @@ impl PixelsorterGui {
                 .add_sized(vec2(ui.available_width(), 20.0), button)
                 .clicked()
             {
-                ls.add_layer(ls.get_selected_layer().get_sorter().clone());
+                ls.add_layer(ls.get_current_layer().get_sorting_values().clone());
                 ls.select_layer(ls.get_layers().len() - 1);
             }
         }

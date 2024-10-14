@@ -349,7 +349,8 @@ impl eframe::App for PixelsorterGui {
         }
         // Create a layering thingy if we don't have one yet
         if let Some(ls) = &self.layered_sorter {
-            self.values = ls.get_selected_layer().get_sorter().clone();
+            self.values = ls.get_current_layer().get_sorting_values().clone();
+            self.base_img = Some((ls.get_current_layer().get_img().clone(), self.base_img.as_ref().unwrap().1.clone()));
         } else {
             if let Some((img, _)) = &self.base_img {
                 self.layered_sorter = Some(LayeredSorter::new(img.clone(), self.values));
@@ -474,10 +475,10 @@ impl eframe::App for PixelsorterGui {
         }
         if let Some(ls) = &mut self.layered_sorter {
             // Save current values
-            ls.set_selected_values(self.values.clone());
+            ls.update_current(self.values.clone());
             if let Some(i) = self.change_layer {
                 ls.select_layer(i);
-                ls.sort_current_layer_if_nessesary();
+                ls.sort_current_layer();
             }
         }         
     }
