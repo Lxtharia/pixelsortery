@@ -148,6 +148,7 @@ impl LayeredSorter {
             false
         }
     }
+
 }
 
 impl SortingLayer {
@@ -164,11 +165,11 @@ impl SortingLayer {
         &self.sorting_values
     }
     pub(crate) fn set_sorting_values(&mut self, ps: PixelsorterValues) {
-        // Only set as needs_sorting when the new values are actually different
-        self.sorting_values = ps;
+        // Only set as needs_sorting when the new values are actually different?
         if self.sorting_values != ps {
             self.needs_sorting = true;
         }
+        self.sorting_values = ps;
     }
 
     pub(crate) fn get_img(&self) -> &RgbImage {
