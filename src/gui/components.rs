@@ -332,7 +332,7 @@ impl PixelsorterGui {
         ui.horizontal_wrapped(|ui| {
             ui.label("Saving into: ");
             let text = if self.save_into_parent_dir {
-                let mut parent_dir = self.base_img.as_ref().unwrap().1.clone();
+                let mut parent_dir = self.path.as_ref().unwrap().clone();
                 parent_dir.pop();
                 RichText::new(parent_dir.to_string_lossy()).monospace()
             } else if let Some(output_dir) = &self.output_directory {

@@ -67,13 +67,16 @@ fn init(ps: Option<(&Pixelsorter, RgbImage, PathBuf)>) -> eframe::Result {
 
 /// Struct holding all the states of the gui and values of sliders etc.
 struct PixelsorterGui {
-    /// The image, used to load and be sorted
-    base_img: Option<(RgbImage, PathBuf)>,
-    /// The image used by egui to draw every frame
-    texture: Option<TextureHandle>,
+    /// The path of the loaded image
+    path: Option<PathBuf>,
+    /// The Values and sorted Images, layered
+    layered_sorter: Option<LayeredSorter>,
     /// All the adjustable values for the pixelsorter
     values: PixelsorterValues,
-    layered_sorter: Option<LayeredSorter>,
+    /// The current image from the selected layer
+    img: Option<RgbImage>,
+    /// The image used by egui to draw every frame
+    texture: Option<TextureHandle>,
     output_directory: Option<PathBuf>,
     save_into_parent_dir: bool,
     time_last_sort: Duration,
@@ -135,7 +138,9 @@ impl PixelsorterValues {
 impl Default for PixelsorterGui {
     fn default() -> Self {
         Self {
-            base_img: None,
+            path: None,
+            layered_sorter: None,
+            img: None,
             texture: None,
             values: PixelsorterValues {
                 show_mask: false,
@@ -163,7 +168,6 @@ impl Default for PixelsorterGui {
             output_directory: None,
             save_into_parent_dir: false,
             saving_success_timeout: None,
-            layered_sorter: None,
             change_layer: None,
         }
     }
@@ -173,7 +177,8 @@ impl PixelsorterGui {
     // Given a pixelsorter, return a PixelsorterGui with the values set
     fn from_pixelsorter(ps: &Pixelsorter, img: RgbImage, image_path: PathBuf) -> Self {
         let mut psgui = PixelsorterGui::default();
-        psgui.base_img = Some((img, image_path));
+        psgui.path = Some(image_path);
+        psgui.img = Some(img);
         let v = &mut psgui.values;
         v.path = ps.path_creator;
         v.criteria = ps.sorter.criteria;
@@ -184,7 +189,7 @@ impl PixelsorterGui {
     }
 
     fn sort_img(&self) -> Option<RgbImage> {
-        if let Some((img, _)) = &self.base_img {
+        if let Some(img) = &self.img {
             let ps = &self.values.to_pixelsorter();
             let mut img_to_sort = img.clone();
             if (selector_is_threshold(self.values.selector) && self.values.show_mask) {
@@ -231,7 +236,8 @@ impl PixelsorterGui {
                     Ok(i) => {
                         let img = i.into_rgb8();
                         self.set_texture(ctx, &img, f.to_string_lossy().to_string());
-                        self.base_img = Some((img.clone(), f));
+                        self.img = Some(img.clone());
+                        self.path = Some(f);
                         break;
                     }
                     Err(_) => {}
@@ -242,7 +248,7 @@ impl PixelsorterGui {
 
     /// Sorts and saves the image to the current output directory with a given filename
     fn save_file_to_out_dir(&mut self) -> () {
-        if let Some((img, path)) = &self.base_img {
+        if let (Some(img), Some(path)) = (&self.img, &self.path) {
             let mut ps = Pixelsorter::new();
             ps.path_creator = self.values.path;
             ps.sorter.criteria = self.values.criteria;
@@ -293,8 +299,8 @@ impl PixelsorterGui {
 
     /// Sorts and saves the image to a chosen location
     fn save_file_as(&mut self) -> () {
-        if let Some((_, s)) = &self.base_img {
-            let suggested_filename = if let (Some(stem), Some(ext)) = (s.file_stem(), s.extension())
+        if let Some(p) = &self.path {
+            let suggested_filename = if let (Some(stem), Some(ext)) = (p.file_stem(), p.extension())
             {
                 format!(
                     "{}-sorted.{}",
@@ -350,9 +356,9 @@ impl eframe::App for PixelsorterGui {
         // Create a layering thingy if we don't have one yet
         if let Some(ls) = &self.layered_sorter {
             self.values = ls.get_current_layer().get_sorting_values().clone();
-            self.base_img = Some((ls.get_current_layer().get_img().clone(), self.base_img.as_ref().unwrap().1.clone()));
+            self.img = Some(ls.get_current_layer().get_img().clone());
         } else {
-            if let Some((img, _)) = &self.base_img {
+            if let Some(img) = &self.img {
                 self.layered_sorter = Some(LayeredSorter::new(img.clone(), self.values));
             }
         }
@@ -409,8 +415,8 @@ impl eframe::App for PixelsorterGui {
                         self.open_file(ctx);
                     }
 
-                    if let Some((_, name)) = &self.base_img {
-                        ui.label(RichText::new(name.to_string_lossy()));
+                    if let Some(p) = &self.path {
+                        ui.label(RichText::new(p.to_string_lossy()));
                     } else {
                         ui.label(RichText::new("No image loaded...").italics());
                     }
@@ -429,7 +435,7 @@ impl eframe::App for PixelsorterGui {
 
                 ui.add_space(5.0);
 
-                ui.add_enabled_ui(self.base_img.is_some(), |ui| {
+                ui.add_enabled_ui(self.img.is_some(), |ui| {
                     // SORT IMAGE button
                     ui.columns(3, |columns| {
                         let ui = &mut columns[1];
