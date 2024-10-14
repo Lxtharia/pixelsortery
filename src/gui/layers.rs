@@ -1,6 +1,8 @@
 use image::RgbImage;
 use pixelsortery::Pixelsorter;
 
+use super::PixelsorterValues;
+
 pub(crate) struct LayeredSorter {
     base_img: RgbImage,
     layers: Vec<SortingLayer>,
@@ -8,13 +10,13 @@ pub(crate) struct LayeredSorter {
 }
 
 pub(crate) struct SortingLayer {
-    sorter: Pixelsorter,
+    sorter: PixelsorterValues,
     sorted_img: RgbImage,
     needs_sorting: bool,
 }
 
 impl LayeredSorter {
-    pub(crate) fn new(img: RgbImage, ps: Pixelsorter) -> Self {
+    pub(crate) fn new(img: RgbImage, ps: PixelsorterValues) -> Self {
         let mut ls = LayeredSorter {
             base_img: img,
             layers: Vec::new(),
@@ -30,8 +32,15 @@ impl LayeredSorter {
     pub(crate) fn get_layer<T: Into<usize>>(&self, ind: T) -> Option<&SortingLayer> {
         self.layers.get(ind.into())
     }
-    pub(crate) fn get_selected_layer(&self) -> Option<&SortingLayer> {
-        self.layers.get(self.current_layer)
+    pub(crate) fn get_selected_layer(&self) -> &SortingLayer {
+        self.layers.get(self.current_layer).unwrap()
+    }
+    pub(crate) fn set_selected_values(&mut self, values: PixelsorterValues) {
+        &mut self
+            .layers
+            .get_mut(self.current_layer)
+            .unwrap()
+            .set_sorter(values);
     }
     pub(crate) fn get_selected_index(&self) -> usize {
         self.current_layer
@@ -44,14 +53,14 @@ impl LayeredSorter {
                 "[{}] {} {} {}",
                 i,
                 if l.needs_sorting { "*" } else { " " },
-                l.sorter.to_compact_string(),
+                l.sorter.to_pixelsorter().to_compact_string(),
                 if i == self.current_layer { "<<<<" } else { "" },
             );
         }
     }
 
     /// Adds a layer, but don't sort it
-    pub(crate) fn add_layer(&mut self, ps: Pixelsorter) {
+    pub(crate) fn add_layer(&mut self, ps: PixelsorterValues) {
         let layer = SortingLayer::new(ps);
         // layer.sort(&self.base_img);
         self.layers.push(layer);
@@ -121,11 +130,20 @@ impl LayeredSorter {
         self.invalidate_layers_above(ind);
         true
     }
+
+    pub(crate) fn sort_current_layer_if_nessesary(&mut self) -> bool {
+        if self.get_selected_layer().needs_sorting {
+            self.sort_current_layer();
+            true
+        } else {
+            false
+        }
+    }
 }
 
 impl SortingLayer {
     // I don't like this tbh
-    pub(crate) fn new(ps: Pixelsorter) -> Self {
+    pub(crate) fn new(ps: PixelsorterValues) -> Self {
         SortingLayer {
             sorter: ps,
             sorted_img: RgbImage::new(0, 0),
@@ -133,10 +151,10 @@ impl SortingLayer {
         }
     }
 
-    pub(crate) fn get_sorter(&self) -> &Pixelsorter {
+    pub(crate) fn get_sorter(&self) -> &PixelsorterValues {
         &self.sorter
     }
-    pub(crate) fn set_sorter(&mut self, ps: Pixelsorter) {
+    pub(crate) fn set_sorter(&mut self, ps: PixelsorterValues) {
         self.sorter = ps;
     }
 
@@ -146,7 +164,7 @@ impl SortingLayer {
 
     fn sort(&mut self, img: &RgbImage) {
         let mut sorted_img = img.clone();
-        self.sorter.sort(&mut sorted_img);
+        self.sorter.to_pixelsorter().sort(&mut sorted_img);
         self.sorted_img = sorted_img;
         self.needs_sorting = false;
     }

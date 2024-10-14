@@ -240,7 +240,7 @@ impl PixelsorterGui {
 
     pub(super) fn algorithmn_combo_box(&mut self, ui: &mut Ui, id: u64) {
         egui::ComboBox::from_id_source(format!("algorithm_combo_{}", id))
-            .selected_text(format!("{:?}", self.values.algorithmn))
+            .selected_text(format!("{:?}", self.values.algorithm))
             .show_ui(ui, |ui| {
                 vec![
                     SortingAlgorithm::Mapsort,
@@ -250,7 +250,7 @@ impl PixelsorterGui {
                 ]
                 .into_iter()
                 .for_each(|a| {
-                    ui.selectable_value(&mut self.values.algorithmn, a, format!("{:?}", a));
+                    ui.selectable_value(&mut self.values.algorithm, a, format!("{:?}", a));
                 });
             });
     }
@@ -355,7 +355,7 @@ impl PixelsorterGui {
                     RichText::new(format!(
                         "[{}] {}",
                         i,
-                        layer.get_sorter().to_compact_string()
+                        layer.get_sorter().to_pixelsorter().to_compact_string()
                     ))
                     .monospace(),
                 );
@@ -370,7 +370,7 @@ impl PixelsorterGui {
                 }
             }
             if let Some(i) = layer_to_select {
-                ls.select_layer(i);
+                self.change_layer = Some(i);
             }
             if let Some(i) = layer_to_delete {
                 ls.remove_layer(i);
@@ -380,7 +380,7 @@ impl PixelsorterGui {
                 .add_sized(vec2(ui.available_width(), 20.0), button)
                 .clicked()
             {
-                ls.add_layer(ls.get_selected_layer().unwrap().get_sorter().clone());
+                ls.add_layer(ls.get_selected_layer().get_sorter().clone());
                 ls.select_layer(ls.get_layers().len() - 1);
             }
         }

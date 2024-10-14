@@ -5,6 +5,7 @@ use eframe::egui::{
 };
 use image::RgbImage;
 use inflections::case::to_title_case;
+use layers::LayeredSorter;
 use log::{info, warn};
 use pixelsortery::{
     path_creator::PathCreator,
@@ -21,13 +22,13 @@ use std::{
     time::{Duration, Instant},
 };
 
-use crate::{layers::LayeredSorter, AUTHORS, PACKAGE_NAME, VERSION};
+use crate::{AUTHORS, PACKAGE_NAME, VERSION};
+mod layers;
 
 /// How long the "Saved" Label should be visible before it vanishes
 const SAVED_LABEL_VANISH_TIMEOUT: f32 = 2.0;
 
 mod components;
-use crate::layers;
 
 pub fn start_gui() -> eframe::Result {
     init(None)
@@ -78,9 +79,10 @@ struct PixelsorterGui {
     time_last_sort: Duration,
     auto_sort: bool,
     saving_success_timeout: Option<Instant>,
+    change_layer: Option<usize>,
 }
 
-/// Adjustable components of the pixelsorter
+/// Adjustable components of the pixelsorter, remembers values like diagonal angle
 #[derive(Clone, Copy, PartialEq)]
 struct PixelsorterValues {
     show_mask: bool,
@@ -88,12 +90,46 @@ struct PixelsorterValues {
     path: PathCreator,
     selector: PixelSelector,
     criteria: SortingCriteria,
-    algorithmn: SortingAlgorithm,
+    algorithm: SortingAlgorithm,
+    // Values that may not be set right now, but the values should be remembered
     /// We can select these with the real structs tbh
     path_diagonally_val: f32,
     selector_random: PixelSelector,
     selector_fixed: PixelSelector,
     selector_thres: PixelSelector,
+}
+
+impl PixelsorterValues {
+    // Reads values and returns a Pixelsorter
+    fn to_pixelsorter(&self) -> Pixelsorter {
+        let mut ps = Pixelsorter::new();
+        ps.path_creator = self.path;
+        ps.selector = self.selector;
+        ps.sorter.criteria = self.criteria;
+        ps.sorter.algorithm = self.algorithm;
+        ps.reverse = self.reverse;
+        ps
+    }
+
+    fn read_from_pixelsorter(&mut self, ps: &Pixelsorter) {
+        self.path = ps.path_creator;
+        self.selector = ps.selector;
+        self.criteria = ps.sorter.criteria;
+        self.algorithm = ps.sorter.algorithm;
+        self.reverse = ps.reverse;
+        // Set the saved value, just in case
+        if let PathCreator::Diagonally(a) = self.path {
+            self.path_diagonally_val = a;
+        }
+        match self.selector {
+            Fixed { len } => self.selector_fixed = Fixed { len },
+            Random { max } => self.selector_random = Random { max },
+            Threshold { min, max, criteria } => {
+                self.selector_thres = Threshold { min, max, criteria }
+            }
+            Full => warn!("The gui doesn't support the Full-Selector. Just because."),
+        }
+    }
 }
 
 impl Default for PixelsorterGui {
@@ -111,7 +147,7 @@ impl Default for PixelsorterGui {
                     max: 360,
                     criteria: PixelSelectCriteria::Hue,
                 },
-                algorithmn: SortingAlgorithm::Shellsort,
+                algorithm: SortingAlgorithm::Shellsort,
 
                 path_diagonally_val: 0.0,
                 selector_random: PixelSelector::Random { max: 30 },
@@ -128,6 +164,7 @@ impl Default for PixelsorterGui {
             save_into_parent_dir: false,
             saving_success_timeout: None,
             layered_sorter: None,
+            change_layer: None,
         }
     }
 }
@@ -140,26 +177,15 @@ impl PixelsorterGui {
         let v = &mut psgui.values;
         v.path = ps.path_creator;
         v.criteria = ps.sorter.criteria;
-        v.algorithmn = ps.sorter.algorithm;
+        v.algorithm = ps.sorter.algorithm;
         v.reverse = ps.reverse;
         v.selector = ps.selector;
         psgui
     }
 
-    // Reads values and returns a Pixelsorter
-    fn to_pixelsorter(&self) -> Pixelsorter {
-        let mut ps = Pixelsorter::new();
-        ps.path_creator = self.values.path;
-        ps.sorter.criteria = self.values.criteria;
-        ps.sorter.algorithm = self.values.algorithmn;
-        ps.reverse = self.values.reverse;
-        ps.selector = self.values.selector;
-        ps
-    }
-
     fn sort_img(&self) -> Option<RgbImage> {
         if let Some((img, _)) = &self.base_img {
-            let ps = &self.to_pixelsorter();
+            let ps = &self.values.to_pixelsorter();
             let mut img_to_sort = img.clone();
             if (selector_is_threshold(self.values.selector) && self.values.show_mask) {
                 ps.mask(&mut img_to_sort);
@@ -220,7 +246,7 @@ impl PixelsorterGui {
             let mut ps = Pixelsorter::new();
             ps.path_creator = self.values.path;
             ps.sorter.criteria = self.values.criteria;
-            ps.sorter.algorithm = self.values.algorithmn;
+            ps.sorter.algorithm = self.values.algorithm;
             ps.reverse = self.values.reverse;
             ps.selector = self.values.selector;
 
@@ -322,9 +348,11 @@ impl eframe::App for PixelsorterGui {
             self.open_file(ctx);
         }
         // Create a layering thingy if we don't have one yet
-        if self.layered_sorter.is_none() {
+        if let Some(ls) = &self.layered_sorter {
+            self.values = ls.get_selected_layer().get_sorter().clone();
+        } else {
             if let Some((img, _)) = &self.base_img {
-                self.layered_sorter = Some(LayeredSorter::new(img.clone(), self.to_pixelsorter()));
+                self.layered_sorter = Some(LayeredSorter::new(img.clone(), self.values));
             }
         }
         // Set default styles
@@ -434,9 +462,9 @@ impl eframe::App for PixelsorterGui {
             self.show_img(ui);
         });
 
-        // Auto-Sort on changes
+        // Auto-Sort on changes or if image needs sorting
         let current_values = self.values;
-        if self.auto_sort && prev_values != current_values {
+        if (self.auto_sort && prev_values != current_values) {
             let timestart = Instant::now();
             info!("[Change detected, sorting image...]");
             if let Some(img) = self.sort_img() {
@@ -444,6 +472,14 @@ impl eframe::App for PixelsorterGui {
                 self.set_texture(ctx, &img, String::from("Image-sorted"));
             }
         }
+        if let Some(ls) = &mut self.layered_sorter {
+            // Save current values
+            ls.set_selected_values(self.values.clone());
+            if let Some(i) = self.change_layer {
+                ls.select_layer(i);
+                ls.sort_current_layer_if_nessesary();
+            }
+        }         
     }
 }
 
