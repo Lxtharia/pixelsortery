@@ -81,6 +81,7 @@ struct PixelsorterGui {
     save_into_parent_dir: bool,
     time_last_sort: Duration,
     auto_sort: bool,
+    do_sort: bool,
     saving_success_timeout: Option<Instant>,
     change_layer: Option<usize>,
 }
@@ -169,6 +170,7 @@ impl Default for PixelsorterGui {
             save_into_parent_dir: false,
             saving_success_timeout: None,
             change_layer: None,
+            do_sort: true,
         }
     }
 }
@@ -188,18 +190,24 @@ impl PixelsorterGui {
         psgui
     }
 
-    fn sort_img(&self) -> Option<RgbImage> {
-        if let Some(img) = &self.img {
-            let ps = &self.values.to_pixelsorter();
-            let mut img_to_sort = img.clone();
+    /// Calls sort_current_layer, sets the image and texture
+    fn sort_img(&mut self, ctx: &egui::Context) {
+        if let Some(ls) = &self.layered_sorter {
             if (selector_is_threshold(self.values.selector) && self.values.show_mask) {
-                ps.mask(&mut img_to_sort);
+                warn!("MASKING DOESN'T WORK YET WITH LAYERS");
+                // ps.mask(&mut img_to_sort);
             } else {
-                ps.sort(&mut img_to_sort);
+                info!("[Updating Layer??]");
+                if let Some(ls) = &mut self.layered_sorter {
+                    ls.update_current(self.values);
+                    let timestart = Instant::now();
+                    ls.sort_current_layer();
+                    self.time_last_sort = timestart.elapsed();
+                }
             }
-            return Some(img_to_sort);
+            // self.img = Some(ls.get_current_layer().get_img().clone());
         }
-        return None;
+        self.update_texture(ctx);
     }
 
     /// loads the image as a texture into context
@@ -213,6 +221,23 @@ impl PixelsorterGui {
         // Make big images fit without noise
         options.minification = TextureFilter::Linear;
         self.texture = Some(ctx.load_texture(name, colorimg, options));
+    }
+
+    /// Update texture
+    fn update_texture(&mut self, ctx: &egui::Context) {
+        if let Some(img) = &self.img {
+            let rgb_data = img.to_vec();
+            let colorimg = egui::ColorImage::from_rgb(
+                [img.width() as usize, img.height() as usize],
+                &rgb_data,
+            );
+            let mut options = TextureOptions::default();
+            // Make small images stretch without blurring
+            options.magnification = TextureFilter::Nearest;
+            // Make big images fit without noise
+            options.minification = TextureFilter::Linear;
+            self.texture = Some(ctx.load_texture("Some texture name", colorimg, options));
+        }
     }
 
     /// Tries to show the image if it exists
@@ -235,8 +260,8 @@ impl PixelsorterGui {
                 Some(f) => match image::open(f.as_path()) {
                     Ok(i) => {
                         let img = i.into_rgb8();
-                        self.set_texture(ctx, &img, f.to_string_lossy().to_string());
                         self.img = Some(img.clone());
+                        self.update_texture(ctx);
                         self.path = Some(f);
                         break;
                     }
@@ -279,7 +304,7 @@ impl PixelsorterGui {
 
             if let Some(mut outpath) = outpath {
                 outpath.set_file_name(filename);
-                if let Some(sorted) = self.sort_img() {
+                if let Some(sorted) = &self.img {
                     if let Err(err_msg) = sorted.save(&outpath) {
                         warn!(
                             "Saving image to {} failed: {}",
@@ -315,7 +340,7 @@ impl PixelsorterGui {
                 .set_file_name(suggested_filename)
                 .save_file();
             if let Some(f) = file {
-                if let Some(sorted) = self.sort_img() {
+                if let Some(sorted) = &self.img {
                     if let Err(err_msg) = sorted.save(&f) {
                         warn!(
                             "Saving image to {} failed: {}",
@@ -350,23 +375,27 @@ impl eframe::App for PixelsorterGui {
                 self.layered_sorter.as_ref().unwrap().print_state();
             }
         });
-        if do_open_file {
-            self.open_file(ctx);
-        }
-        // Create a layering thingy if we don't have one yet
-        if let Some(ls) = &self.layered_sorter {
-            self.values = ls.get_current_layer().get_sorting_values().clone();
-            self.img = Some(ls.get_current_layer().get_img().clone());
-        } else {
-            if let Some(img) = &self.img {
-                self.layered_sorter = Some(LayeredSorter::new(img.clone(), self.values));
-            }
-        }
         // Set default styles
         ctx.style_mut(|style| {
             style.spacing.slider_width = 170.0;
             style.spacing.combo_height = 300.0;
         });
+
+        // Open file on startup
+        if do_open_file {
+            self.open_file(ctx);
+        }
+        if let Some(ls) = &self.layered_sorter {
+            // Load current image and current values
+            let current_layer = ls.get_current_layer();
+            self.values = current_layer.get_sorting_values().clone();
+            self.img = Some(current_layer.get_img().clone());
+        } else {
+            // Create a layering thingy if we don't have one yet
+            if let Some(img) = &self.img {
+                self.layered_sorter = Some(LayeredSorter::new(img.clone(), self.values));
+            }
+        }
 
         egui::TopBottomPanel::bottom("info-bar").show(ctx, |ui| {
             ui.horizontal(|ui| {
@@ -441,12 +470,7 @@ impl eframe::App for PixelsorterGui {
                         let ui = &mut columns[1];
                         ui.with_layout(Layout::top_down(Align::Center), |ui| {
                             if ui.button(RichText::new("SORT IMAGE").heading()).clicked() {
-                                info!("SORTING IMAGE");
-                                let timestart = Instant::now();
-                                if let Some(img) = self.sort_img() {
-                                    self.time_last_sort = timestart.elapsed();
-                                    self.set_texture(ctx, &img, "Some name".to_string());
-                                }
+                                self.do_sort = true;
                             }
                         });
                         let ui = &mut columns[2];
@@ -469,24 +493,35 @@ impl eframe::App for PixelsorterGui {
             self.show_img(ui);
         });
 
-        // Auto-Sort on changes or if image needs sorting
-        let current_values = self.values;
-        if (self.auto_sort && prev_values != current_values) {
-            let timestart = Instant::now();
-            info!("[Change detected, sorting image...]");
-            if let Some(img) = self.sort_img() {
-                self.time_last_sort = timestart.elapsed();
-                self.set_texture(ctx, &img, String::from("Image-sorted"));
-            }
-        }
+        //if let Some(ls) = &mut self.layered_sorter {
+        //    // TODO: probably just needs select + do_sort
+        //    // Save current values
+        //    ls.update_current(self.values.clone());
+        //    if let Some(i) = self.change_layer {
+        //        ls.select_layer(i);
+        //        ls.sort_current_layer();
+        //        self.img = Some(ls.get_current_layer().get_img().clone());
+        //        self.update_texture(ctx)
+        //    }
+        //}
+
         if let Some(ls) = &mut self.layered_sorter {
-            // Save current values
+            // Write any changes back to the layered sorter
             ls.update_current(self.values.clone());
+            // We are switching layers!!
             if let Some(i) = self.change_layer {
                 ls.select_layer(i);
-                ls.sort_current_layer();
+                self.change_layer = None;
+                self.do_sort = true;
             }
-        }         
+        }
+        
+        // Auto-Sort on changes or if image needs sorting
+        if ((self.auto_sort && self.values != prev_values) || self.do_sort) {
+            self.do_sort = false;
+            self.sort_img(&ctx);
+        }
+
     }
 }
 
