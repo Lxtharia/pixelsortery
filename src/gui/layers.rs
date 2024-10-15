@@ -139,14 +139,14 @@ impl LayeredSorter {
     }
 
     /// Sort the current layer, regardless if it's already sorted or not
-    pub(crate) fn force_sort_current_layer(&mut self) {
+    pub(crate) fn sort_current_layer(&mut self) {
         self.sort_layer(self.current_layer);
     }
 
     /// Sorts the current layer if it needs sorting
-    pub(crate) fn sort_current_layer(&mut self) -> bool {
+    pub(crate) fn sort_current_layer_cached(&mut self) -> bool {
         if self.get_current_layer().needs_sorting {
-            self.force_sort_current_layer();
+            self.sort_current_layer();
             true
         } else {
             false

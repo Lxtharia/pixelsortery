@@ -194,7 +194,7 @@ impl PixelsorterGui {
     /// Calls sort_current_layer, sets the image and texture
     fn sort_img(&mut self, ctx: &egui::Context, force: bool) {
         if let Some(ls) = &mut self.layered_sorter {
-            if (selector_is_threshold(self.values.selector) && self.show_mask) {
+            if selector_is_threshold(self.values.selector) && self.show_mask {
                 // We should be able to just unwrap here :)
                 // Help
                 info!("Creating mask of current layer");
@@ -202,10 +202,10 @@ impl PixelsorterGui {
             } else {
                 let timestart = Instant::now();
                 let did_sort = if force {
-                    ls.force_sort_current_layer();
+                    ls.sort_current_layer();
                     true
                 } else {
-                    ls.sort_current_layer()
+                    ls.sort_current_layer_cached()
                 };
                 // Set the time only when it actually sorted something (because it might decide that it doesnt need to sort)
                 if did_sort {
@@ -218,18 +218,6 @@ impl PixelsorterGui {
         self.update_texture(ctx);
     }
 
-    /// loads the image as a texture into context
-    fn set_texture(&mut self, ctx: &egui::Context, img: &RgbImage, name: String) {
-        let rgb_data = img.to_vec();
-        let colorimg =
-            egui::ColorImage::from_rgb([img.width() as usize, img.height() as usize], &rgb_data);
-        let mut options = TextureOptions::default();
-        // Make small images stretch without blurring
-        options.magnification = TextureFilter::Nearest;
-        // Make big images fit without noise
-        options.minification = TextureFilter::Linear;
-        self.texture = Some(ctx.load_texture(name, colorimg, options));
-    }
 
     /// Update texture
     fn update_texture(&mut self, ctx: &egui::Context) {
@@ -273,6 +261,7 @@ impl PixelsorterGui {
                         } else {
                             // I want to make layered_sorter mandatory and remove the possibility of it being None
                             self.img = Some(img);
+                            self.update_texture(ctx);
                         }
                         self.path = Some(f);
                         break;
@@ -285,7 +274,7 @@ impl PixelsorterGui {
 
     /// Sorts and saves the image to the current output directory with a given filename
     fn save_file_to_out_dir(&mut self) -> () {
-        if let (Some(img), Some(path)) = (&self.img, &self.path) {
+        if let Some(path) = &self.path {
             let mut ps = Pixelsorter::new();
             ps.path_creator = self.values.path;
             ps.sorter.criteria = self.values.criteria;

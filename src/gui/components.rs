@@ -1,6 +1,6 @@
 use eframe::{
     egui::{
-        self, style::HandleShape, vec2, Align, Button, Image, Layout, RichText, SelectableLabel, Ui,
+        self, style::HandleShape, vec2, Align, Button, Image, RichText, SelectableLabel, Ui,
     },
     epaint::Hsva,
 };
@@ -9,7 +9,7 @@ use pixelsortery::{
     path_creator::PathCreator,
     pixel_selector::{
         PixelSelectCriteria,
-        PixelSelector::{self, *},
+        PixelSelector,
     },
     span_sorter::{SortingAlgorithm, SortingCriteria},
 };
