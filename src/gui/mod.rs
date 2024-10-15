@@ -74,6 +74,7 @@ struct PixelsorterGui {
     layered_sorter: Option<LayeredSorter>,
     /// All the adjustable values for the pixelsorter
     values: PixelsorterValues,
+    show_mask: bool,
     /// The current image from the selected layer
     img: Option<RgbImage>,
     /// The image used by egui to draw every frame
@@ -90,7 +91,6 @@ struct PixelsorterGui {
 /// Adjustable components of the pixelsorter, remembers values like diagonal angle
 #[derive(Clone, Copy, PartialEq)]
 struct PixelsorterValues {
-    show_mask: bool,
     reverse: bool,
     path: PathCreator,
     selector: PixelSelector,
@@ -144,8 +144,8 @@ impl Default for PixelsorterGui {
             layered_sorter: None,
             img: None,
             texture: None,
+            show_mask: false,
             values: PixelsorterValues {
-                show_mask: false,
                 reverse: false,
                 path: PathCreator::VerticalLines,
                 criteria: SortingCriteria::Brightness,
@@ -194,9 +194,11 @@ impl PixelsorterGui {
     /// Calls sort_current_layer, sets the image and texture
     fn sort_img(&mut self, ctx: &egui::Context, force: bool) {
         if let Some(ls) = &mut self.layered_sorter {
-            if (selector_is_threshold(self.values.selector) && self.values.show_mask) {
-                warn!("MASKING DOESN'T WORK YET WITH LAYERS");
-                // self.img = Some(ls.get_current_layer().get_mask().clone());
+            if (selector_is_threshold(self.values.selector) && self.show_mask) {
+                // We should be able to just unwrap here :)
+                // Help
+                info!("Creating mask of current layer");
+                self.img = Some(ls.get_mask_for_current_layer().unwrap().clone());
             } else {
                 let timestart = Instant::now();
                 let did_sort = if force {
@@ -438,7 +440,7 @@ impl eframe::App for PixelsorterGui {
             });
         });
 
-        let prev_values = self.values.clone();
+        let prev_values = (self.values.clone(), self.show_mask);
         egui::SidePanel::left("my-left-pane")
             .resizable(false)
             //.exact_width(380.0)
@@ -507,7 +509,8 @@ impl eframe::App for PixelsorterGui {
         }
 
         // Auto-Sort current image on changes or if image needs sorting
-        if ((self.auto_sort && self.values != prev_values) || self.do_sort) {
+        let values_changed = self.values != prev_values.0 || self.show_mask != prev_values.1;
+        if (self.do_sort || (self.auto_sort && values_changed)) {
             self.do_sort = false;
             self.sort_img(&ctx, true);
         }

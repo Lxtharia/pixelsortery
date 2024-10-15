@@ -292,7 +292,7 @@ impl PixelsorterGui {
 
                 ui.label("");
                 ui.add_enabled_ui(super::selector_is_threshold(self.values.selector), |ui| {
-                    ui.checkbox(&mut self.values.show_mask, "Show mask");
+                    ui.checkbox(&mut self.show_mask, "Show mask");
                 });
                 ui.end_row();
             });

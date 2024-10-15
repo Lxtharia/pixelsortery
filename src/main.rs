@@ -222,7 +222,7 @@ fn main() {
 
     if show_mask {
         // Drawing a mask
-        if let Err(_) = ps.mask(&mut img){
+        if ! ps.mask(&mut img) {
             error!("Couldn't create mask. Masking is only possible with the threshold selector.");
             exit(-1);
         }
