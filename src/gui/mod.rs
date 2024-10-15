@@ -191,16 +191,23 @@ impl PixelsorterGui {
     }
 
     /// Calls sort_current_layer, sets the image and texture
-    fn sort_img(&mut self, ctx: &egui::Context) {
+    fn sort_img(&mut self, ctx: &egui::Context, force: bool) {
         if let Some(ls) = &mut self.layered_sorter {
             if (selector_is_threshold(self.values.selector) && self.values.show_mask) {
                 warn!("MASKING DOESN'T WORK YET WITH LAYERS");
                 // self.img = Some(ls.get_current_layer().get_mask().clone());
             } else {
-                //info!("[Updating Layer??]");
                 let timestart = Instant::now();
-                ls.force_sort_current_layer();
-                self.time_last_sort = timestart.elapsed();
+                let did_sort = if force {
+                    ls.force_sort_current_layer();
+                    true
+                } else {
+                    ls.sort_current_layer()
+                };
+                // Set the time only when it actually sorted something (because it might decide that it doesnt need to sort)
+                if did_sort {
+                    self.time_last_sort = timestart.elapsed();
+                }
                 self.img = Some(ls.get_current_layer().get_img().clone());
             }
         }
@@ -235,12 +242,6 @@ impl PixelsorterGui {
             // Make big images fit without noise
             options.minification = TextureFilter::Linear;
             self.texture = Some(ctx.load_texture("Some texture name", colorimg, options));
-        }
-    }
-
-    // Set currently image and update the texture
-    fn update_img(&mut self, ctx: &egui::Context) {
-        if let Some(ls) = &self.layered_sorter {
         }
     }
 
@@ -510,7 +511,7 @@ impl eframe::App for PixelsorterGui {
         // Auto-Sort current image on changes or if image needs sorting
         if ((self.auto_sort && self.values != prev_values) || self.do_sort) {
             self.do_sort = false;
-            self.sort_img(&ctx);
+            self.sort_img(&ctx, true);
         }
 
         //
@@ -524,7 +525,7 @@ impl eframe::App for PixelsorterGui {
             if let Some(i) = self.change_layer {
                 ls.select_layer(i);
                 self.change_layer = None;
-                self.do_sort = true;
+                self.sort_img(ctx, false);
                 ctx.request_repaint();
             }
         }

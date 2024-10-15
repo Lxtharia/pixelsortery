@@ -120,12 +120,12 @@ impl LayeredSorter {
 
         let mut prev_img = &self.base_img;
         // As long as the layers are up to date, we don't need to sort
-        let mut up_do_date = true;
+        let mut needs_sorting = false;
         for (i, layer) in self.layers.iter_mut().take(ind + 1).enumerate() {
             // Once we needed to sort a layer, we need to sort all of them
-            up_do_date = up_do_date || layer.needs_sorting;
+            needs_sorting = needs_sorting || layer.needs_sorting;
             // Sort the layer at [index] in any case
-            if i == ind || !up_do_date {
+            if i == ind || needs_sorting {
                 layer.sort(&prev_img);
             }
             prev_img = &layer.sorted_img;
