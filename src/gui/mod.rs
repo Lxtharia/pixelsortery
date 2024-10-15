@@ -1,8 +1,10 @@
 #![allow(unused)]
 use eframe::egui::{
-    self, Align, Color32, Image, Key, Layout, Modifiers, RichText, TextureFilter, TextureHandle,
-    TextureOptions, Ui, Vec2,
+    self, Align, Button, Color32, Image, Key, Layout, Modifiers, RichText, ScrollArea,
+    TextureFilter, TextureHandle, TextureOptions, Ui, Vec2,
 };
+use egui::{scroll_area::ScrollBarVisibility, style::ScrollStyle};
+use egui_flex::{item, Flex, FlexAlign, FlexAlignContent, FlexJustify};
 use image::RgbImage;
 use inflections::case::to_title_case;
 use layers::LayeredSorter;
@@ -217,7 +219,6 @@ impl PixelsorterGui {
         // Display sorted image
         self.update_texture(ctx);
     }
-
 
     /// Update texture
     fn update_texture(&mut self, ctx: &egui::Context) {
@@ -436,55 +437,74 @@ impl eframe::App for PixelsorterGui {
             .max_width(420.0)
             .show(ctx, |ui| {
                 ui.add_space(5.0);
+                ScrollArea::vertical()
+                    .max_height(f32::INFINITY)
+                    .max_width(f32::INFINITY)
+                    .show(ui, |ui| {
+                        ui.group(|ui| {
+                            ui.set_width(full_width(&ui));
+                            if ui.button("Open image...").clicked() {
+                                self.open_file(ctx);
+                            }
 
-                ui.group(|ui| {
-                    ui.set_width(full_width(&ui));
-                    if ui.button("Open image...").clicked() {
-                        self.open_file(ctx);
-                    }
-
-                    if let Some(p) = &self.path {
-                        ui.label(RichText::new(p.to_string_lossy()));
-                    } else {
-                        ui.label(RichText::new("No image loaded...").italics());
-                    }
-                });
-
-                ui.add_space(5.0);
-
-                ui.group(|ui| {
-                    egui::ScrollArea::vertical()
-                        .max_height(f32::INFINITY)
-                        .max_width(f32::INFINITY)
-                        .show(ui, |ui| {
-                            self.sorting_options_panel(ui, 1);
-                        });
-                });
-
-                ui.add_space(5.0);
-
-                ui.add_enabled_ui(self.img.is_some(), |ui| {
-                    // SORT IMAGE button
-                    ui.columns(3, |columns| {
-                        let ui = &mut columns[1];
-                        ui.with_layout(Layout::top_down(Align::Center), |ui| {
-                            if ui.button(RichText::new("SORT IMAGE").heading()).clicked() {
-                                self.do_sort = true;
+                            if let Some(p) = &self.path {
+                                ui.label(RichText::new(p.to_string_lossy()));
+                            } else {
+                                ui.label(RichText::new("No image loaded...").italics());
                             }
                         });
-                        let ui = &mut columns[2];
-                        ui.checkbox(&mut self.auto_sort, "Auto-sort");
+
+                        ui.add_space(5.0);
+
+                        ui.group(|ui| {
+                            self.sorting_options_panel(ui, 1);
+                        });
+
+                        ui.add_space(5.0);
+
+                        ui.add_enabled_ui(self.img.is_some(), |ui| {
+                            // SORT IMAGE button
+                            ui.columns(3, |columns| {
+                                let ui = &mut columns[1];
+                                ui.with_layout(Layout::top_down(Align::Center), |ui| {
+                                    if ui.button(RichText::new("SORT IMAGE").heading()).clicked() {
+                                        self.do_sort = true;
+                                    }
+                                });
+                                let ui = &mut columns[2];
+                                ui.checkbox(&mut self.auto_sort, "Auto-sort");
+                            });
+
+                            ui.add_space(5.0);
+
+                            // SAVING OPTIONS
+                            ui.group(|ui| {
+                                self.save_options_panel(ui);
+                            });
+                        });
                     });
 
+                // LAYERING
+                ui.add_space(5.0);
+                ui.with_layout(Layout::bottom_up(Align::Center), |ui| {
                     ui.add_space(5.0);
-
-                    // SAVING OPTIONS
-                    ui.group(|ui| {
-                        self.save_options_panel(ui);
-                    });
-
-                    // LAYERING
-                    self.layering_panel(ui);
+                    ui.style_mut().spacing.scroll.floating = false;
+                    ScrollArea::vertical()
+                        .id_salt("LayerScrollArea")
+                        .show(ui, |ui| {
+                            Flex::vertical()
+                                .align_content(FlexAlignContent::Stretch)
+                                .wrap(false)
+                                .justify(FlexJustify::End)
+                                .show(ui, |flex| {
+                                    flex.grow();
+                                    //for i in 0..8 {
+                                    //    let b = Button::new(format!("LMAO: {}", i));
+                                    //    flex.add(item().basis(30.0), b);
+                                    //}
+                                    self.layering_panel(flex);
+                                });
+                        });
                 });
             });
 

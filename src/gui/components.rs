@@ -1,9 +1,11 @@
 use eframe::{
     egui::{
-        self, style::HandleShape, vec2, Align, Button, Image, RichText, SelectableLabel, Ui,
+        self, style::HandleShape, vec2, Align, Button, Image, RichText, ScrollArea, SelectableLabel, Ui
     },
     epaint::Hsva,
 };
+use egui::SliderClamping;
+use egui_flex::FlexInstance;
 use log::info;
 use pixelsortery::{
     path_creator::PathCreator,
@@ -45,7 +47,7 @@ impl PixelsorterGui {
 
         ui.horizontal(|ui| {
             // Build ComboBox from entries in the path_name_mappings
-            egui::ComboBox::from_id_source(format!("path_combo_{}", id))
+            egui::ComboBox::from_id_salt(format!("path_combo_{}", id))
                 .selected_text(selected_text)
                 .show_ui(ui, |ui| {
                     for (v, t) in path_name_mappings {
@@ -72,7 +74,7 @@ impl PixelsorterGui {
                         ui.label("Angle");
                         let slider = egui::Slider::new(angle, 0.0..=360.0)
                             .suffix("°")
-                            .clamp_to_range(false)
+                            .clamping(SliderClamping::Edits)
                             .drag_value_speed(0.2)
                             .max_decimals(1)
                             .smart_aim(false);
@@ -111,7 +113,7 @@ impl PixelsorterGui {
                         ui.label("Length");
                         let slider = egui::Slider::new(len, 0..=2000)
                             .logarithmic(true)
-                            .clamp_to_range(false)
+                            .clamping(SliderClamping::Never)
                             .drag_value_speed(0.2)
                             .smart_aim(false);
                         ui.add(slider);
@@ -123,7 +125,7 @@ impl PixelsorterGui {
                         ui.label("Max");
                         let slider = egui::Slider::new(max, 0..=2000)
                             .logarithmic(true)
-                            .clamp_to_range(false)
+                            .clamping(SliderClamping::Never)
                             .drag_value_speed(0.2)
                             .smart_aim(false)
                             .step_by(1.0);
@@ -239,7 +241,7 @@ impl PixelsorterGui {
     }
 
     pub(super) fn algorithmn_combo_box(&mut self, ui: &mut Ui, id: u64) {
-        egui::ComboBox::from_id_source(format!("algorithm_combo_{}", id))
+        egui::ComboBox::from_id_salt(format!("algorithm_combo_{}", id))
             .selected_text(format!("{:?}", self.values.algorithm))
             .show_ui(ui, |ui| {
                 vec![
@@ -344,12 +346,19 @@ impl PixelsorterGui {
         });
     }
 
-    pub(super) fn layering_panel(&mut self, ui: &mut Ui) {
-        ui.separator();
+    pub(super) fn layering_panel(&mut self, flex: &mut FlexInstance) {
         if let Some(ls) = &mut self.layered_sorter {
+            // ADD LAYER button
+            let button = Button::new(RichText::new("+").heading());
+            if flex.add(item().basis(30.0), button).inner.clicked()
+            {
+                ls.add_layer(ls.get_current_layer().get_sorting_values().clone());
+                self.change_layer = Some(ls.get_layers().len() - 1);
+            }
+
             let mut layer_to_select = None;
             let mut layer_to_delete = None;
-            for (i, layer) in ls.get_layers().iter().enumerate() {
+            for (i, layer) in ls.get_layers().iter().enumerate().rev() {
                 let button = SelectableLabel::new(
                     ls.get_current_index() == i,
                     RichText::new(format!(
@@ -361,7 +370,8 @@ impl PixelsorterGui {
                 );
 
                 // Adding and removing on clicks
-                let res = ui.add_sized(vec2(ui.available_width(), 30.0), button);
+                //let res = ui.add_sized(vec2(ui.available_width(), 30.0), button);
+                let res = flex.add(item().basis(30.0), button).inner;
                 if res.clicked() {
                     layer_to_select = Some(i);
                 }
@@ -374,14 +384,6 @@ impl PixelsorterGui {
             }
             if let Some(i) = layer_to_delete {
                 ls.remove_layer(i);
-            }
-            let button = Button::new(RichText::new("+").heading());
-            if ui
-                .add_sized(vec2(ui.available_width(), 30.0), button)
-                .clicked()
-            {
-                ls.add_layer(ls.get_current_layer().get_sorting_values().clone());
-                self.change_layer = Some(ls.get_layers().len() - 1);
             }
         }
     }
