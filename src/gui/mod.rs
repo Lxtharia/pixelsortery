@@ -1,7 +1,7 @@
 #![allow(unused)]
 use eframe::egui::{
     self, Align, Color32, Image, Key, Layout, Modifiers, RichText, TextureFilter, TextureHandle,
-    TextureOptions, Ui,
+    TextureOptions, Ui, Vec2,
 };
 use image::RgbImage;
 use inflections::case::to_title_case;
@@ -27,6 +27,7 @@ mod layers;
 
 /// How long the "Saved" Label should be visible before it vanishes
 const SAVED_LABEL_VANISH_TIMEOUT: f32 = 2.0;
+const INITIAL_WINDOW_SIZE: Vec2 = egui::vec2(1000.0, 700.0);
 
 mod components;
 
@@ -44,7 +45,7 @@ pub fn start_gui_with_sorter(
 
 fn init(ps: Option<(&Pixelsorter, RgbImage, PathBuf)>) -> eframe::Result {
     let options = eframe::NativeOptions {
-        viewport: egui::ViewportBuilder::default().with_inner_size([1000.0, 600.0]),
+        viewport: egui::ViewportBuilder::default().with_inner_size(INITIAL_WINDOW_SIZE),
         ..Default::default()
     };
 
@@ -265,8 +266,12 @@ impl PixelsorterGui {
                 Some(f) => match image::open(f.as_path()) {
                     Ok(i) => {
                         let img = i.into_rgb8();
-                        self.img = Some(img.clone());
-                        self.update_texture(ctx);
+                        if let Some(ls) = &mut self.layered_sorter {
+                            ls.set_base_img(img);
+                        } else {
+                            // I want to make layered_sorter mandatory and remove the possibility of it being None
+                            self.img = Some(img);
+                        }
                         self.path = Some(f);
                         break;
                     }
@@ -509,7 +514,6 @@ impl eframe::App for PixelsorterGui {
 
         //
         if let Some(ls) = &mut self.layered_sorter {
-
             // We are switching layers!!
             // Sort after switching
             if let Some(i) = self.change_layer {

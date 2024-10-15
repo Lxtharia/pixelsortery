@@ -377,7 +377,7 @@ impl PixelsorterGui {
             }
             let button = Button::new(RichText::new("+").heading());
             if ui
-                .add_sized(vec2(ui.available_width(), 20.0), button)
+                .add_sized(vec2(ui.available_width(), 30.0), button)
                 .clicked()
             {
                 ls.add_layer(ls.get_current_layer().get_sorting_values().clone());
