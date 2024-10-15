@@ -495,18 +495,11 @@ impl eframe::App for PixelsorterGui {
         egui::CentralPanel::default().show(ctx, |ui| {
             self.show_img(ui);
         });
-
-        //if let Some(ls) = &mut self.layered_sorter {
-        //    // TODO: probably just needs select + do_sort
-        //    // Save current values
-        //    ls.update_current(self.values.clone());
-        //    if let Some(i) = self.change_layer {
-        //        ls.select_layer(i);
-        //        ls.sort_current_layer();
-        //        self.img = Some(ls.get_current_layer().get_img().clone());
-        //        self.update_texture(ctx)
-        //    }
-        //}
+        if let Some(ls) = &mut self.layered_sorter {
+            // info!("Setting values for current: {}", self.values.to_pixelsorter().to_compact_string());
+            // Write any changes back to the layered sorter
+            ls.update_current(self.values.clone());
+        }
 
         // Auto-Sort current image on changes or if image needs sorting
         if ((self.auto_sort && self.values != prev_values) || self.do_sort) {
@@ -516,9 +509,6 @@ impl eframe::App for PixelsorterGui {
 
         //
         if let Some(ls) = &mut self.layered_sorter {
-            // info!("Setting values for current: {}", self.values.to_pixelsorter().to_compact_string());
-            // Write any changes back to the layered sorter
-            ls.update_current(self.values.clone());
 
             // We are switching layers!!
             // Sort after switching
