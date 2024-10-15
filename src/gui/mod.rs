@@ -192,21 +192,19 @@ impl PixelsorterGui {
 
     /// Calls sort_current_layer, sets the image and texture
     fn sort_img(&mut self, ctx: &egui::Context) {
-        if let Some(ls) = &self.layered_sorter {
+        if let Some(ls) = &mut self.layered_sorter {
             if (selector_is_threshold(self.values.selector) && self.values.show_mask) {
                 warn!("MASKING DOESN'T WORK YET WITH LAYERS");
-                // ps.mask(&mut img_to_sort);
+                // self.img = Some(ls.get_current_layer().get_mask().clone());
             } else {
-                info!("[Updating Layer??]");
-                if let Some(ls) = &mut self.layered_sorter {
-                    ls.update_current(self.values);
-                    let timestart = Instant::now();
-                    ls.sort_current_layer();
-                    self.time_last_sort = timestart.elapsed();
-                }
+                //info!("[Updating Layer??]");
+                let timestart = Instant::now();
+                ls.force_sort_current_layer();
+                self.time_last_sort = timestart.elapsed();
+                self.img = Some(ls.get_current_layer().get_img().clone());
             }
-            // self.img = Some(ls.get_current_layer().get_img().clone());
         }
+        // Display sorted image
         self.update_texture(ctx);
     }
 
@@ -237,6 +235,12 @@ impl PixelsorterGui {
             // Make big images fit without noise
             options.minification = TextureFilter::Linear;
             self.texture = Some(ctx.load_texture("Some texture name", colorimg, options));
+        }
+    }
+
+    // Set currently image and update the texture
+    fn update_img(&mut self, ctx: &egui::Context) {
+        if let Some(ls) = &self.layered_sorter {
         }
     }
 
@@ -386,10 +390,8 @@ impl eframe::App for PixelsorterGui {
             self.open_file(ctx);
         }
         if let Some(ls) = &self.layered_sorter {
-            // Load current image and current values
-            let current_layer = ls.get_current_layer();
-            self.values = current_layer.get_sorting_values().clone();
-            self.img = Some(current_layer.get_img().clone());
+            // Load current values
+            self.values = ls.get_current_layer().get_sorting_values().clone();
         } else {
             // Create a layering thingy if we don't have one yet
             if let Some(img) = &self.img {
@@ -505,23 +507,27 @@ impl eframe::App for PixelsorterGui {
         //    }
         //}
 
-        if let Some(ls) = &mut self.layered_sorter {
-            // Write any changes back to the layered sorter
-            ls.update_current(self.values.clone());
-            // We are switching layers!!
-            if let Some(i) = self.change_layer {
-                ls.select_layer(i);
-                self.change_layer = None;
-                self.do_sort = true;
-            }
-        }
-        
-        // Auto-Sort on changes or if image needs sorting
+        // Auto-Sort current image on changes or if image needs sorting
         if ((self.auto_sort && self.values != prev_values) || self.do_sort) {
             self.do_sort = false;
             self.sort_img(&ctx);
         }
 
+        //
+        if let Some(ls) = &mut self.layered_sorter {
+            // info!("Setting values for current: {}", self.values.to_pixelsorter().to_compact_string());
+            // Write any changes back to the layered sorter
+            ls.update_current(self.values.clone());
+
+            // We are switching layers!!
+            // Sort after switching
+            if let Some(i) = self.change_layer {
+                ls.select_layer(i);
+                self.change_layer = None;
+                self.do_sort = true;
+                ctx.request_repaint();
+            }
+        }
     }
 }
 

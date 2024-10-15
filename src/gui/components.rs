@@ -381,7 +381,7 @@ impl PixelsorterGui {
                 .clicked()
             {
                 ls.add_layer(ls.get_current_layer().get_sorting_values().clone());
-                ls.select_layer(ls.get_layers().len() - 1);
+                self.change_layer = Some(ls.get_layers().len() - 1);
             }
         }
     }
