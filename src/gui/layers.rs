@@ -84,20 +84,18 @@ impl LayeredSorter {
     pub(crate) fn remove_layer<T: Into<usize>>(&mut self, ind: T) -> bool {
         let ind = ind.into();
         // Don't allow removing if we only have one layer left
-        if self.layers.len() <= 1 {
+        if self.layers.len() <= 1 || ind >= self.layers.len() {
             return false;
         }
-        if ind < self.layers.len() {
-            // If the last layer was selected, adjust the selected index
-            if self.current_layer == self.layers.len() - 1 || ind < self.current_layer {
-                self.current_layer -= 1;
-            }
-            self.invalidate_layers_above(ind);
-            self.layers.remove(ind);
-            true
-        } else {
-            false
+
+        // If the last layer was selected, adjust the selected index
+        if self.current_layer == self.layers.len() - 1 || ind < self.current_layer {
+            self.current_layer -= 1;
         }
+
+        self.invalidate_layers_above(ind);
+        self.layers.remove(ind);
+        true
     }
 
     pub(crate) fn select_layer<T: Into<usize>>(&mut self, ind: T) -> Option<&SortingLayer> {
@@ -158,7 +156,7 @@ impl LayeredSorter {
 
     /// Sorts all layers below if needed but will not sort the current one, but instead only show the mask
     pub(crate) fn get_mask_for_current_layer(&mut self) -> Option<RgbImage> {
-        let prev_index = self.current_layer -1;
+        let prev_index = self.current_layer - 1;
         self.sort_layer(prev_index);
         let prev_img = if let Some(layer) = self.get_layer(prev_index) {
             layer.get_img()
@@ -167,7 +165,6 @@ impl LayeredSorter {
         };
         self.get_current_layer().get_mask(prev_img)
     }
-
 }
 
 impl SortingLayer {

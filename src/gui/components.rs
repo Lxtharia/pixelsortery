@@ -358,7 +358,8 @@ impl PixelsorterGui {
                             .to_pixelsorter()
                             .to_pretty_short_string()
                     ))
-                    .monospace().size(10.5),
+                    .monospace()
+                    .size(10.5),
                 );
 
                 // Adding and removing on clicks
@@ -372,11 +373,13 @@ impl PixelsorterGui {
                 }
             }
 
+            // Show-base-image button
+            let base_image_button = SelectableLabel::new(
+                self.show_base_image,
+                RichText::new("[Original Image]").underline().monospace(),
+            );
             if flex
-                .add(
-                    item().basis(30.0),
-                    SelectableLabel::new(self.show_base_image, RichText::new("[Original Image]").underline().monospace()),
-                )
+                .add(item().basis(30.0), base_image_button)
                 .inner
                 .clicked()
             {
