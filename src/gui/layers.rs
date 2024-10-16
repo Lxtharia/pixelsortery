@@ -38,6 +38,9 @@ impl LayeredSorter {
     pub(crate) fn get_current_index(&self) -> usize {
         self.current_layer
     }
+    pub(crate) fn get_base_img(&self) -> &RgbImage {
+        &self.base_img
+    }
     pub(crate) fn set_base_img(&mut self, img: RgbImage) {
         self.base_img = img;
         self.invalidate_layers_above(0usize);

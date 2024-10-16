@@ -87,7 +87,8 @@ struct PixelsorterGui {
     auto_sort: bool,
     do_sort: bool,
     saving_success_timeout: Option<Instant>,
-    change_layer: Option<usize>,
+    change_layer: SwitchLayerMessage,
+    show_base_image: bool,
 }
 
 /// Adjustable components of the pixelsorter, remembers values like diagonal angle
@@ -104,6 +105,13 @@ struct PixelsorterValues {
     selector_random: PixelSelector,
     selector_fixed: PixelSelector,
     selector_thres: PixelSelector,
+}
+
+#[derive(PartialEq)]
+enum SwitchLayerMessage {
+    None,
+    BaseImage,
+    Layer(usize),
 }
 
 impl PixelsorterValues {
@@ -158,7 +166,7 @@ impl Default for PixelsorterGui {
                 },
                 algorithm: SortingAlgorithm::Shellsort,
 
-                path_diagonally_val: 0.0,
+                path_diagonally_val: 45.0,
                 selector_random: PixelSelector::Random { max: 30 },
                 selector_fixed: PixelSelector::Fixed { len: 100 },
                 selector_thres: PixelSelector::Threshold {
@@ -172,8 +180,9 @@ impl Default for PixelsorterGui {
             output_directory: None,
             save_into_parent_dir: false,
             saving_success_timeout: None,
-            change_layer: None,
+            change_layer: SwitchLayerMessage::None,
             do_sort: true,
+            show_base_image: false,
         }
     }
 }
@@ -528,11 +537,17 @@ impl eframe::App for PixelsorterGui {
         if let Some(ls) = &mut self.layered_sorter {
             // We are switching layers!!
             // Sort after switching
-            if let Some(i) = self.change_layer {
+            if let SwitchLayerMessage::Layer(i) = self.change_layer {
+                self.show_base_image = false;
                 ls.select_layer(i);
-                self.change_layer = None;
+                self.change_layer = SwitchLayerMessage::None;
                 self.sort_img(ctx, false);
                 ctx.request_repaint();
+            } else if SwitchLayerMessage::BaseImage == self.change_layer {
+                self.show_base_image = true;
+                self.change_layer = SwitchLayerMessage::None;
+                self.img = Some(ls.get_base_img().clone());
+                self.update_texture(ctx);
             }
         }
     }

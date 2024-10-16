@@ -335,21 +335,28 @@ impl PixelsorterGui {
 
     pub(super) fn layering_panel(&mut self, flex: &mut FlexInstance) {
         if let Some(ls) = &mut self.layered_sorter {
+            let mut layer_to_select = None;
+            let mut layer_to_delete = None;
+
             // ADD LAYER button
             let button = Button::new(RichText::new("+").heading());
             if flex.add(item().basis(30.0), button).inner.clicked() {
                 ls.add_layer(ls.get_current_layer().get_sorting_values().clone());
-                self.change_layer = Some(ls.get_layers().len() - 1);
+                // self.change_layer = SwitchLayerMessage::Layer(ls.get_layers().len() - 1);
+                layer_to_select = Some(ls.get_layers().len() - 1);
             }
 
-            let mut layer_to_select = None;
-            let mut layer_to_delete = None;
-            for (i, layer) in ls.get_layers().iter().enumerate() {
+            for (i, layer) in ls.get_layers().iter().enumerate().rev() {
                 let values = layer.get_sorting_values();
                 let button = SelectableLabel::new(
-                    ls.get_current_index() == i,
+                    ls.get_current_index() == i && !self.show_base_image,
                     RichText::new(format!(
-                            "[{}] {}", i, layer.get_sorting_values().to_pixelsorter().to_pretty_short_string()
+                        "[{}] {}",
+                        i,
+                        layer
+                            .get_sorting_values()
+                            .to_pixelsorter()
+                            .to_pretty_short_string()
                     ))
                     .monospace(),
                 );
@@ -364,8 +371,20 @@ impl PixelsorterGui {
                     layer_to_delete = Some(i);
                 }
             }
+
+            if flex
+                .add(
+                    item().basis(30.0),
+                    SelectableLabel::new(self.show_base_image, RichText::new("[Original Image]").underline().monospace()),
+                )
+                .inner
+                .clicked()
+            {
+                self.change_layer = SwitchLayerMessage::BaseImage;
+            }
+
             if let Some(i) = layer_to_select {
-                self.change_layer = Some(i);
+                self.change_layer = SwitchLayerMessage::Layer(i);
             }
             if let Some(i) = layer_to_delete {
                 ls.remove_layer(i);
