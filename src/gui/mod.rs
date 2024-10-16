@@ -443,7 +443,7 @@ impl eframe::App for PixelsorterGui {
         egui::SidePanel::left("my-left-pane")
             .resizable(false)
             //.exact_width(380.0)
-            .max_width(420.0)
+            .max_width(380.0)
             .show(ctx, |ui| {
                 ui.add_space(5.0);
                 ScrollArea::vertical()

@@ -97,12 +97,12 @@ impl Pixelsorter {
             PathCreator::Spiral => "Spiral".into(),
             PathCreator::SquareSpiral => "Square".into(),
             PathCreator::RectSpiral => "Rect".into(),
-            PathCreator::Diagonally(a) => format!("Diag ({}°)", a),
+            PathCreator::Diagonally(a) => format!("Diag({}°)", a),
             PathCreator::Hilbert => "Hilbert".into(),
         }
         .as_str();
         if self.reverse {
-            s += " (R)"
+            s += "{R}"
         };
         s += " | ";
 
@@ -124,12 +124,12 @@ impl Pixelsorter {
         .as_str();
         s += " | ";
         s += match self.sorter.algorithm {
-            span_sorter::SortingAlgorithm::Mapsort => "Mapsort",
-            span_sorter::SortingAlgorithm::Shellsort => "Shellsort",
+            span_sorter::SortingAlgorithm::Mapsort => "Map",
+            span_sorter::SortingAlgorithm::Shellsort => "Shell",
             span_sorter::SortingAlgorithm::Glitchsort => "Glitch",
             span_sorter::SortingAlgorithm::DebugColor => "Debug",
         };
-        s += " (";
+        s += "(by ";
         s += match self.sorter.criteria {
             SortingCriteria::Hue => "Hue",
             SortingCriteria::Brightness => "Bright",

@@ -358,7 +358,7 @@ impl PixelsorterGui {
                             .to_pixelsorter()
                             .to_pretty_short_string()
                     ))
-                    .monospace(),
+                    .monospace().size(10.5),
                 );
 
                 // Adding and removing on clicks
