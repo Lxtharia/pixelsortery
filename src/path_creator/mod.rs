@@ -1,10 +1,10 @@
+use egui::TextBuffer;
 use image::{Rgb, RgbImage};
 use log::{error, info, warn};
 use rayon::prelude::*;
-use std::{f64::consts::PI, time::Instant};
+use std::{f64::consts::PI, fmt::Display, time::Instant};
 
 mod gilbert;
-
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum PathCreator {
@@ -18,6 +18,27 @@ pub enum PathCreator {
     RectSpiral,
     Diagonally(f32),
     Hilbert,
+}
+
+impl std::fmt::Display for PathCreator {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                PathCreator::AllHorizontally => "All Horizontally".into(),
+                PathCreator::AllVertically => "All Vertically".into(),
+                PathCreator::HorizontalLines => "Left/Right".into(),
+                PathCreator::VerticalLines => "Up/Down".into(),
+                PathCreator::Circles => "Circles".into(),
+                PathCreator::Spiral => "Spiral".into(),
+                PathCreator::SquareSpiral => "Square Spiral".into(),
+                PathCreator::RectSpiral => "Rectangular Spiral".into(),
+                PathCreator::Diagonally(a) => format!("Diagonally ({}°)", a),
+                PathCreator::Hilbert => "Hilber Curve".into(),
+            }
+        )
+    }
 }
 
 impl PathCreator {
@@ -358,4 +379,3 @@ fn path_circles(w: u64, h: u64) -> Vec<Vec<u64>> {
     paths.par_extend((1..max_size / 2).into_par_iter().map(line_path).flatten());
     return paths;
 }
-

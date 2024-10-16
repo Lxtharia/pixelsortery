@@ -1,6 +1,7 @@
 use eframe::{
     egui::{
-        self, style::HandleShape, vec2, Align, Button, Image, RichText, ScrollArea, SelectableLabel, Ui
+        self, style::HandleShape, vec2, Align, Button, Image, RichText, ScrollArea,
+        SelectableLabel, Ui,
     },
     epaint::Hsva,
 };
@@ -9,10 +10,7 @@ use egui_flex::FlexInstance;
 use log::info;
 use pixelsortery::{
     path_creator::PathCreator,
-    pixel_selector::{
-        PixelSelectCriteria,
-        PixelSelector,
-    },
+    pixel_selector::{PixelSelectCriteria, PixelSelector},
     span_sorter::{SortingAlgorithm, SortingCriteria},
 };
 
@@ -20,38 +18,27 @@ use super::*;
 
 impl PixelsorterGui {
     pub(super) fn path_combo_box(&mut self, ui: &mut Ui, id: u64) {
-        let path_name_mappings = [
-            (PathCreator::AllHorizontally, "All Horizontally"),
-            (PathCreator::AllVertically, "All Vertically"),
-            (PathCreator::HorizontalLines, "Left/Right"),
-            (PathCreator::VerticalLines, "Up/Down"),
-            (PathCreator::Circles, "Circles"),
-            (PathCreator::Spiral, "Spiral"),
-            (PathCreator::SquareSpiral, "Square Spiral"),
-            (PathCreator::RectSpiral, "Rectangular Spiral"),
-            (
-                PathCreator::Diagonally(self.values.path_diagonally_val),
-                &format!("Diagonally ({}°)", self.values.path_diagonally_val),
-            ),
-            (PathCreator::Hilbert, "Hilbert Curve"),
+        let available_paths = vec![
+            PathCreator::AllHorizontally,
+            PathCreator::AllVertically,
+            PathCreator::HorizontalLines,
+            PathCreator::VerticalLines,
+            PathCreator::Circles,
+            PathCreator::Spiral,
+            PathCreator::SquareSpiral,
+            PathCreator::RectSpiral,
+            PathCreator::Diagonally(self.values.path_diagonally_val),
+            PathCreator::Hilbert,
         ];
-        // The text that's shown in the combobox, debug as default
-        let path_debug_name = &format!("{:?}", &self.values.path);
-        let selected_text = match path_name_mappings
-            .into_iter()
-            .find(|x| x.0 == self.values.path)
-        {
-            Some((_, t)) => t,
-            None => path_debug_name,
-        };
+        let selected_text = self.values.path.to_string();
 
         ui.horizontal(|ui| {
             // Build ComboBox from entries in the path_name_mappings
             egui::ComboBox::from_id_salt(format!("path_combo_{}", id))
                 .selected_text(selected_text)
                 .show_ui(ui, |ui| {
-                    for (v, t) in path_name_mappings {
-                        ui.selectable_value(&mut self.values.path, v, t);
+                    for p in available_paths {
+                        ui.selectable_value(&mut self.values.path, p, p.to_string());
                     }
                 });
 
@@ -350,21 +337,19 @@ impl PixelsorterGui {
         if let Some(ls) = &mut self.layered_sorter {
             // ADD LAYER button
             let button = Button::new(RichText::new("+").heading());
-            if flex.add(item().basis(30.0), button).inner.clicked()
-            {
+            if flex.add(item().basis(30.0), button).inner.clicked() {
                 ls.add_layer(ls.get_current_layer().get_sorting_values().clone());
                 self.change_layer = Some(ls.get_layers().len() - 1);
             }
 
             let mut layer_to_select = None;
             let mut layer_to_delete = None;
-            for (i, layer) in ls.get_layers().iter().enumerate().rev() {
+            for (i, layer) in ls.get_layers().iter().enumerate() {
+                let values = layer.get_sorting_values();
                 let button = SelectableLabel::new(
                     ls.get_current_index() == i,
                     RichText::new(format!(
-                        "[{}] {}",
-                        i,
-                        layer.get_sorting_values().to_pixelsorter().to_compact_string()
+                            "[{}] {}", i, layer.get_sorting_values().to_pixelsorter().to_pretty_short_string()
                     ))
                     .monospace(),
                 );

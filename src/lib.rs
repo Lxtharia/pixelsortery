@@ -34,6 +34,111 @@ impl Pixelsorter {
             reverse: false,
         }
     }
+    pub fn to_long_string(&self) -> String {
+        let mut s = String::new();
+        s += match self.path_creator {
+            PathCreator::AllHorizontally => "All Horizontally".into(),
+            PathCreator::AllVertically => "All Vertically".into(),
+            PathCreator::HorizontalLines => if self.reverse {"Left"} else {"Right"}.into(),
+            PathCreator::VerticalLines => if self.reverse {"Up"} else {"Down"}.into(),
+            PathCreator::Circles => "Circles".into(),
+            PathCreator::Spiral => "Spiral".into(),
+            PathCreator::SquareSpiral => "Square Spiral".into(),
+            PathCreator::RectSpiral => "Rect Spiral".into(),
+            PathCreator::Diagonally(a) => format!("Diagonally ({}°)", a),
+            PathCreator::Hilbert => "Hilbert Curve".into(),
+        }
+        .as_str();
+        s += "-";
+        if self.reverse {
+            s += "R-"
+        };
+        s += match self.selector {
+            PixelSelector::Full => "Full".into(),
+            PixelSelector::Fixed { len } => format!("Fixed length ({})", len),
+            PixelSelector::Random { max } => format!("Random length ({})", max),
+            PixelSelector::Threshold { min, max, criteria } => format!(
+                "{}{}-{}",
+                match criteria {
+                    pixel_selector::PixelSelectCriteria::Hue => "Hue",
+                    pixel_selector::PixelSelectCriteria::Brightness => "Brightness",
+                    pixel_selector::PixelSelectCriteria::Saturation => "Saturation",
+                },
+                min,
+                max
+            ),
+        }
+        .as_str();
+        s += "-";
+        s += match self.sorter.algorithm {
+            span_sorter::SortingAlgorithm::Mapsort => "Mapsort",
+            span_sorter::SortingAlgorithm::Shellsort => "Shellsort",
+            span_sorter::SortingAlgorithm::Glitchsort => "Glitchsort",
+            span_sorter::SortingAlgorithm::DebugColor => "Debug-colors",
+        };
+        s += "-";
+        s += match self.sorter.criteria {
+            SortingCriteria::Hue => "Hue",
+            SortingCriteria::Brightness => "Brightness",
+            SortingCriteria::Saturation => "Saturation",
+        };
+
+        s
+    }
+
+    pub fn to_pretty_short_string(&self) -> String {
+        let mut s = String::new();
+        s += match self.path_creator {
+            PathCreator::AllHorizontally => "Horizontal".into(),
+            PathCreator::AllVertically => "Vertical".into(),
+            PathCreator::HorizontalLines => if self.reverse {"Left"} else {"Right"}.into(),
+            PathCreator::VerticalLines => if self.reverse {"Up"} else {"Down"}.into(),
+            PathCreator::Circles => "Circles".into(),
+            PathCreator::Spiral => "Spiral".into(),
+            PathCreator::SquareSpiral => "Square".into(),
+            PathCreator::RectSpiral => "Rect".into(),
+            PathCreator::Diagonally(a) => format!("Diag ({}°)", a),
+            PathCreator::Hilbert => "Hilbert".into(),
+        }
+        .as_str();
+        if self.reverse {
+            s += " (R)"
+        };
+        s += " | ";
+
+        s += match self.selector {
+            PixelSelector::Full => "Full".into(),
+            PixelSelector::Fixed { len } => format!("Fixed ({})", len),
+            PixelSelector::Random { max } => format!("Random ({})", max),
+            PixelSelector::Threshold { min, max, criteria } => format!(
+                "{} ({}-{})",
+                match criteria {
+                    pixel_selector::PixelSelectCriteria::Hue => "Hue",
+                    pixel_selector::PixelSelectCriteria::Brightness => "Bright",
+                    pixel_selector::PixelSelectCriteria::Saturation => "Sat",
+                },
+                min,
+                max
+            ),
+        }
+        .as_str();
+        s += " | ";
+        s += match self.sorter.algorithm {
+            span_sorter::SortingAlgorithm::Mapsort => "Mapsort",
+            span_sorter::SortingAlgorithm::Shellsort => "Shellsort",
+            span_sorter::SortingAlgorithm::Glitchsort => "Glitch",
+            span_sorter::SortingAlgorithm::DebugColor => "Debug",
+        };
+        s += " (";
+        s += match self.sorter.criteria {
+            SortingCriteria::Hue => "Hue",
+            SortingCriteria::Brightness => "Bright",
+            SortingCriteria::Saturation => "Sat",
+        };
+        s += ")";
+
+        s
+    }
 
     pub fn to_compact_string(&self) -> String {
         let mut s = String::new();
