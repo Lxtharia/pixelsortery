@@ -383,11 +383,13 @@ impl PixelsorterGui {
                 self.change_layer = SwitchLayerMessage::BaseImage;
             }
 
+            // The loop told us something has to be selected/deleted
+            // We set a flag so that is done at the end of the gui update function
             if let Some(i) = layer_to_select {
                 self.change_layer = SwitchLayerMessage::Layer(i);
             }
             if let Some(i) = layer_to_delete {
-                ls.remove_layer(i);
+                self.change_layer = SwitchLayerMessage::DeleteLayer(i);
             }
         }
     }

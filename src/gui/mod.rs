@@ -112,6 +112,7 @@ enum SwitchLayerMessage {
     None,
     BaseImage,
     Layer(usize),
+    DeleteLayer(usize),
 }
 
 impl PixelsorterValues {
@@ -538,16 +539,28 @@ impl eframe::App for PixelsorterGui {
             // We are switching layers!!
             // Sort after switching
             if let SwitchLayerMessage::Layer(i) = self.change_layer {
-                self.show_base_image = false;
-                ls.select_layer(i);
                 self.change_layer = SwitchLayerMessage::None;
+                ls.select_layer(i);
+                self.show_base_image = false;
                 self.sort_img(ctx, false);
                 ctx.request_repaint();
             } else if SwitchLayerMessage::BaseImage == self.change_layer {
-                self.show_base_image = true;
                 self.change_layer = SwitchLayerMessage::None;
+                self.show_base_image = true;
                 self.img = Some(ls.get_base_img().clone());
                 self.update_texture(ctx);
+            } else if let SwitchLayerMessage::DeleteLayer(i) = self.change_layer {
+                self.change_layer = SwitchLayerMessage::None;
+                // We are deleting the current selected layer
+                if i == ls.get_current_index() && ! self.show_base_image {
+                    ls.remove_layer(i);
+                    // Trigger a select on the (now) current layer (remove_layer may have reselected one)
+                    self.change_layer = SwitchLayerMessage::Layer(ls.get_current_index());
+                } else {
+                    // We are deleting another layer than the current one
+                    // Or we are looking at the base image
+                    ls.remove_layer(i);
+                }
             }
         }
     }
