@@ -207,9 +207,7 @@ impl PixelsorterGui {
     fn sort_img(&mut self, ctx: &egui::Context, force: bool) {
         if let Some(ls) = &mut self.layered_sorter {
             if selector_is_threshold(self.values.selector) && self.show_mask {
-                // We should be able to just unwrap here :)
-                // Help
-                info!("Creating mask of current layer");
+                // We can unwrap here, because the mask() function only fails if we don't have a threshold selector
                 self.img = Some(ls.get_mask_for_current_layer().unwrap().clone());
             } else {
                 let timestart = Instant::now();
@@ -268,12 +266,11 @@ impl PixelsorterGui {
                     Ok(i) => {
                         let img = i.into_rgb8();
                         if let Some(ls) = &mut self.layered_sorter {
-                            ls.set_base_img(img);
-                        } else {
-                            // I want to make layered_sorter mandatory and remove the possibility of it being None
-                            self.img = Some(img);
-                            self.update_texture(ctx);
+                            ls.set_base_img(img.clone());
                         }
+                        // I want to make layered_sorter mandatory and remove the possibility of it being None
+                        self.img = Some(img);
+                        self.update_texture(ctx);
                         self.path = Some(f);
                         break;
                     }

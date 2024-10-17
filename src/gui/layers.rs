@@ -43,12 +43,12 @@ impl LayeredSorter {
     }
     pub(crate) fn set_base_img(&mut self, img: RgbImage) {
         self.base_img = img;
-        self.invalidate_layers_above(0usize);
+        self.invalidate_layers_above(0usize, true);
     }
 
     pub(crate) fn print_state(&self) {
         println!("Printing Layers");
-        for (i, l) in self.layers.iter().enumerate() {
+        for (i, l) in self.layers.iter().enumerate().rev() {
             println!(
                 "[{}] {} {} {}",
                 i,
@@ -93,7 +93,7 @@ impl LayeredSorter {
             self.current_layer -= 1;
         }
 
-        self.invalidate_layers_above(ind);
+        self.invalidate_layers_above(ind, false);
         self.layers.remove(ind);
         true
     }
@@ -108,10 +108,11 @@ impl LayeredSorter {
         }
     }
 
-    /// Marks all layers above index (exclusive) that they need sorting
-    pub(crate) fn invalidate_layers_above<T: Into<usize>>(&mut self, ind: T) {
-        let ind = ind.into();
-        for layer in self.layers.iter_mut().skip(ind + 1).rev() {
+    /// Marks all layers above index that they need sorting
+    pub(crate) fn invalidate_layers_above<T: Into<usize>>(&mut self, ind: T, inclusive: bool) {
+        // If not inclusive, start at the layer above
+        let ind = ind.into() + if inclusive { 0 } else { 1 };
+        for layer in self.layers.iter_mut().skip(ind).rev() {
             layer.needs_sorting = true;
         }
     }
@@ -135,7 +136,7 @@ impl LayeredSorter {
             }
             prev_img = &layer.sorted_img;
         }
-        self.invalidate_layers_above(ind);
+        self.invalidate_layers_above(ind, false);
         true
     }
 
