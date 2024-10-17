@@ -16,6 +16,12 @@ use pixelsortery::{
 
 use super::*;
 
+// A style i want to apply to multiple labels
+fn important_text(s: &str) -> RichText {
+    //RichText::new(s).underline()
+    RichText::new(s).size(14.0)
+}
+
 impl PixelsorterGui {
     pub(super) fn path_combo_box(&mut self, ui: &mut Ui, id: u64) {
         let available_paths = vec![
@@ -58,7 +64,7 @@ impl PixelsorterGui {
                     .num_columns(2)
                     .min_row_height(25.0)
                     .show(ui, |ui| {
-                        ui.label("Angle");
+                        ui.label(important_text("Angle"));
                         let slider = egui::Slider::new(angle, 0.0..=360.0)
                             .suffix("°")
                             .clamping(SliderClamping::Edits)
@@ -97,7 +103,7 @@ impl PixelsorterGui {
             .show(ui, |ui| {
                 match &mut self.values.selector {
                     PixelSelector::Fixed { len } => {
-                        ui.label("Length");
+                        ui.label(important_text("Length"));
                         let slider = egui::Slider::new(len, 0..=2000)
                             .logarithmic(true)
                             .clamping(SliderClamping::Never)
@@ -109,7 +115,7 @@ impl PixelsorterGui {
                         self.values.selector_fixed = self.values.selector;
                     }
                     PixelSelector::Random { max } => {
-                        ui.label("Max");
+                        ui.label(important_text("Max"));
                         let slider = egui::Slider::new(max, 0..=2000)
                             .logarithmic(true)
                             .clamping(SliderClamping::Never)
@@ -122,7 +128,7 @@ impl PixelsorterGui {
                         self.values.selector_random = self.values.selector;
                     }
                     PixelSelector::Threshold { min, max, criteria } => {
-                        ui.label("Criteria");
+                        ui.label(important_text("Criteria"));
                         ui.horizontal(|ui| {
                             vec![
                                 PixelSelectCriteria::Hue,
@@ -162,7 +168,7 @@ impl PixelsorterGui {
                             ),
                         };
 
-                        ui.label("Min");
+                        ui.label(important_text("Min"));
                         ui.scope(|ui| {
                             ui.style_mut().visuals.selection.bg_fill = mincol;
                             let min_slider = egui::Slider::new(min, 0..=cap)
@@ -185,7 +191,7 @@ impl PixelsorterGui {
                         );
                         ui.end_row();
 
-                        ui.label("Max");
+                        ui.label(important_text("Max"));
                         ui.scope(|ui| {
                             ui.style_mut().visuals.selection.bg_fill = maxcol;
                             let max_slider = egui::Slider::new(max, 0..=cap)
@@ -262,26 +268,23 @@ impl PixelsorterGui {
                 ui.end_row();
 
                 // PATH
-                ui.label("Path");
+                ui.label(important_text("Path"));
                 self.path_combo_box(ui, id);
 
                 // SELECTOR
-                ui.label("Selector");
+                ui.label(important_text("Selector"));
                 self.selector_combo_box(ui, id);
 
                 // SORTER
-                // SORTING CRITERIA
-                ui.label("Criteria");
-                self.criteria_combo_box(ui, id);
-                ui.end_row();
                 // SORTING ALGORITHM
-                ui.label("Algorithm");
+                ui.label(important_text("Algorithm"));
                 self.algorithmn_combo_box(ui, id);
                 ui.end_row();
-
-                ui.label("");
-                ui.add_enabled_ui(super::selector_is_threshold(self.values.selector), |ui| {
-                    ui.checkbox(&mut self.show_mask, "Show mask");
+                // SORTING CRITERIA
+                ui.label(important_text("Criteria"));
+                ui.horizontal(|ui|{
+                    ui.label("by");
+                    self.criteria_combo_box(ui, id);
                 });
                 ui.end_row();
             });

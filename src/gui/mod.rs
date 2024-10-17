@@ -472,6 +472,10 @@ impl eframe::App for PixelsorterGui {
                         ui.add_enabled_ui(self.img.is_some(), |ui| {
                             // SORT IMAGE button
                             ui.columns(3, |columns| {
+                                let ui = &mut columns[0];
+                                ui.with_layout(Layout::right_to_left(Align::TOP), |ui|{
+                                    ui.checkbox(&mut self.auto_sort, "Auto-sort");
+                                });
                                 let ui = &mut columns[1];
                                 ui.with_layout(Layout::top_down(Align::Center), |ui| {
                                     if ui.button(RichText::new("SORT IMAGE").heading()).clicked() {
@@ -479,7 +483,12 @@ impl eframe::App for PixelsorterGui {
                                     }
                                 });
                                 let ui = &mut columns[2];
-                                ui.checkbox(&mut self.auto_sort, "Auto-sort");
+                                ui.add_enabled_ui(
+                                    selector_is_threshold(self.values.selector),
+                                    |ui| {
+                                        ui.checkbox(&mut self.show_mask, "Show mask");
+                                    },
+                                );
                             });
 
                             ui.add_space(5.0);
@@ -549,7 +558,7 @@ impl eframe::App for PixelsorterGui {
             } else if let SwitchLayerMessage::DeleteLayer(i) = self.change_layer {
                 self.change_layer = SwitchLayerMessage::None;
                 // We are deleting the current selected layer
-                if i == ls.get_current_index() && ! self.show_base_image {
+                if i == ls.get_current_index() && !self.show_base_image {
                     ls.remove_layer(i);
                     // Trigger a select on the (now) current layer (remove_layer may have reselected one)
                     self.change_layer = SwitchLayerMessage::Layer(ls.get_current_index());
