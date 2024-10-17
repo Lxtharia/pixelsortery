@@ -157,7 +157,12 @@ impl LayeredSorter {
     /// Sorts all layers below if needed but will not sort the current one, but instead only show the mask
     pub(crate) fn get_mask_for_current_layer(&mut self) -> Option<RgbImage> {
         let prev_index = self.current_layer - 1;
-        self.sort_layer(prev_index);
+        // Bring the previous layer up to date (if nessesary)
+        if let Some(layer) = self.get_layer(prev_index) {
+            if layer.needs_sorting {
+                self.sort_layer(prev_index);
+            }
+        }
         let prev_img = if let Some(layer) = self.get_layer(prev_index) {
             layer.get_img()
         } else {
