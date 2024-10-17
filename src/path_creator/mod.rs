@@ -35,7 +35,7 @@ impl std::fmt::Display for PathCreator {
                 PathCreator::SquareSpiral => "Square Spiral".into(),
                 PathCreator::RectSpiral => "Rectangular Spiral".into(),
                 PathCreator::Diagonally(a) => format!("Diagonally ({}°)", a),
-                PathCreator::Hilbert => "Hilber Curve".into(),
+                PathCreator::Hilbert => "Hilbert Curve".into(),
             }
         )
     }
@@ -59,8 +59,8 @@ impl PathCreator {
 
         // Actual path algorithms
         // Ideas/missing:
-        // Hilbert Curve
         // In waves
+        // In star shape
         let mut all_paths_indices = match self {
             PathCreator::AllHorizontally => path_all_horizontally(w, h),
             PathCreator::AllVertically => path_all_vertically(w, h),
