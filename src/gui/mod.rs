@@ -206,7 +206,8 @@ impl PixelsorterGui {
     /// Calls sort_current_layer, sets the image and texture
     fn sort_img(&mut self, ctx: &egui::Context, force: bool) {
         if let Some(ls) = &mut self.layered_sorter {
-            if selector_is_threshold(self.values.selector) && self.show_mask {
+            // values.selector is not up-to-date with the current layer as it seems
+            if selector_is_threshold(ls.get_current_layer().get_sorting_values().selector) && self.show_mask {
                 // We can unwrap here, because the mask() function only fails if we don't have a threshold selector
                 self.img = Some(ls.get_mask_for_current_layer().unwrap().clone());
             } else {
@@ -379,6 +380,10 @@ impl eframe::App for PixelsorterGui {
             }
             if i.consume_key(Modifiers::CTRL, Key::O) {
                 do_open_file = true;
+            }
+            if i.consume_key(Modifiers::NONE, Key::M) {
+                self.show_mask = ! self.show_mask;
+                self.do_sort = true;
             }
             if i.consume_key(Modifiers::NONE, Key::Questionmark) {
                 self.layered_sorter.as_ref().unwrap().print_state();

@@ -5,7 +5,7 @@ use eframe::{
     },
     epaint::Hsva,
 };
-use egui::SliderClamping;
+use egui::{Align2, Frame, SliderClamping, Stroke};
 use egui_flex::FlexInstance;
 use log::info;
 use pixelsortery::{
@@ -282,7 +282,7 @@ impl PixelsorterGui {
                 ui.end_row();
                 // SORTING CRITERIA
                 ui.label(important_text("Criteria"));
-                ui.horizontal(|ui|{
+                ui.horizontal(|ui| {
                     ui.label("by");
                     self.criteria_combo_box(ui, id);
                 });
@@ -341,7 +341,7 @@ impl PixelsorterGui {
             let mut layer_to_select = None;
             let mut layer_to_delete = None;
 
-            // ADD LAYER button
+            // ADD LAYER (+)
             let button = Button::new(RichText::new("+").heading());
             if flex.add(item().basis(30.0), button).inner.clicked() {
                 ls.add_layer(ls.get_current_layer().get_sorting_values().clone());
@@ -349,31 +349,54 @@ impl PixelsorterGui {
                 layer_to_select = Some(ls.get_layers().len() - 1);
             }
 
+            let widget_rect = egui::Rect::from_min_size(
+                flex.ui().min_rect().min + vec2(0.0, 0.0),
+                vec2(13.0, 30.0),
+            );
+
             for (i, layer) in ls.get_layers().iter().enumerate().rev() {
                 let values = layer.get_sorting_values();
+
+                let layer_name = RichText::new(format!(
+                    "[{}] {}",
+                    i,
+                    layer
+                        .get_sorting_values()
+                        .to_pixelsorter()
+                        .to_pretty_short_string()
+                ));
+
                 let button = SelectableLabel::new(
                     ls.get_current_index() == i && !self.show_base_image,
-                    RichText::new(format!(
-                        "[{}] {}",
-                        i,
-                        layer
-                            .get_sorting_values()
-                            .to_pixelsorter()
-                            .to_pretty_short_string()
-                    ))
-                    .monospace()
-                    .size(10.5),
+                    layer_name.monospace().size(10.5),
                 );
 
-                // Adding and removing on clicks
-                //let res = ui.add_sized(vec2(ui.available_width(), 30.0), button);
-                let res = flex.add(item().basis(30.0), button).inner;
-                if res.clicked() {
-                    layer_to_select = Some(i);
-                }
-                if res.middle_clicked() {
-                    layer_to_delete = Some(i);
-                }
+                let delete_button = Button::new("X").rounding(0.0);
+
+                flex.add_flex_frame(
+                    item().basis(30.0),
+                    Flex::horizontal()
+                        .wrap(false)
+                        .gap(vec2(0.0, 0.0))
+                        // .align_items_content(Align2::LEFT_CENTER) // Doesn't work. I want the label text to be left-aligned
+                        .align_content(FlexAlignContent::Stretch),
+                    Frame::default()
+                        .inner_margin(0.0)
+                        .stroke(Stroke::new(1.0, Color32::DARK_GRAY)),
+                    |flex2| {
+                        let res_del = flex2.add(item().basis(20.0), delete_button).inner;
+                        let res = flex2.add(item().grow(1.0), button).inner;
+                        //let res = ui.add_sized(vec2(ui.available_width(), 30.0), button);
+
+                        // Adding and removing on clicks
+                        if res.clicked() {
+                            layer_to_select = Some(i);
+                        }
+                        if res.middle_clicked() || res_del.clicked() {
+                            layer_to_delete = Some(i);
+                        }
+                    },
+                );
             }
 
             // Show-base-image button

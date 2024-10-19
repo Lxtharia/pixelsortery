@@ -73,11 +73,15 @@ impl LayeredSorter {
 
     /// Set values. Will determien if sort is needed
     pub(crate) fn update_current(&mut self, values: PixelsorterValues) {
-        &mut self
+        if self
             .layers
             .get_mut(self.current_layer)
             .unwrap()
-            .set_sorting_values(values);
+            .set_sorting_values(values)
+        {
+            // Invalidate all layers above if the current one needs sorting.
+            self.invalidate_layers_above(self.current_layer, false);
+        }
     }
 
     /// Removes the layer and selects the one below, or the one above if unavailable
@@ -186,12 +190,16 @@ impl SortingLayer {
     pub(crate) fn get_sorting_values(&self) -> &PixelsorterValues {
         &self.sorting_values
     }
-    pub(crate) fn set_sorting_values(&mut self, ps: PixelsorterValues) {
+    /// Sets new values and if they differ from the current values, marks this layer as needs_sorting and returns true
+    pub(crate) fn set_sorting_values(&mut self, ps: PixelsorterValues) -> bool {
+        let mut changed = false;
         // Only set as needs_sorting when the new values are actually different?
         if self.sorting_values != ps {
             self.needs_sorting = true;
+            changed = true;
         }
         self.sorting_values = ps;
+        changed
     }
 
     pub(crate) fn get_img(&self) -> &RgbImage {
