@@ -463,6 +463,13 @@ impl eframe::App for PixelsorterGui {
 
                         ui.add_space(5.0);
 
+                        // SLIDERS AND BUTTONS AND STUFF
+                        ui.group(|ui| {
+                            self.sorting_options_panel(ui, 1);
+                        });
+
+                        ui.add_space(5.0);
+
                         ui.add_enabled_ui(self.img.is_some(), |ui| {
                             // SORT IMAGE button
                             ui.columns(3, |columns| {
@@ -488,40 +495,34 @@ impl eframe::App for PixelsorterGui {
 
                         ui.add_space(5.0);
 
-                        // SLIDERS AND BUTTONS AND STUFF
-                        ui.group(|ui| {
-                            self.sorting_options_panel(ui, 1);
-                        });
-
-                        ui.add_space(5.0);
-
-                        // LAYERING
-                        ui.add_space(5.0);
                         ui.with_layout(Layout::bottom_up(Align::Center), |ui| {
                             ui.add_space(5.0);
-                            ui.style_mut().spacing.scroll.floating = false;
-                            ScrollArea::vertical()
-                                .id_salt("LayerScrollArea")
-                                .show(ui, |ui| {
-                                    Flex::vertical()
-                                        .align_content(FlexAlignContent::Stretch)
-                                        .wrap(false)
-                                        .justify(FlexJustify::End)
-                                        .show(ui, |flex| {
-                                            flex.grow();
-                                            //for i in 0..8 {
-                                            //    let b = Button::new(format!("LMAO: {}", i));
-                                            //    flex.add(item().basis(30.0), b);
-                                            //}
-                                            self.layering_panel(flex);
-                                        });
+                            // SAVING OPTIONS
+                            ui.add_enabled_ui(self.img.is_some(), |ui| {
+                                ui.group(|ui| {
+                                    self.save_options_panel(ui);
                                 });
-                        });
-
-                        // SAVING OPTIONS
-                        ui.add_enabled_ui(self.img.is_some(), |ui| {
+                            });
+                            ui.add_space(5.0);
                             ui.group(|ui| {
-                                self.save_options_panel(ui);
+                                // LAYERING
+                                ui.style_mut().spacing.scroll.floating = false;
+                                ScrollArea::vertical()
+                                    .id_salt("LayerScrollArea")
+                                    .show(ui, |ui| {
+                                        Flex::vertical()
+                                            .align_content(FlexAlignContent::Stretch)
+                                            .wrap(false)
+                                            .justify(FlexJustify::End)
+                                            .show(ui, |flex| {
+                                                flex.grow();
+                                                //for i in 0..8 {
+                                                //    let b = Button::new(format!("LMAO: {}", i));
+                                                //    flex.add(item().basis(30.0), b);
+                                                //}
+                                                self.layering_panel(flex);
+                                            });
+                                    });
                             });
                         });
                     });
