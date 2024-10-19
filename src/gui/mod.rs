@@ -381,6 +381,10 @@ impl eframe::App for PixelsorterGui {
             if i.consume_key(Modifiers::CTRL, Key::O) {
                 do_open_file = true;
             }
+            if i.consume_key(Modifiers::NONE, Key::M) {
+                self.show_mask = ! self.show_mask;
+                self.do_sort = true;
+            }
             if i.consume_key(Modifiers::NONE, Key::Questionmark) {
                 self.layered_sorter.as_ref().unwrap().print_state();
             }
