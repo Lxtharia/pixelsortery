@@ -1,5 +1,5 @@
 use image::RgbImage;
-use log::{error, info};
+use log::{error, info, warn};
 use pixelsortery::{
     path_creator::PathCreator,
     pixel_selector::{
@@ -61,7 +61,10 @@ fn parse_thres_selector_parameters(arg: Option<String>) -> PixelSelector {
 
 const HELP_STRING: &str = "
 =================== Pixelsorter ===================
-   Usage: pixelsortery <infile> --output|-o <outfile> [<options>]
+   USAGE: pixelsortery <input> <output> [<options>]
+
+   -i | --input  <FILE> : Set input file explicitly
+   -o | --output <FILE> : Set output file explicitly
    If <infile>  is '-' , read from stdin
    If <outfile> is '-' , write to stdout
 
@@ -70,7 +73,10 @@ const HELP_STRING: &str = "
    -h | --help    : Show this and exit
    -v | --version : Show version and exit
    --quiet        : Make the program shut up
-   --show-mask    : Outputs a mask showing what areas would be sorted (needs --thres)
+
+   --show-mask    : Outputs a mask showing what areas would be sorted (requires --thres)
+   --gui          : Starts the gui;
+                    | When using the gui, setting <output> is optional
 
 ================ Direction Options ==============
 
@@ -84,6 +90,7 @@ const HELP_STRING: &str = "
    --spiral-square    : Sort in a squared spiral
    --spiral-rect      : Sort in a rectangular spiral
    --diagonal <angle> : Sort lines tilted by an angle
+   --hilbert          : Sort along the hilbert curve pattern
    --reverse          : Sort in the opposite direction
 
 ============= Span-Selection  Options ===========
@@ -93,24 +100,24 @@ const HELP_STRING: &str = "
    --fixed  <max>                        : Sort spans of a fixed length <max>
    --thres <hue|bright|sat>:<min>:<max>  : Mark pixels as valid if [hue|bright|sat] is between <min> and <max>
 
-================= Sorting Options ===============
-
-   --hue        : Sort Pixels by Hue
-   --saturation : Sort Pixels by Saturation
-   --brightness : Sort Pixels by Brightness
-
-================ Algorithm Options ==============
+============ Sorting Algorithm Options ==========
 
    --mapsort    : Default. O(n)
    --shellsort  : Also cool.
    --glitchsort : Used to create a glitch-like effect
+
+================ Sorting Options ================
+
+   --hue        : Sort Pixels by Hue
+   --saturation : Sort Pixels by Saturation
+   --brightness : Sort Pixels by Brightness
 ";
 
 
 fn main() {
 
     let mut args: VecDeque<String> = env::args().collect();
-    // shift
+    // shift $0
     args.pop_front();
 
     // ENABLE LOGGING WITH A LOGGING LEVEL
@@ -123,38 +130,25 @@ fn main() {
     }
     log_builder.init();
 
-    // Try to match first argument as path
-    let path;
-    if let Some(s) = args.pop_front() {
-        match s.as_str() {
-            "--help" | "-h" | "" => { println!("{}", HELP_STRING); exit(0); }
-            "--version" | "-V" => { println!("{} {}", PACKAGE_NAME, VERSION); exit(0); }
-            _ => path = s,
-        };
-    } else {
+
+    if args.is_empty() {
         eprintln!("No arguments passed. Starting gui...");
         gui::start_gui().unwrap();
         exit(0);
     }
 
-    // OPEN IMAGE OR READ FROM STDIN
-    let mut img: RgbImage = match path.as_str(){
-        "-" => {
-            let mut buf = Vec::new();
-            std::io::stdin().read_to_end(&mut buf).unwrap();
-            image::load_from_memory(&buf).unwrap().into_rgb8()
-        },
-        _ => image::open(&path).unwrap().into_rgb8(),
-    };
-
+    // Find the non-option arguments
+    let mut input_path = String::new();
+    let mut output_path = String::new();
+    for arg in args.clone().into_iter(){
+        if ! arg.starts_with("-") {
+        }
+    }
 
     // CREATE DEFAULT PIXELSORTER
     let mut ps = pixelsortery::Pixelsorter::new();
     let mut do_reverse = false;
-
-    let mut output_path = String::new();
     let mut show_mask = false;
-
     let mut start_gui = false;
 
     // I should just use some argument library tbh
@@ -162,7 +156,17 @@ fn main() {
         match arg.as_str() {
             "-h" | "--help"    => { println!("{}", HELP_STRING); exit(0); }
             "-V" | "--version" => { println!("{} {}", PACKAGE_NAME, VERSION); exit(0); }
-            "-o" | "--output"  => { output_path = parse_parameter::<String>(args.pop_front(), "--output") }
+            "-i" | "--input"  => {
+                    if ! input_path.is_empty() {warn!("--input flag taking precedence over positional argument")}
+                    input_path = parse_parameter::<String>(args.pop_front(), "--input <FILE>")
+                }
+            "-o" | "--output"  => {
+                    if ! output_path.is_empty() {warn!("--output flag taking precedence over positional argument")}
+                    output_path = parse_parameter::<String>(args.pop_front(), "--output <FILE>")
+                }
+
+            "--gui" => start_gui = true,
+            "--show-mask" => show_mask = true,
 
             "--random" => ps.selector = PixelSelector::Random { max: parse_parameter(args.pop_front(), "--random <max>")},
             "--fixed"  => ps.selector = PixelSelector::Fixed  { len: parse_parameter(args.pop_front(), "--fixed <len>")},
@@ -191,13 +195,20 @@ fn main() {
             "--shellsort"   => ps.sorter.algorithm = SortingAlgorithm::Shellsort,
             "--mapsort"     => ps.sorter.algorithm = SortingAlgorithm::Mapsort,
 
-            "--show-mask" => show_mask = true,
-
-            "--gui" => start_gui = true,
-
             _ => {
-                eprintln!("Unrecognized argument: {}", arg);
-                exit(-1)
+                if arg.starts_with("-"){
+                    eprintln!("Unrecognized argument: {}", arg);
+                    exit(-1)
+                } else {
+                    if input_path.is_empty() {
+                        input_path = arg;
+                    } else if output_path.is_empty() {
+                        output_path = arg;
+                    } else {
+                        eprintln!("Too many argument: '{}'", arg);
+                        exit(-1);
+                    }
+                }
             }
         }
     }
@@ -205,19 +216,36 @@ fn main() {
         ps.reverse = ! ps.reverse;
     }
 
+    if input_path.is_empty() {
+        eprintln!("You need to specify an input file!");
+        exit(-1)
+    }
+
+    // Open image or read from stdin
+    let mut img: RgbImage = match input_path.as_str() {
+        "-" => {
+            let mut buf = Vec::new();
+            std::io::stdin().read_to_end(&mut buf).unwrap();
+            image::load_from_memory(&buf).unwrap().into_rgb8()
+        },
+        _ => image::open(&input_path).unwrap().into_rgb8(),
+    };
+
     // Start gui with set options
     if start_gui {
-        gui::start_gui_with_sorter(&ps, img, PathBuf::from(&path)).unwrap();
+        // TODO: give optional output path
+        gui::start_gui_with_sorter(&ps, img, PathBuf::from(&input_path)).unwrap();
         exit(0);
     }
 
     // If no gui is opened, we need an output path
     if output_path.is_empty() {
-        eprintln!("You need to specify the output! Usage: --output <FILE> | -o <FILE>");
+        eprintln!("You need to specify an output file!");
         exit(-1)
     }
 
-    // LET'S GO SORT
+    // SORTING WITHOUT A GUI! //
+
     let start = Instant::now();
 
     if show_mask {
