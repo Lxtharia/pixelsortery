@@ -9,6 +9,11 @@ My second implementation was in C. It may or may not have been faster but it's u
 But now I have _engineered THIS pixelsorter_ with _far greater goals_, created as a rust practice project, striving to be THE BEST and FASTEST FOSS-Pixelsorter of them all!!!
 
 ## Installation
+
+Either download the provided binaries or build it from source
+
+### Building from source
+
 ```
 git clone https://github.com/Lxtharia/pixelsortery-rs
 cd pixelsortery-rs
@@ -16,12 +21,14 @@ cargo install
 ```
 
 ## Usage (CLI)
-```
-pixelsorter <input> <output> [options]
-
+```bash
+# More up-to-date than this README and nicely formatted
 pixelsorter --help
 ```
-Just experiment with it and read the explanation below, you'll get it! :)
+
+1. Read the explanation below
+2. Read the `--help`
+3. Experiment with it!
 
 ## Explanation (How it works)
 
@@ -65,27 +72,25 @@ it will get better hopefully, maybe, eventually
 
 - [x] Choose to sort lines in all 4 directions
 - [x] Sort pixels _diagonally_, in rectangular shape, in circles, 
-- [x] Sort pixels in the shape of the space filling hilbert curve
+- [x] Sort pixels in the shape of the space filling hilbert curve (very sweet)
 - [x] Choose to select spans of random or fixed length
 - [x] Choose to select spans based on their hue/brightness/saturation
 - [x] Sorts pixel with MAPSORT (HELL YEAH!!)
-- [x] Also allows to sort pixels COMPLETELY BROKEN creating a super rad glitch effect (try out)
-- [x] A super cool CLI interface! (it's ok)
+- [x] Also allows to use a COMPLETELY BROKEN sorting algorithm, creating a super rad glitch effect (try out)
+- [x] A super cool CLI interface!
 - [x] Read input from stdin and write to stdout, allowing easy chaining
 - [x] a GUI (holy damn)
+- [x] a really good GUI (damn holy)
+- [x] Sort _multiple_ times with layers
 
 ## Planned Features
 
-- [ ] a really good GUI (damn holy)
-- [ ] a godlike GUI where you can draw in real time (god damn holy jesus)
+- [ ] a godlike GUI where you can edit masks in real time (god damn holy jesus)
 - [ ] Sort by more more patterns (sin waves, star shape, ...)
-- [ ] Allow to read iteration data from file
-- [ ] Allow to use MASKS instead of the path creator
-- [ ] Allow to use MASKS instead of the selector
-- [ ] Allow to combine selectors (sort pixels that are bright _and_ red)
-- [ ] Sort _multiple_ times (With same selectors)
-- [ ] Internal chain sorting (low prio)
-- [ ] Internal sorting animation (low prio)
+- [ ] Allow to read iteration/pathing data from file
+- [ ] Allow to use MASKS to prevent certain areas from being sorted
+- [ ] Allow to logically combine selectors (sort pixels that are bright _and_ red)
+- [ ] Built-in animation (low prio)
 
 ## Yeah
 yeah
