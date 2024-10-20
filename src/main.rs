@@ -133,7 +133,7 @@ fn main() {
 
     if args.is_empty() {
         eprintln!("No arguments passed. Starting gui...");
-        gui::start_gui().unwrap();
+        gui::init(None, None).unwrap();
         exit(0);
     }
 
@@ -234,7 +234,7 @@ fn main() {
     // Start gui with set options
     if start_gui {
         // TODO: give optional output path
-        gui::start_gui_with_sorter(&ps, img, PathBuf::from(&input_path)).unwrap();
+        gui::init(Some(&ps), Some((img, PathBuf::from(&input_path)))).unwrap();
         exit(0);
     }
 

@@ -33,29 +33,20 @@ const INITIAL_WINDOW_SIZE: Vec2 = egui::vec2(1000.0, 700.0);
 
 mod components;
 
-pub fn start_gui() -> eframe::Result {
-    init(None)
-}
 
-pub fn start_gui_with_sorter(
-    ps: &Pixelsorter,
-    img: RgbImage,
-    image_path: PathBuf,
-) -> eframe::Result {
-    init(Some((ps, img, image_path)))
-}
-
-fn init(ps: Option<(&Pixelsorter, RgbImage, PathBuf)>) -> eframe::Result {
+pub fn init(ps: Option<&Pixelsorter>, img: Option<(RgbImage, PathBuf)>) -> eframe::Result {
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default().with_inner_size(INITIAL_WINDOW_SIZE),
         ..Default::default()
     };
 
-    let psgui = if let Some((ps, img, img_path)) = ps {
-        PixelsorterGui::from_pixelsorter(ps, img, img_path)
-    } else {
-        PixelsorterGui::default()
-    };
+    let mut psgui = PixelsorterGui::default();
+    if let Some(ps) = ps {
+        psgui = psgui.with_values(ps);
+    }
+    if let Some((img, img_path)) = img {
+        psgui = psgui.with_image(img, img_path);
+    }
 
     eframe::run_native(
         "Pixelsortery",
@@ -190,24 +181,27 @@ impl Default for PixelsorterGui {
 
 impl PixelsorterGui {
     // Given a pixelsorter, return a PixelsorterGui with the values set
-    fn from_pixelsorter(ps: &Pixelsorter, img: RgbImage, image_path: PathBuf) -> Self {
-        let mut psgui = PixelsorterGui::default();
-        psgui.path = Some(image_path);
-        psgui.img = Some(img);
-        let v = &mut psgui.values;
-        v.path = ps.path_creator;
-        v.criteria = ps.sorter.criteria;
-        v.algorithm = ps.sorter.algorithm;
-        v.reverse = ps.reverse;
-        v.selector = ps.selector;
-        psgui
+    fn with_values(mut self, ps: &Pixelsorter) -> Self {
+        self.values.path = ps.path_creator;
+        self.values.criteria = ps.sorter.criteria;
+        self.values.algorithm = ps.sorter.algorithm;
+        self.values.reverse = ps.reverse;
+        self.values.selector = ps.selector;
+        self
+    }
+    fn with_image(mut self, img: RgbImage, image_path: PathBuf) -> Self {
+        self.img = Some(img);
+        self.path = Some(image_path);
+        self
     }
 
     /// Calls sort_current_layer, sets the image and texture
     fn sort_img(&mut self, ctx: &egui::Context, force: bool) {
         if let Some(ls) = &mut self.layered_sorter {
             // values.selector is not up-to-date with the current layer as it seems
-            if selector_is_threshold(ls.get_current_layer().get_sorting_values().selector) && self.show_mask {
+            if selector_is_threshold(ls.get_current_layer().get_sorting_values().selector)
+                && self.show_mask
+            {
                 // We can unwrap here, because the mask() function only fails if we don't have a threshold selector
                 self.img = Some(ls.get_mask_for_current_layer().unwrap().clone());
             } else {
@@ -382,7 +376,7 @@ impl eframe::App for PixelsorterGui {
                 do_open_file = true;
             }
             if i.consume_key(Modifiers::NONE, Key::M) {
-                self.show_mask = ! self.show_mask;
+                self.show_mask = !self.show_mask;
                 self.do_sort = true;
             }
             if i.consume_key(Modifiers::NONE, Key::Questionmark) {
