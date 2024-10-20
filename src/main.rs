@@ -140,10 +140,6 @@ fn main() {
     // Find the non-option arguments
     let mut input_path = String::new();
     let mut output_path = String::new();
-    for arg in args.clone().into_iter(){
-        if ! arg.starts_with("-") {
-        }
-    }
 
     // CREATE DEFAULT PIXELSORTER
     let mut ps = pixelsortery::Pixelsorter::new();
@@ -216,27 +212,37 @@ fn main() {
         ps.reverse = ! ps.reverse;
     }
 
-    if input_path.is_empty() {
-        eprintln!("You need to specify an input file!");
-        exit(-1)
-    }
 
-    // Open image or read from stdin
-    let mut img: RgbImage = match input_path.as_str() {
-        "-" => {
-            let mut buf = Vec::new();
-            std::io::stdin().read_to_end(&mut buf).unwrap();
-            image::load_from_memory(&buf).unwrap().into_rgb8()
-        },
-        _ => image::open(&input_path).unwrap().into_rgb8(),
-    };
+    /// Open image or read from stdin
+    fn load_image(path: &str) -> RgbImage {
+        match path {
+            "-" => {
+                let mut buf = Vec::new();
+                std::io::stdin().read_to_end(&mut buf).unwrap();
+                image::load_from_memory(&buf).unwrap().into_rgb8()
+            },
+            _ => image::open(&path).unwrap().into_rgb8(),
+        }
+    }
 
     // Start gui with set options
     if start_gui {
         // TODO: give optional output path
-        gui::init(Some(&ps), Some((img, PathBuf::from(&input_path)))).unwrap();
+        if input_path.is_empty() {
+            gui::init(Some(&ps), None).unwrap();
+        } else {
+            let img = load_image(&input_path);
+            gui::init(Some(&ps), Some((img, PathBuf::from(&input_path)))).unwrap();
+        }
         exit(0);
     }
+
+    if input_path.is_empty() {
+        eprintln!("You need to specify an input file!");
+        exit(-1);
+    }
+
+    let mut img = load_image(&input_path);
 
     // If no gui is opened, we need an output path
     if output_path.is_empty() {
