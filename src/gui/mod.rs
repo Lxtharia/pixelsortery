@@ -33,7 +33,6 @@ const INITIAL_WINDOW_SIZE: Vec2 = egui::vec2(1000.0, 700.0);
 
 mod components;
 
-
 pub fn init(ps: Option<&Pixelsorter>, img: Option<(RgbImage, PathBuf)>) -> eframe::Result {
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default().with_inner_size(INITIAL_WINDOW_SIZE),
@@ -307,18 +306,16 @@ impl PixelsorterGui {
             };
 
             if let Some(mut outpath) = outpath {
-                outpath.set_file_name(filename);
+                if outpath.is_dir() {
+                    outpath.push(filename);
+                } else {
+                    outpath.set_file_name(filename);
+                }
                 if let Some(sorted) = &self.img {
-                    if let Err(err_msg) = sorted.save(&outpath) {
-                        warn!(
-                            "Saving image to {} failed: {}",
-                            outpath.to_string_lossy(),
-                            err_msg
-                        );
-                    } else {
-                        info!("Saved file to '{}' ...", outpath.to_string_lossy());
+                    if let Ok(p) = save_image(sorted, &outpath) {
+                        info!("Saved file to '{}' ...", p.to_string_lossy());
                         self.saving_success_timeout = Some(Instant::now());
-                    };
+                    }
                 }
             } else {
                 warn!("No output directory set");
@@ -595,4 +592,35 @@ fn selector_is_threshold(sel: PixelSelector) -> bool {
             criteria: _
         }
     )
+}
+
+/// Saves image to a path. If the file already exists, increment the name.
+/// Returns the path the image finally gets saved to
+/// Returns an Error if the path is a directory
+pub fn save_image(img: &RgbImage, path: &PathBuf) -> Result<PathBuf, String> {
+    if path.is_dir() {
+        return Err(String::from("Destination is a directory"));
+    }
+    let org_stem = path.file_stem().unwrap_or_default().to_os_string();
+    let org_ext = path.extension().unwrap_or_default().to_os_string();
+    let mut new_path = path.clone();
+
+    let mut counter = 1;
+    while let Ok(true) = new_path.try_exists() {
+        counter += 1;
+        let mut new_name = OsString::new();
+        new_name.push(&org_stem);
+        new_name.push(format!("-{}.", counter));
+        new_name.push(&org_ext);
+        new_path.set_file_name(new_name);
+    }
+    if let Err(e) = img.save(&new_path) {
+        warn!(
+            "Saving image to '{}' failed: {}",
+            new_path.to_string_lossy(),
+            e
+        );
+        return Err(e.to_string());
+    }
+    Ok(new_path)
 }
