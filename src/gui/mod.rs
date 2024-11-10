@@ -77,6 +77,7 @@ struct PixelsorterGui {
     auto_sort: bool,
     do_sort: bool,
     saving_success_timeout: Option<Instant>,
+    saving_success_filename: PathBuf,
     change_layer: SwitchLayerMessage,
     show_base_image: bool,
 }
@@ -171,6 +172,7 @@ impl Default for PixelsorterGui {
             output_directory: None,
             save_into_parent_dir: false,
             saving_success_timeout: None,
+            saving_success_filename: PathBuf::new(),
             change_layer: SwitchLayerMessage::None,
             do_sort: true,
             show_base_image: false,
@@ -315,6 +317,7 @@ impl PixelsorterGui {
                     if let Ok(p) = save_image(sorted, &outpath) {
                         info!("Saved file to '{}' ...", p.to_string_lossy());
                         self.saving_success_timeout = Some(Instant::now());
+                        self.saving_success_filename = p;
                     }
                 }
             } else {
@@ -351,6 +354,7 @@ impl PixelsorterGui {
                     } else {
                         info!("Saved file to '{}' ...", f.to_string_lossy());
                         self.saving_success_timeout = Some(Instant::now());
+                        self.saving_success_filename = f;
                     };
                 }
             }
@@ -412,7 +416,8 @@ impl eframe::App for PixelsorterGui {
                     if inst.elapsed() > Duration::from_secs_f32(SAVED_LABEL_VANISH_TIMEOUT) {
                         self.saving_success_timeout = None;
                     } else {
-                        ui.label(RichText::new("Saved!").color(Color32::DARK_GREEN));
+                        ui.label(RichText::new("Saved!").color(Color32::GREEN));
+                        ui.label(RichText::new(format!("to '{}'", self.saving_success_filename.to_string_lossy())).color(Color32::LIGHT_GREEN));
                         ui.separator();
                     }
                 }
