@@ -16,6 +16,7 @@ mod gui;
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 const AUTHORS: &str = env!("CARGO_PKG_AUTHORS");
 const PACKAGE_NAME: &str = env!("CARGO_PKG_NAME");
+const ISDEBUG: bool = cfg!(debug_assertions);
 
 
 fn parse_parameter<T: FromStr>(arg: Option<String>, usage: &str) -> T {

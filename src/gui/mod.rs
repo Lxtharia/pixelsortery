@@ -3,7 +3,7 @@ use eframe::egui::{
     self, Align, Button, Color32, Image, Key, Layout, Modifiers, RichText, ScrollArea,
     TextureFilter, TextureHandle, TextureOptions, Ui, Vec2,
 };
-use egui::{scroll_area::ScrollBarVisibility, style::ScrollStyle};
+use egui::{scroll_area::ScrollBarVisibility, style::ScrollStyle, warn_if_debug_build};
 use egui_flex::{item, Flex, FlexAlign, FlexAlignContent, FlexJustify};
 use image::RgbImage;
 use inflections::case::to_title_case;
@@ -24,11 +24,11 @@ use std::{
     time::{Duration, Instant},
 };
 
-use crate::{AUTHORS, PACKAGE_NAME, VERSION};
+use crate::{AUTHORS, PACKAGE_NAME, VERSION, ISDEBUG};
 mod layers;
 
 /// How long the "Saved" Label should be visible before it vanishes
-const SAVED_LABEL_VANISH_TIMEOUT: f32 = 2.0;
+const SAVED_LABEL_VANISH_TIMEOUT: f32 = 15.0;
 const INITIAL_WINDOW_SIZE: Vec2 = egui::vec2(1000.0, 700.0);
 
 mod components;
@@ -381,6 +381,7 @@ impl eframe::App for PixelsorterGui {
                 self.do_sort = true;
             }
             if i.consume_key(Modifiers::NONE, Key::Questionmark) {
+                #[cfg(debug_assertions)]
                 self.layered_sorter.as_ref().unwrap().print_state();
             }
         });
@@ -423,9 +424,10 @@ impl eframe::App for PixelsorterGui {
                 }
                 ui.with_layout(Layout::right_to_left(Align::Max), |ui| {
                     ui.label(format!(
-                        "{} v{} by {}",
+                        "{} v{}{} by {}",
                         to_title_case(PACKAGE_NAME),
                         VERSION,
+                        if ISDEBUG {"(debug)"} else{""},
                         AUTHORS
                     ));
                     ui.separator();
