@@ -1,3 +1,9 @@
+<div align="center" style="text-align: center;">
+    <a target="_blank" rel="noopener noreferrer" href="assets/logo.png" style="text-align: center;">
+        <img src="assets/logo.png" alt="Pixelsortery-Logo" style="width: 50%;">
+    </a>
+</div>
+
 # Pixelsortery - A Pixelsorter App written in Rust!
 
 Inspired by [ASDFPixelSort](https://github.com/kimasendorf/ASDFPixelSort) by [Kim Asendorf](https://kimasendorf.com/)!
