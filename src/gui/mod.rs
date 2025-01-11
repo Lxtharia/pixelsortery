@@ -3,7 +3,7 @@ use eframe::egui::{
     self, Align, Button, Color32, Image, Key, Layout, Modifiers, RichText, ScrollArea,
     TextureFilter, TextureHandle, TextureOptions, Ui, Vec2,
 };
-use egui::{scroll_area::ScrollBarVisibility, style::ScrollStyle, warn_if_debug_build};
+use egui::{scroll_area::ScrollBarVisibility, style::ScrollStyle, warn_if_debug_build, IconData};
 use egui_flex::{item, Flex, FlexAlign, FlexAlignContent, FlexJustify};
 use image::RgbImage;
 use inflections::case::to_title_case;
@@ -35,7 +35,9 @@ mod components;
 
 pub fn init(ps: Option<&Pixelsorter>, img: Option<(RgbImage, PathBuf)>) -> eframe::Result {
     let options = eframe::NativeOptions {
-        viewport: egui::ViewportBuilder::default().with_inner_size(INITIAL_WINDOW_SIZE),
+        viewport: egui::ViewportBuilder::default()
+            .with_icon(components::load_icon())
+            .with_inner_size(INITIAL_WINDOW_SIZE),
         ..Default::default()
     };
 
