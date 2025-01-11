@@ -1,0 +1,20 @@
+[Desktop Entry]
+Categories=Graphics;
+Comment[en_US]=
+Comment=
+Exec=~/.cargo/bin/pixelsortery
+Icon=~/.local/share/icons/pixelsortery.png
+GenericName[en_US]=
+GenericName=
+Keywords=pixelsortery;pixel;pixelsorter;image;Graphics
+MimeType=
+Name[en_US]=Pixelsortery
+Name=Pixelsortery
+NoDisplay=false
+Path=
+StartupNotify=true
+Terminal=false
+TerminalOptions=
+Type=Application
+X-KDE-SubstituteUID=false
+X-KDE-Username=
