@@ -7,3 +7,7 @@
 *.jpeg
 *.jpg
 /out
+*.afphoto
+*.drawio
+*~lock~
+notes/
