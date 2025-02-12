@@ -2,12 +2,12 @@
 Categories=Graphics;
 Comment[en_US]=
 Comment=
-Exec=~/.cargo/bin/pixelsortery
+Exec=~/.cargo/bin/pixelsortery --gui
 Icon=~/.local/share/icons/pixelsortery.png
 GenericName[en_US]=
 GenericName=
 Keywords=pixelsortery;pixel;pixelsorter;image;Graphics
-MimeType=
+MimeType=image/png;image/jpeg;image/tiff;image/webp;image/avif;image/bmp;
 Name[en_US]=Pixelsortery
 Name=Pixelsortery
 NoDisplay=false
