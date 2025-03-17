@@ -75,7 +75,7 @@ jobs:
       run: |
         if [[ "$RUNNER_OS" == "Windows" ]] ; then EXT=".exe"; fi
         # Needed because cargo subdirectories are stupid
-        if [[ "${{ matrix.target}}" == "aarch64-apple-darwin"  ]] toolchaindir=${{ matrix.target }}
+        if [[ "${{ matrix.target}}" == "aarch64-apple-darwin"  ]]; then toolchaindir=${{ matrix.target }} ; fi
         src=target/$toolchaindir/${{ matrix.cargo_target }}/pixelsortery$EXT
         dst=${{ matrix.bin_name }}-${{ env.TAG_NAME }}$EXT
         ls -lah target/*
