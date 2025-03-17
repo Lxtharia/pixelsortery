@@ -35,7 +35,7 @@ jobs:
             cargo_target: release
           - os: macos-latest
             target: aarch64-apple-darwin
-            bin_name: pixelsortery-darwin
+            bin_name: pixelsortery-darwin-aarch
             cargo_target: release
           - os: windows-latest
             target: x86_64-pc-windows-msvc
