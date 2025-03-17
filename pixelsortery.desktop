@@ -2,8 +2,8 @@
 Categories=Graphics;
 Comment[en_US]=
 Comment=
-Exec=~/.cargo/bin/pixelsortery --gui
-Icon=~/.local/share/icons/pixelsortery.png
+Icon=$HOME/.local/share/icons/pixelsortery.png
+Exec=$HOME/.cargo/bin/pixelsortery --gui
 GenericName[en_US]=
 GenericName=
 Keywords=pixelsortery;pixel;pixelsorter;image;Graphics
