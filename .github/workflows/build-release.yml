@@ -46,6 +46,8 @@ jobs:
     
     steps:
     - uses: actions/checkout@v4
+      with: 
+        ref: ${{ env.TAG_NAME }}
     - name: Show Rustup Info
       run: rustup show
       
@@ -58,11 +60,11 @@ jobs:
           target
         key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
-    - name: Set toolchain for target x86_64-apple-darwin
-      if: matrix.target == 'x86_64-apple-darwin'
+    # This is mainly for the two different targets on darwin/macos
+    - name: Set default toolchain to target
       run: |
           rustup update stable
-          rustup default stable-x86_64-apple-darwin
+          rustup default stable-${{ matrix.target }}
 
     - name: Build binaries in mode "${{ matrix.cargo_target }}" for os "${{ matrix.os }}"
       run: cargo build --profile ${{ matrix.cargo_target }} --target ${{ matrix.target}}
