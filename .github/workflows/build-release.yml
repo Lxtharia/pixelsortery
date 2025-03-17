@@ -23,7 +23,7 @@ jobs:
     - uses: actions/checkout@v4
     - name: Show Rustup Info
       run: rustup show
-    - name: Build Binaries in mode: "${{ matrix.BUILD_TARGET }}"
+    - name: Build Binaries in mode "${{ matrix.BUILD_TARGET }}"
       run: cargo build --profile ${{ matrix.BUILD_TARGET }}
     # - name: Run tests
     #   run: cargo test --profile ${{ matrix.BUILD_TARGET }}
