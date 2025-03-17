@@ -1,0 +1,26 @@
+name: Build Release
+
+on:
+  release:
+    types: [published]
+# push:
+#   branches:
+#     - main
+      
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build-linux:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Show Rustup Info
+      run: rustup show
+    - name: Build Release
+      run: cargo build --release # --verbose
+    # - name: Run tests
+    #   run: cargo test --verbose
