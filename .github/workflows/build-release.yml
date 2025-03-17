@@ -32,8 +32,8 @@ jobs:
         
     - name: Upload artifact to Release
       uses: softprops/action-gh-release@v2.2.1
-        with:
-          name: pixelsortery-${{version}}
-          files: target/${{ matrix.BUILD_TARGET }}/pixelsortery-${{ github.event.release.tag_name }}
-          tag_name: ${{ github.event.release.tag_name }}  # Use the tag from the release event
-          overwrite: true  # Replace existing files if needed
+      with:
+        name: pixelsortery-${{version}}
+        files: target/${{ matrix.BUILD_TARGET }}/pixelsortery-${{ github.event.release.tag_name }}
+        tag_name: ${{ github.event.release.tag_name }}  # Use the tag from the release event
+        overwrite: true  # Replace existing files if needed
