@@ -74,6 +74,7 @@ jobs:
         if [[ "$RUNNER_OS" == "Windows" ]] ; then EXT=".exe"; fi
         src=target/${{ matrix.cargo_target }}/pixelsortery$EXT
         dst=${{ matrix.bin_name }}-${{ env.TAG_NAME }}$EXT
+        ls -lah target/*
         mv  "$src" "$dst"
         echo "BIN_NAME=$dst" >> $GITHUB_ENV
           
