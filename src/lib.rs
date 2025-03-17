@@ -1,11 +1,11 @@
 #![allow(unused_parens, unused)]
 use eframe::egui::TextBuffer;
-use image::{codecs::png::PngEncoder, ImageResult, Rgb, RgbImage};
+use image::{codecs::png::PngEncoder, ImageResult, Pixel, PixelWithColorType, Rgb, RgbImage};
 use log::{error, info, warn};
 use path_creator::PathCreator;
 use rayon::prelude::*;
 use span_sorter::{SortingCriteria, SpanSorter};
-use std::{path::Path, time::Instant};
+use std::{io::Read, path::Path, time::Instant};
 
 use crate::pixel_selector::PixelSelector;
 
@@ -199,6 +199,7 @@ impl Pixelsorter {
     }
 
     /// Sort a given image in place
+    // , mask_img: Option<RgbImage>
     pub fn sort(&self, img: &mut RgbImage) {
         let mut timestart = Instant::now();
         // a vector containing pointers to each pixel
@@ -210,6 +211,24 @@ impl Pixelsorter {
             pixelcount
         );
 
+        // Apply Mask
+        let mask_img = Some(load_image("/tmp/mask.png"));
+        let mut mask: Option<Vec<bool>> = None;
+        if let Some(m_img) = &mask_img {
+            let topleft = ((img.width() - m_img.width()) / 2,
+                           (img.height() - m_img.height()) / 2);
+            // let m_img: Vec<&Rgb<u8>> = m_img.pixels().collect();
+            let WHITE = Rgb::from_slice(&[255u8;3]);
+            mask = Some(
+                (0..img.height()).flat_map(|y|
+                    (0..img.width())
+                        .map(move |x| m_img.get_pixel_checked(x - topleft.0, y - topleft.1)
+                                    .is_some_and(|px| (*px).eq(WHITE))
+                        )
+                ).collect::<Vec<bool>>()
+            );
+        }
+
         info!(
             "Sorting with:\n   | {}{}\n   | {}\n   | {}",
             self.path_creator.info_string(),
@@ -220,7 +239,7 @@ impl Pixelsorter {
 
         timestart = Instant::now();
         // CUT IMAGE INTO PATHS
-        let ranges = self.path_creator.create_paths(img, self.reverse);
+        let ranges = self.path_creator.create_paths(img, self.reverse, mask);
 
         info!("TIME [Creating Paths]:\t{:?}", timestart.elapsed());
         timestart = Instant::now();
@@ -255,5 +274,18 @@ impl Pixelsorter {
             return true;
         }
         return false;
+    }
+}
+
+
+/// Open image or read from stdin
+pub fn load_image(path: &str) -> RgbImage {
+    match path {
+        "-" => {
+            let mut buf = Vec::new();
+            std::io::stdin().read_to_end(&mut buf).unwrap();
+            image::load_from_memory(&buf).unwrap().into_rgb8()
+        },
+        _ => image::open(&path).unwrap().into_rgb8(),
     }
 }

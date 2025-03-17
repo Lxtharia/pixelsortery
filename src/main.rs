@@ -1,11 +1,9 @@
 use image::RgbImage;
 use log::{error, info, warn};
 use pixelsortery::{
-    path_creator::PathCreator,
-    pixel_selector::{
+    load_image, path_creator::PathCreator, pixel_selector::{
         PixelSelectCriteria, PixelSelector
-    },
-    span_sorter::{SortingAlgorithm, SortingCriteria},
+    }, span_sorter::{SortingAlgorithm, SortingCriteria}
 };
 use std::{io::Read, path::PathBuf, str::FromStr};
 use std::time::Instant;
@@ -213,19 +211,6 @@ fn main() {
         ps.reverse = ! ps.reverse;
     }
 
-
-    /// Open image or read from stdin
-    fn load_image(path: &str) -> RgbImage {
-        match path {
-            "-" => {
-                let mut buf = Vec::new();
-                std::io::stdin().read_to_end(&mut buf).unwrap();
-                image::load_from_memory(&buf).unwrap().into_rgb8()
-            },
-            _ => image::open(&path).unwrap().into_rgb8(),
-        }
-    }
-
     // Start gui with set options
     if start_gui {
         // TODO: give optional output path
@@ -281,5 +266,3 @@ fn main() {
         }
     }
 }
-
-
