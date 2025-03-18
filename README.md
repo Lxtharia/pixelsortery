@@ -13,7 +13,10 @@ I've written a few Pixelsorters before:
 - But now I have engineered THIS pixelsorter with _far greater goals_, created as a rust practice project but striving to be BEST and FASTEST FOSS-Pixelsorter of them all (maybe)!!!
 
 ## Showcase
-// TODO
+
+
+https://github.com/user-attachments/assets/95c1d76e-752e-46b3-9ed4-d9da214b1547
+
 
 ## Installation
 
