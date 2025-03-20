@@ -1,8 +1,18 @@
 [package]
-name = "pixelsortery"
+name = "pixelsortery_app"
 authors = ["Lxtharia"]
 version = "0.9.0"
 edition = "2021"
+
+[lib]
+name = "pixelsortery"
+path = "src/lib.rs"
+crate-type = ["cdylib"]      # Creates dynamic lib
+# crate-type = ["staticlib"] # Creates static lib
+
+# [[bin]]
+# name = "pixelsortery_bin"
+# path = "src/main.rs"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
