@@ -258,38 +258,3 @@ impl Pixelsorter {
     }
 }
 
-#[no_mangle]
-pub extern "C" fn hilbert_glitch(data: *mut u32, width: u32, height: u32) {
-    //let buf = unsafe {
-    //    assert!(!data.is_null());
-    //    slice::from_raw_parts_mut(data, (width*height) as usize)
-    //};
-    let mut buf: Vec<u8> = Vec::with_capacity((width*height) as usize);
-
-    (0..width*height).for_each(|i| {
-        unsafe {
-            //print!(" {}", i);
-            let px = *(((data as usize)+i as usize) as *mut u32);
-            // buf: r,g,b,a
-            // data: a,b,g,r
-            let a = (px >> 24) as u8;
-            let b = (px >> 16) as u8;
-            let g = (px >> 8) as u8;
-            let r = (px >> 0) as u8;
-            buf.push(r);
-            buf.push(g);
-            buf.push(b);
-            buf.push(a);
-
-        }
-    });
-    println!("WEEE");
-
-    //let img: RgbImage = image::RgbImage::from_vec(width, height, buf).expect("Buffer not big enough");
-    let mut img: RgbImage = image::RgbImage::from_vec(width, height, buf).expect("Buffer not big enough");
-
-    let ps = Pixelsorter::new();
-    ps.sort(&mut img);
-    img.save("/tmp/sorted.png");
-}
-
