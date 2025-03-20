@@ -16,7 +16,7 @@ pub extern "C" fn swaylock_effect(data: *mut u32, width: u32, height: u32) {
     let mut img = ppm_to_image(data, width, height);
 
     // This needs to be changed during compile time
-    let sorters = fixed_left();
+    let sorters = hilbert_glitch();
 
     for sorter in sorters {
         sorter.sort(&mut img);
@@ -27,34 +27,8 @@ pub extern "C" fn swaylock_effect(data: *mut u32, width: u32, height: u32) {
     //let _ = img.save("/tmp/sorted.png");
 }
 
-fn hilbert_glitch() -> Vec<Pixelsorter> {
-    let mut hilb = Pixelsorter::new();
-    let mut glitch = Pixelsorter::new();
-    glitch.sorter.algorithm = SortingAlgorithm::Glitchsort;
-    hilb.path_creator = PathCreator::Hilbert;
-    vec![hilb, glitch]
-}
-
-fn fixed_left() -> Vec<Pixelsorter> {
-    let mut ps = Pixelsorter::new();
-    ps.path_creator = PathCreator::HorizontalLines;
-    ps.selector = PixelSelector::Fixed { len: 40 };
-    vec![ps]
-}
-
-struct col {
-	a: u8,
-	b: u8,
-	g: u8,
-	r: u8,
-}
-
 
 fn ppm_to_image(data: *mut u32, width: u32, height: u32) -> RgbImage {
-    //let buf = unsafe {
-    //    assert!(!data.is_null());
-    //    slice::from_raw_parts_mut(data, (width*height) as usize)
-    //};
     unsafe {
         //println!("DATA: {:x}", *((data as u64 + 1) as *mut u32));
         let mut buf: Vec<u8> = Vec::with_capacity((width*height) as usize);
@@ -64,11 +38,11 @@ fn ppm_to_image(data: *mut u32, width: u32, height: u32) -> RgbImage {
             let ptr = data as u64 + 4*i;
             let px = *( ptr as *mut u32);
             // buf: r,g,b,a
-            // data: a,b,g,r
-            let b = (px >> 0) as u8; // Weg mit a
-            let g = (px >> 8) as u8;
+            // data: a,r,g,b
             let r = (px >> 16) as u8;
-            let a = (px >> 24) as u8;
+            let g = (px >> 8) as u8;
+            let b = (px >> 0) as u8;
+            //let a = (px >> 24) as u8; // Weg mit a
             //if (i < 50) { println!("data: {:x} {},{},{}", px, r,g,b); }
             buf.push(r);
             buf.push(g);
@@ -88,9 +62,9 @@ fn image_to_ppm(data: *mut u32, img: &RgbImage) {
     let pxs = img.as_raw();
     unsafe{
         for i in 0..amount as usize {
-            let b = (pxs[2 + 3*i as usize] as u32) << 0;
-            let g = (pxs[1 + 3*i as usize] as u32) << 8;
             let r = (pxs[0 + 3*i as usize] as u32) << 16;
+            let g = (pxs[1 + 3*i as usize] as u32) << 8;
+            let b = (pxs[2 + 3*i as usize] as u32) << 0;
             //let a = (pxs[0 + 3*i as usize] as u32) << 24;
             *(((data as usize)+4*i) as *mut u32) = r | g | b;
         }
@@ -110,4 +84,23 @@ fn image_to_ppm(data: *mut u32, img: &RgbImage) {
 //        }
 //    }
 //}
+
+
+fn hilbert_glitch() -> Vec<Pixelsorter> {
+    let mut glitch = Pixelsorter::new();
+    glitch.path_creator = PathCreator::HorizontalLines;
+    glitch.sorter.algorithm = SortingAlgorithm::Glitchsort;
+
+    let mut hilb = Pixelsorter::new();
+    hilb.path_creator = PathCreator::Hilbert;
+    hilb.selector = PixelSelector::Random { max: 500 };
+    vec![hilb,glitch]
+}
+
+fn fixed_left() -> Vec<Pixelsorter> {
+    let mut ps = Pixelsorter::new();
+    ps.path_creator = PathCreator::HorizontalLines;
+    ps.selector = PixelSelector::Fixed { len: 40 };
+    vec![ps]
+}
 
