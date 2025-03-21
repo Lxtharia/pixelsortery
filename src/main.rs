@@ -1,9 +1,9 @@
-use image::RgbImage;
+use image::{DynamicImage, GrayAlphaImage, RgbImage};
 use log::{error, info, warn};
 use pixelsortery::{
     load_image, path_creator::PathCreator, pixel_selector::{
         PixelSelectCriteria, PixelSelector
-    }, span_sorter::{SortingAlgorithm, SortingCriteria}
+    }, span_sorter::{SortingAlgorithm, SortingCriteria}, Mask
 };
 use std::{io::Read, path::PathBuf, str::FromStr};
 use std::time::Instant;
@@ -76,6 +76,8 @@ const HELP_STRING: &str = "
    --show-mask    : Outputs a mask showing what areas would be sorted (requires --thres)
    --gui          : Starts the gui;
                     | When using the gui, setting <output> is optional
+   --mask <file>  : Use a mask to prevent specific areas from being sorted
+   --mask-invert  : Inverts the mask
 
 ================ Direction Options ==============
 
@@ -145,6 +147,8 @@ fn main() {
     let mut do_reverse = false;
     let mut show_mask = false;
     let mut start_gui = false;
+    let mut mask_file = None;
+    let mut mask_invert = false;
 
     // I should just use some argument library tbh
     while let Some(arg) = args.pop_front() {
@@ -162,6 +166,8 @@ fn main() {
 
             "--gui" => start_gui = true,
             "--show-mask" => show_mask = true,
+            "--mask" => { mask_file = Some(DynamicImage::from(load_image(&parse_parameter::<String>(args.pop_front(), "--mask <file>" )))); },
+            "--mask-invert" => mask_invert = true,
 
             "--random" => ps.selector = PixelSelector::Random { max: parse_parameter(args.pop_front(), "--random <max>")},
             "--fixed"  => ps.selector = PixelSelector::Fixed  { len: parse_parameter(args.pop_front(), "--fixed <len>")},
@@ -211,6 +217,21 @@ fn main() {
         ps.reverse = ! ps.reverse;
     }
 
+    if mask_invert && mask_file.is_none() {
+        warn!("No mask to invert, ignoring...")
+    }
+
+    // Create mask
+    let mut mask = None;
+    if let Some(f) = mask_file {
+        // let x = (img.width() - m_img.width()) / 2;
+        // let y = (img.height() - m_img.height()) / 2;
+        let mut newmask = Mask::new(f.to_luma_alpha8(), 0, 0);
+        newmask.invert = mask_invert;
+        mask = Some(newmask);
+
+    }
+
     // Start gui with set options
     if start_gui {
         // TODO: give optional output path
@@ -248,7 +269,7 @@ fn main() {
         }
     } else {
         // SORTING
-        ps.sort(&mut img);
+        ps.sort(&mut img, mask.as_ref());
     }
 
     let duration = start.elapsed();

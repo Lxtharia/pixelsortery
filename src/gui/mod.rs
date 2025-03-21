@@ -10,13 +10,10 @@ use inflections::case::to_title_case;
 use layers::LayeredSorter;
 use log::{info, warn};
 use pixelsortery::{
-    path_creator::PathCreator,
-    pixel_selector::{
+    path_creator::PathCreator, pixel_selector::{
         PixelSelectCriteria,
         PixelSelector::{self, *},
-    },
-    span_sorter::{SortingAlgorithm, SortingCriteria},
-    Pixelsorter,
+    }, span_sorter::{SortingAlgorithm, SortingCriteria}, Mask, Pixelsorter
 };
 use std::{
     ffi::OsString,
@@ -85,7 +82,7 @@ struct PixelsorterGui {
 }
 
 /// Adjustable components of the pixelsorter, remembers values like diagonal angle
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, PartialEq)]
 struct PixelsorterValues {
     reverse: bool,
     path: PathCreator,
@@ -98,6 +95,7 @@ struct PixelsorterValues {
     selector_random: PixelSelector,
     selector_fixed: PixelSelector,
     selector_thres: PixelSelector,
+    mask: Option<Mask>,
 }
 
 #[derive(PartialEq)]
@@ -109,6 +107,10 @@ enum SwitchLayerMessage {
 }
 
 impl PixelsorterValues {
+    fn sort(&self, img: &mut RgbImage) {
+        self.to_pixelsorter().sort(img, self.mask.as_ref());
+    }
+
     // Reads values and returns a Pixelsorter
     fn to_pixelsorter(&self) -> Pixelsorter {
         let mut ps = Pixelsorter::new();
@@ -168,6 +170,7 @@ impl Default for PixelsorterGui {
                     max: 360,
                     criteria: PixelSelectCriteria::Brightness,
                 },
+                mask: None,
             },
             time_last_sort: Duration::default(),
             auto_sort: true,
@@ -403,7 +406,7 @@ impl eframe::App for PixelsorterGui {
         } else {
             // Create a layering thingy if we don't have one yet
             if let Some(img) = &self.img {
-                self.layered_sorter = Some(LayeredSorter::new(img.clone(), self.values));
+                self.layered_sorter = Some(LayeredSorter::new(img.clone(), self.values.clone()));
             }
         }
 

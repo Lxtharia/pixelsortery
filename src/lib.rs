@@ -1,6 +1,6 @@
 #![allow(unused_parens, unused)]
 use eframe::egui::TextBuffer;
-use image::{codecs::png::PngEncoder, ImageResult, Pixel, PixelWithColorType, Rgb, RgbImage};
+use image::{codecs::png::PngEncoder, GrayAlphaImage, ImageResult, Pixel, PixelWithColorType, Rgb, RgbImage};
 use log::{error, info, warn};
 use path_creator::PathCreator;
 use rayon::prelude::*;
@@ -20,6 +20,26 @@ pub struct Pixelsorter {
     pub selector: PixelSelector,
     pub path_creator: path_creator::PathCreator,
     pub reverse: bool,
+}
+
+#[derive(Clone, PartialEq)]
+pub struct Mask {
+    pub image: image::GrayAlphaImage,
+    pub invert: bool,
+    pub x: u32,
+    pub y: u32,
+    pub scale: f32,
+    pub w: u32,
+    pub h: u32,
+}
+
+impl Mask {
+    pub fn new(image: GrayAlphaImage, x: u32, y: u32) -> Self {
+        let w = image.width();
+        let h = image.height();
+        let invert = false;
+        Mask { image, invert, x, y, scale: 1.0, w, h }
+    }
 }
 
 pub type Span = Vec<Rgb<u8>>;
@@ -199,8 +219,7 @@ impl Pixelsorter {
     }
 
     /// Sort a given image in place
-    // , mask_img: Option<RgbImage>
-    pub fn sort(&self, img: &mut RgbImage) {
+    pub fn sort(&self, img: &mut RgbImage, mask: Option<&Mask>) {
         let mut timestart = Instant::now();
         // a vector containing pointers to each pixel
         let pixelcount = img.width() * img.height();
@@ -212,18 +231,17 @@ impl Pixelsorter {
         );
 
         // Apply Mask
-        let mask_img = Some(load_image("/tmp/mask.png"));
-        let mut mask: Option<Vec<bool>> = None;
-        if let Some(m_img) = &mask_img {
-            let topleft = ((img.width() - m_img.width()) / 2,
-                           (img.height() - m_img.height()) / 2);
+        let mut mask_vec: Option<Vec<bool>> = None;
+        if let Some(m) = &mask {
+            let topleft = (m.x, m.y);
             // let m_img: Vec<&Rgb<u8>> = m_img.pixels().collect();
-            let WHITE = Rgb::from_slice(&[255u8;3]);
-            mask = Some(
+            let white = Rgb::from_slice(&[255u8;3]);
+            let white = [230u8, 250u8];
+            mask_vec = Some(
                 (0..img.height()).flat_map(|y|
                     (0..img.width())
-                        .map(move |x| m_img.get_pixel_checked(x - topleft.0, y - topleft.1)
-                                    .is_some_and(|px| (*px).eq(WHITE))
+                        .map(move |x| m.image.get_pixel_checked(x - topleft.0, y - topleft.1)
+                                             .is_some_and(|px| (px.0 > white) ^ m.invert)
                         )
                 ).collect::<Vec<bool>>()
             );
@@ -239,7 +257,7 @@ impl Pixelsorter {
 
         timestart = Instant::now();
         // CUT IMAGE INTO PATHS
-        let ranges = self.path_creator.create_paths(img, self.reverse, mask);
+        let ranges = self.path_creator.create_paths(img, self.reverse, mask_vec);
 
         info!("TIME [Creating Paths]:\t{:?}", timestart.elapsed());
         timestart = Instant::now();
