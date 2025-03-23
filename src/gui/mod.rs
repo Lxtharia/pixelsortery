@@ -30,7 +30,7 @@ const INITIAL_WINDOW_SIZE: Vec2 = egui::vec2(1000.0, 700.0);
 
 mod components;
 
-pub fn init(ps: Option<&Pixelsorter>, img: Option<(RgbImage, PathBuf)>) -> eframe::Result {
+pub fn init(ps: Option<&Pixelsorter>, img: Option<(RgbImage, PathBuf)>, mask: Option<Mask>) -> eframe::Result {
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_icon(components::load_icon())
@@ -45,6 +45,7 @@ pub fn init(ps: Option<&Pixelsorter>, img: Option<(RgbImage, PathBuf)>) -> efram
     if let Some((img, img_path)) = img {
         psgui = psgui.with_image(img, img_path);
     }
+    psgui.values.mask = mask;
 
     eframe::run_native(
         "Pixelsortery",
