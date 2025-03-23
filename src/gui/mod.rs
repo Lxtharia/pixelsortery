@@ -242,8 +242,10 @@ impl PixelsorterGui {
     /// Tries to show the image if it exists
     fn show_img(&self, ui: &mut Ui) {
         if let Some(tex) = &self.texture {
-            egui::Frame::canvas(ui.style_mut()).show(ui, |ui| {
-                ui.add(Image::new((tex.id(), tex.size_vec2())).shrink_to_fit());
+            egui::Frame::group(ui.style_mut())
+                .inner_margin(0)
+                .show(ui, |ui| {
+                    ui.add(Image::new((tex.id(), tex.size_vec2())).shrink_to_fit());
             });
         }
     }
@@ -384,6 +386,7 @@ impl eframe::App for PixelsorterGui {
         ctx.style_mut(|style| {
             style.spacing.slider_width = 170.0;
             style.spacing.combo_height = 300.0;
+            // style.debug.debug_on_hover_with_all_modifiers = true;
         });
 
         // Open file on startup
@@ -504,12 +507,13 @@ impl eframe::App for PixelsorterGui {
                                 // LAYERING
                                 ui.style_mut().spacing.scroll.floating = false;
                                 ScrollArea::vertical()
+                                    // .scroll_bar_visibility(ScrollBarVisibility::AlwaysVisible)
                                     .id_salt("LayerScrollArea")
                                     .show(ui, |ui| {
                                         Flex::vertical()
-                                            .align_content(FlexAlignContent::Stretch)
+                                            .align_items(FlexAlign::Stretch)
                                             .wrap(false)
-                                            .justify(FlexJustify::End)
+                                            .h_full()
                                             .show(ui, |flex| {
                                                 flex.grow();
                                                 //for i in 0..8 {
