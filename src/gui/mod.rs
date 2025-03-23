@@ -511,11 +511,12 @@ impl eframe::App for PixelsorterGui {
                                     .id_salt("LayerScrollArea")
                                     .show(ui, |ui| {
                                         Flex::vertical()
-                                            .align_items(FlexAlign::Stretch)
-                                            .wrap(false)
                                             .h_full()
+                                            .wrap(false)
+                                            .justify(FlexJustify::End)
+                                            .align_items(FlexAlign::Stretch)
                                             .show(ui, |flex| {
-                                                flex.grow();
+                                                // flex.grow();
                                                 //for i in 0..8 {
                                                 //    let b = Button::new(format!("LMAO: {}", i));
                                                 //    flex.add(item().basis(30.0), b);
