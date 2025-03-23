@@ -27,6 +27,28 @@ fn parse_parameter<T: FromStr>(arg: Option<String>, usage: &str) -> T {
     exit(-1);
 }
 
+fn parse_mask_pos(arg: Option<String>) -> (i32,i32) {
+    if let Some(arg2) = arg {
+        let mut opts: VecDeque<&str> = VecDeque::from_iter(arg2.split(":"));
+
+        let x = opts
+            .pop_front()
+            .unwrap_or("")
+            .parse()
+            .unwrap_or(0);
+        let y = opts
+            .pop_front()
+            .unwrap_or("")
+            .parse()
+            .unwrap_or(0);
+        return (x,y);
+    } else {
+        eprintln!("[ERROR] Wrong syntax, usage: --mask-pos <x>:<y>");
+        exit(-1)
+    }
+
+}
+
 fn parse_thres_selector_parameters(arg: Option<String>) -> PixelSelector {
     // parse the string after that: --thres hue:10:200
     if let Some(arg2) = arg {
@@ -77,6 +99,7 @@ const HELP_STRING: &str = "
    --gui          : Starts the gui;
                     | When using the gui, setting <output> is optional
    --mask <file>  : Use a mask to prevent specific areas from being sorted
+   --mask-pos x:y :
    --mask-invert  : Inverts the mask
 
 ================ Direction Options ==============
@@ -145,9 +168,10 @@ fn main() {
     // CREATE DEFAULT PIXELSORTER
     let mut ps = pixelsortery::Pixelsorter::new();
     let mut do_reverse = false;
-    let mut show_mask = false;
     let mut start_gui = false;
+    let mut show_mask = false;
     let mut mask_path = PathBuf::new();
+    let mut mask_pos = (0,0);
     let mut mask_invert = false;
 
     // I should just use some argument library tbh
@@ -167,6 +191,7 @@ fn main() {
             "--gui" => start_gui = true,
             "--show-mask" => show_mask = true,
             "--mask" => { mask_path = parse_parameter::<PathBuf>(args.pop_front(), "--mask <file>" ); },
+            "--mask-pos"  => mask_pos = parse_mask_pos(args.pop_front()),
             "--mask-invert" => mask_invert = true,
 
             "--random" => ps.selector = PixelSelector::Random { max: parse_parameter(args.pop_front(), "--random <max>")},
@@ -227,7 +252,7 @@ fn main() {
         let mask_img = DynamicImage::from(load_image(&mask_path.to_string_lossy()));
         // let x = (img.width() - m_img.width()) / 2;
         // let y = (img.height() - m_img.height()) / 2;
-        let mut newmask = Mask::new(mask_img.to_luma_alpha8(), 0, 0);
+        let mut newmask = Mask::new(mask_img.to_luma_alpha8(), mask_pos.0, mask_pos.1);
         newmask.invert = mask_invert;
         newmask.file_path = Some(mask_path.clone());
         mask = Some(newmask);

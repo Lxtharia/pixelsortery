@@ -27,15 +27,15 @@ pub struct Mask {
     pub image: image::GrayAlphaImage,
     pub file_path: Option<PathBuf>,
     pub invert: bool,
-    pub x: u32,
-    pub y: u32,
+    pub x: i32,
+    pub y: i32,
     pub scale: f32,
     pub w: u32,
     pub h: u32,
 }
 
 impl Mask {
-    pub fn new(image: GrayAlphaImage, x: u32, y: u32) -> Self {
+    pub fn new(image: GrayAlphaImage, x: i32, y: i32) -> Self {
         let w = image.width();
         let h = image.height();
         let invert = false;
@@ -241,7 +241,8 @@ impl Pixelsorter {
             mask_vec = Some(
                 (0..img.height()).flat_map(|y|
                     (0..img.width())
-                        .map(move |x| m.image.get_pixel_checked(x - topleft.0, y - topleft.1)
+                        .map(move |x| m.image.get_pixel_checked((x as i64 - topleft.0 as i64) as u32,
+                                                                (y as i64 - topleft.1 as i64) as u32)
                                              .is_some_and(|px| (px.0 > white) ^ m.invert)
                         )
                 ).collect::<Vec<bool>>()
