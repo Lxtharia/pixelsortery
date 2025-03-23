@@ -319,23 +319,15 @@ impl PixelsorterGui {
                     info!("Loading mask...");
                     self.open_mask(ui.ctx());
                 }
-                ui.add_enabled_ui(self.values.mask.is_some(), |ui|{
-                    let mut placeholder_val = 0;
-                    let mut placeholder_val2 = 0;
-                    let mut dragx = DragValue::new(&mut placeholder_val);
-                    let mut dragy = DragValue::new(&mut placeholder_val2);
-                    let mut inv = false;
-                    if let Some(m) = &mut self.values.mask {
-                        dragx = DragValue::new(&mut m.x);
-                        dragy = DragValue::new(&mut m.y);
-                        inv = m.invert;
-                    }
+                if let Some(m) = &mut self.values.mask {
+                    let dragx = DragValue::new(&mut m.x);
+                    let dragy = DragValue::new(&mut m.y);
                     ui.label("x:");
                     ui.add(dragx);
                     ui.label("y:");
                     ui.add(dragy);
-                    ui.checkbox(&mut inv, "Invert");
-                });
+                    ui.checkbox(&mut m.invert, "Invert");
+                }
             });
 
             let mut do_remove_mask = false;
