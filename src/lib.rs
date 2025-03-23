@@ -241,9 +241,13 @@ impl Pixelsorter {
             mask_vec = Some(
                 (0..img.height()).flat_map(|y|
                     (0..img.width())
-                        .map(move |x| m.image.get_pixel_checked((x as i64 - topleft.0 as i64) as u32,
-                                                                (y as i64 - topleft.1 as i64) as u32)
-                                             .is_some_and(|px| (px.0 > white) ^ m.invert)
+                        .map(move |x|
+                                  match m.image.get_pixel_checked((x as i64 - topleft.0 as i64) as u32,
+                                                                  (y as i64 - topleft.1 as i64) as u32)
+                                        {
+                                            Some(px) => (px.0 > white) ^ m.invert,
+                                            None => m.invert,
+                                        }
                         )
                 ).collect::<Vec<bool>>()
             );
