@@ -147,7 +147,7 @@ fn main() {
     let mut do_reverse = false;
     let mut show_mask = false;
     let mut start_gui = false;
-    let mut mask_file = None;
+    let mut mask_path = PathBuf::new();
     let mut mask_invert = false;
 
     // I should just use some argument library tbh
@@ -166,7 +166,7 @@ fn main() {
 
             "--gui" => start_gui = true,
             "--show-mask" => show_mask = true,
-            "--mask" => { mask_file = Some(DynamicImage::from(load_image(&parse_parameter::<String>(args.pop_front(), "--mask <file>" )))); },
+            "--mask" => { mask_path = parse_parameter::<PathBuf>(args.pop_front(), "--mask <file>" ); },
             "--mask-invert" => mask_invert = true,
 
             "--random" => ps.selector = PixelSelector::Random { max: parse_parameter(args.pop_front(), "--random <max>")},
@@ -217,17 +217,19 @@ fn main() {
         ps.reverse = ! ps.reverse;
     }
 
-    if mask_invert && mask_file.is_none() {
+    if mask_invert && mask_path.as_os_str().is_empty() {
         warn!("No mask to invert, ignoring...")
     }
 
     // Create mask
     let mut mask = None;
-    if let Some(f) = mask_file {
+    if ! mask_path.as_os_str().is_empty() {
+        let mask_img = DynamicImage::from(load_image(&mask_path.to_string_lossy()));
         // let x = (img.width() - m_img.width()) / 2;
         // let y = (img.height() - m_img.height()) / 2;
-        let mut newmask = Mask::new(f.to_luma_alpha8(), 0, 0);
+        let mut newmask = Mask::new(mask_img.to_luma_alpha8(), 0, 0);
         newmask.invert = mask_invert;
+        newmask.file_path = Some(mask_path.clone());
         mask = Some(newmask);
 
     }

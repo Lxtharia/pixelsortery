@@ -5,7 +5,7 @@ use log::{error, info, warn};
 use path_creator::PathCreator;
 use rayon::prelude::*;
 use span_sorter::{SortingCriteria, SpanSorter};
-use std::{io::Read, path::Path, time::Instant};
+use std::{io::Read, path::{Path, PathBuf}, time::Instant};
 
 use crate::pixel_selector::PixelSelector;
 
@@ -25,6 +25,7 @@ pub struct Pixelsorter {
 #[derive(Clone, PartialEq)]
 pub struct Mask {
     pub image: image::GrayAlphaImage,
+    pub file_path: Option<PathBuf>,
     pub invert: bool,
     pub x: u32,
     pub y: u32,
@@ -38,7 +39,7 @@ impl Mask {
         let w = image.width();
         let h = image.height();
         let invert = false;
-        Mask { image, invert, x, y, scale: 1.0, w, h }
+        Mask { image, file_path: None, invert, x, y, scale: 1.0, w, h }
     }
 }
 
@@ -245,6 +246,7 @@ impl Pixelsorter {
                         )
                 ).collect::<Vec<bool>>()
             );
+            info!("TIME [Reading Mask]:\t{:?}", timestart.elapsed());
         }
 
         info!(
