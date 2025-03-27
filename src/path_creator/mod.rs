@@ -246,20 +246,36 @@ fn path_diagonal_lines(w: u64, h: u64, angle: f32) -> Vec<Vec<u64>> {
     return paths;
 }
 
+// Helper function to return a range (including the end element), but in a binary-search-like order
+fn spread_range(start: u64, end: u64) -> Vec<u64> {
+    if start == end { return vec![end]; }
+    if start.abs_diff(end) <= 1 { return vec![start, end]; }
+    let mid = (end + start) / 2;
+    let mut v = vec![mid];
+    let left = spread_range(start, mid-1);
+    let right = spread_range(mid+1, end);
+    //println!("{{{}}} {:?} {} {:?} {{{}}}", start, left, mid, right, end);
+    v.extend_from_slice(&left);
+    v.extend_from_slice(&right);
+    return v;
+}
+
+
 fn path_rays(w: u64, h: u64) -> Vec<Vec<u64>> {
     let mut cx:f32 = (w as f32) / 2.0;
     let mut cy:f32 = (h as f32) / 2.0;
     let mut dirs: Vec<(f32, f32)> = Vec::new();;
     let mut tips: Vec<(f32, f32)>;
     let  mut y = 0; let mut x = 0;
-    tips =      (0..w).map(|x| { (x as f32, 0.0) }).collect();
-    tips.extend((0..w).map(|x| { (x as f32, h as f32) }));
-    tips.extend((0..h).map(|y| { (0.0, y as f32) }));
-    tips.extend((0..h).map(|y| { (w as f32, y as f32) }));
+    // Uses the spread range to generate "full" rays first to prevent all rays from being uncontinuous because of overlap
+    tips =      spread_range(0, w-1).into_iter().map(|x| { (x as f32, 0.0) }).collect();
+    tips.extend(spread_range(0, w-1).into_iter().map(|x| { (x as f32, h as f32) }));
+    tips.extend(spread_range(0, h-1).into_iter().map(|y| { (0.0, y as f32) }));
+    tips.extend(spread_range(0, h-1).into_iter().map(|y| { (w as f32, y as f32) }));
     dirs = tips.into_iter().map(|(x,y)| {
         let dx = x - cx;
         let dy = y - cy;
-        let m = dx.abs().max(dy.abs());
+        let m = 2.0 * dx.abs().max(dy.abs());
         (dx/m, dy/m)
     }).collect();
     let ray = |(dx, dy): (f32, f32)| {
@@ -269,7 +285,7 @@ fn path_rays(w: u64, h: u64) -> Vec<Vec<u64>> {
         loop {
             x += dx;
             y += dy;
-            let i: u64 = y as u64 * w + x as u64;
+            let i: u64 = y.round() as u64 * w + x.round() as u64;
             path.push(i);
             if x < 0.0 || x.ceil() > w as f32  || y < 0.0 || y.ceil() > h as f32 { break; }
         }
