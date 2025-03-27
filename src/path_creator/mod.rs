@@ -47,7 +47,12 @@ impl PathCreator {
     pub fn info_string(self) -> String {
         format!("Direction/Order: [{:?}]", self)
     }
-    pub fn create_paths(self, img: &mut RgbImage, reverse: bool) -> Vec<Vec<&mut Rgb<u8>>> {
+    pub fn create_paths(
+        self,
+        img: &mut RgbImage,
+        reverse: bool,
+        mask: Option<Vec<bool>>,
+    ) -> Vec<Vec<&mut Rgb<u8>>> {
         let w: u64 = img.width().into();
         let h: u64 = img.height().into();
 
@@ -89,7 +94,7 @@ impl PathCreator {
         timestart = Instant::now();
 
         // Turn indexed paths into arrays of pixels
-        let pixels = pick_pixels(all_pixels, all_paths_indices);
+        let pixels = pick_pixels(all_pixels, all_paths_indices, mask);
         let timeend_picking = timestart.elapsed();
 
         info!("TIME | [Loading pixels]: \t+ {:?}", timeend_loading);
@@ -107,25 +112,54 @@ impl PathCreator {
 
 /// Creates and returns ranges of mutable Pixels.
 /// The picked pixels and their order are determined by the given vector of indices
-fn pick_pixels(all_pixels: Vec<&mut Rgb<u8>>, indices: Vec<Vec<u64>>) -> Vec<Vec<&mut Rgb<u8>>> {
+fn pick_pixels(all_pixels: Vec<&mut Rgb<u8>>, indices: Vec<Vec<u64>>, mask: Option<Vec<bool>>) -> Vec<Vec<&mut Rgb<u8>>> {
     let mut paths: Vec<Vec<&mut Rgb<u8>>> = Vec::new();
     let mut all_pixels: Vec<Option<&mut Rgb<u8>>> =
         all_pixels.into_iter().map(|p| Some(p)).collect();
 
-    for mut li in indices {
-        li.dedup();
-        let mut path = Vec::new();
-        for i in li {
-            // Check if the index is valid
-            if all_pixels.get(i as usize).is_some() {
-                all_pixels.push(None);
-                // Check if the pixel at index i is still available (not None)
-                if let Some(px) = all_pixels.swap_remove(i as usize) {
-                    path.push(px);
+    // Redundancy for speed
+    if let Some(m) = &mask {
+        // With masking logic
+        for mut li in indices {
+            li.dedup();
+            let mut path = Vec::new();
+            for i in li {
+                // Check if index is in masked area
+                if *m.get(i as usize).unwrap_or(&false) {
+                    // If there is a pixel at a given index (if it's not out of bounds)
+                    if all_pixels.get(i as usize).is_some() {
+                        // Check if the pixel at index i is still available (not None)
+                        all_pixels.push(None);
+                        if let Some(px) = all_pixels.swap_remove(i as usize) {
+                            path.push(px);
+                        }
+                    }
+                } else {
+                    if path.len() > 1 {
+                        paths.push(path);
+                        path = Vec::new();
+                    }
                 }
             }
+            paths.push(path);
         }
-        paths.push(path);
+    } else {
+        // Without extra mask checks
+        for mut li in indices {
+            li.dedup();
+            let mut path = Vec::new();
+            for i in li {
+                // If there is a pixel at a given index (if it's not out of bounds)
+                if all_pixels.get(i as usize).is_some() {
+                    // Check if the pixel at index i is still available (not None)
+                    all_pixels.push(None);
+                    if let Some(px) = all_pixels.swap_remove(i as usize) {
+                        path.push(px);
+                    }
+                }
+            }
+            paths.push(path);
+        }
     }
     return paths;
 }

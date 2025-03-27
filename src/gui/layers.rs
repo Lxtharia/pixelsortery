@@ -208,7 +208,7 @@ impl SortingLayer {
 
     fn sort(&mut self, img: &RgbImage) {
         let mut sorted_img = img.clone();
-        self.sorting_values.to_pixelsorter().sort(&mut sorted_img);
+        self.sorting_values.sort(&mut sorted_img);
         self.sorted_img = sorted_img;
         self.needs_sorting = false;
     }

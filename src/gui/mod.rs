@@ -5,18 +5,15 @@ use eframe::egui::{
 };
 use egui::{scroll_area::ScrollBarVisibility, style::ScrollStyle, warn_if_debug_build, IconData};
 use egui_flex::{item, Flex, FlexAlign, FlexAlignContent, FlexJustify};
-use image::RgbImage;
+use image::{DynamicImage, RgbImage};
 use inflections::case::to_title_case;
 use layers::LayeredSorter;
 use log::{info, warn};
 use pixelsortery::{
-    path_creator::PathCreator,
-    pixel_selector::{
+    path_creator::PathCreator, pixel_selector::{
         PixelSelectCriteria,
         PixelSelector::{self, *},
-    },
-    span_sorter::{SortingAlgorithm, SortingCriteria},
-    Pixelsorter,
+    }, span_sorter::{SortingAlgorithm, SortingCriteria}, Mask, Pixelsorter
 };
 use std::{
     ffi::OsString,
@@ -33,7 +30,7 @@ const INITIAL_WINDOW_SIZE: Vec2 = egui::vec2(1000.0, 700.0);
 
 mod components;
 
-pub fn init(ps: Option<&Pixelsorter>, img: Option<(RgbImage, PathBuf)>) -> eframe::Result {
+pub fn init(ps: Option<&Pixelsorter>, img: Option<(RgbImage, PathBuf)>, mask: Option<Mask>) -> eframe::Result {
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_icon(components::load_icon())
@@ -48,6 +45,7 @@ pub fn init(ps: Option<&Pixelsorter>, img: Option<(RgbImage, PathBuf)>) -> efram
     if let Some((img, img_path)) = img {
         psgui = psgui.with_image(img, img_path);
     }
+    psgui.values.mask = mask;
 
     eframe::run_native(
         "Pixelsortery",
@@ -85,7 +83,7 @@ struct PixelsorterGui {
 }
 
 /// Adjustable components of the pixelsorter, remembers values like diagonal angle
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, PartialEq)]
 struct PixelsorterValues {
     reverse: bool,
     path: PathCreator,
@@ -98,6 +96,7 @@ struct PixelsorterValues {
     selector_random: PixelSelector,
     selector_fixed: PixelSelector,
     selector_thres: PixelSelector,
+    mask: Option<Mask>,
 }
 
 #[derive(PartialEq)]
@@ -109,6 +108,10 @@ enum SwitchLayerMessage {
 }
 
 impl PixelsorterValues {
+    fn sort(&self, img: &mut RgbImage) {
+        self.to_pixelsorter().sort(img, self.mask.as_ref());
+    }
+
     // Reads values and returns a Pixelsorter
     fn to_pixelsorter(&self) -> Pixelsorter {
         let mut ps = Pixelsorter::new();
@@ -168,6 +171,7 @@ impl Default for PixelsorterGui {
                     max: 360,
                     criteria: PixelSelectCriteria::Brightness,
                 },
+                mask: None,
             },
             time_last_sort: Duration::default(),
             auto_sort: true,
@@ -252,30 +256,35 @@ impl PixelsorterGui {
         }
     }
 
-    fn open_file(&mut self, ctx: &egui::Context) -> () {
-        // Opening image until cancled or until valid image loaded
-        loop {
-            let file = rfd::FileDialog::new()
-                .add_filter("Images", &["png", "jpg", "jpeg", "webp"])
-                .pick_file();
-            match file {
-                None => break,
-                Some(f) => match image::open(f.as_path()) {
-                    Ok(i) => {
-                        let img = i.into_rgb8();
-                        if let Some(ls) = &mut self.layered_sorter {
-                            ls.set_base_img(img.clone());
-                        }
-                        // I want to make layered_sorter mandatory and remove the possibility of it being None
-                        self.img = Some(img);
-                        self.update_texture(ctx);
-                        self.path = Some(f);
-                        break;
-                    }
-                    Err(_) => {}
-                },
+    fn open_mask(&mut self, ctx: &egui::Context) -> () {
+        open_file(|i: DynamicImage, f| {
+            let img = i.into_luma_alpha8();
+            if let Some(ls) = &mut self.layered_sorter {
+                if let Some(m) = &mut self.values.mask {
+                    m.image = img;
+                    m.file_path = Some(f);
+                } else {
+                    let mut newmask = Mask::new(img, 0, 0);
+                    newmask.file_path = Some(f);
+                    self.values.mask = Some(newmask);
+                }
             }
-        }
+            return true;
+        } );
+    }
+
+    fn open_image(&mut self, ctx: &egui::Context) -> () {
+        open_file(|i: DynamicImage, f| {
+            let img = i.into_rgb8();
+            if let Some(ls) = &mut self.layered_sorter {
+                ls.set_base_img(img.clone());
+            }
+            // I want to make layered_sorter mandatory and remove the possibility of it being None
+            self.img = Some(img);
+            self.update_texture(ctx);
+            self.path = Some(f);
+            return true;
+        } );
     }
 
     /// Sorts and saves the image to the current output directory with a given filename
@@ -395,7 +404,7 @@ impl eframe::App for PixelsorterGui {
 
         // Open file on startup
         if do_open_file {
-            self.open_file(ctx);
+            self.open_image(ctx);
         }
         if let Some(ls) = &self.layered_sorter {
             // Load current values
@@ -403,7 +412,7 @@ impl eframe::App for PixelsorterGui {
         } else {
             // Create a layering thingy if we don't have one yet
             if let Some(img) = &self.img {
-                self.layered_sorter = Some(LayeredSorter::new(img.clone(), self.values));
+                self.layered_sorter = Some(LayeredSorter::new(img.clone(), self.values.clone()));
             }
         }
 
@@ -456,7 +465,7 @@ impl eframe::App for PixelsorterGui {
                         ui.group(|ui| {
                             ui.set_width(full_width(&ui));
                             if ui.button("Open image...").clicked() {
-                                self.open_file(ctx);
+                                self.open_image(ctx);
                             }
 
                             if let Some(p) = &self.path {
@@ -632,4 +641,20 @@ pub fn save_image(img: &RgbImage, path: &PathBuf) -> Result<PathBuf, String> {
         return Err(e.to_string());
     }
     Ok(new_path)
+}
+
+fn open_file(mut fun: impl FnMut (DynamicImage, PathBuf) -> bool) {
+    // Opening image until cancled or until valid image loaded
+    loop {
+        let file = rfd::FileDialog::new()
+            .add_filter("Images", &["png", "jpg", "jpeg", "webp"])
+            .pick_file();
+        match file {
+            None => break,
+            Some(f) => match image::open(f.as_path()) {
+                Ok(i) => { if fun(i,f) { break; } }
+                Err(_) => {}
+            },
+        }
+    }
 }
