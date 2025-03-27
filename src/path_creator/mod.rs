@@ -12,6 +12,7 @@ pub enum PathCreator {
     AllVertically,
     HorizontalLines,
     VerticalLines,
+    Rays,
     Circles,
     Spiral,
     SquareSpiral,
@@ -30,6 +31,7 @@ impl std::fmt::Display for PathCreator {
                 PathCreator::AllVertically => "All Vertically".into(),
                 PathCreator::HorizontalLines => "Left/Right".into(),
                 PathCreator::VerticalLines => "Up/Down".into(),
+                PathCreator::Rays => "Rays".into(),
                 PathCreator::Circles => "Circles".into(),
                 PathCreator::Spiral => "Spiral".into(),
                 PathCreator::SquareSpiral => "Square Spiral".into(),
@@ -66,6 +68,7 @@ impl PathCreator {
             PathCreator::AllVertically => path_all_vertically(w, h),
             PathCreator::HorizontalLines => path_horizontal_lines(w, h),
             PathCreator::VerticalLines => path_vertical_lines(w, h),
+            PathCreator::Rays => path_rays(w, h),
             PathCreator::SquareSpiral => path_rect_spiral(w, h, true),
             PathCreator::RectSpiral => path_rect_spiral(w, h, false),
             PathCreator::Diagonally(angle) => path_diagonal_lines(w, h, angle),
@@ -241,6 +244,39 @@ fn path_diagonal_lines(w: u64, h: u64, angle: f32) -> Vec<Vec<u64>> {
     }
 
     return paths;
+}
+
+fn path_rays(w: u64, h: u64) -> Vec<Vec<u64>> {
+    let mut cx:f32 = (w as f32) / 2.0;
+    let mut cy:f32 = (h as f32) / 2.0;
+    let mut dirs: Vec<(f32, f32)> = Vec::new();;
+    let mut tips: Vec<(f32, f32)>;
+    let  mut y = 0; let mut x = 0;
+    tips =      (0..w).map(|x| { (x as f32, 0.0) }).collect();
+    tips.extend((0..w).map(|x| { (x as f32, h as f32) }));
+    tips.extend((0..h).map(|y| { (0.0, y as f32) }));
+    tips.extend((0..h).map(|y| { (w as f32, y as f32) }));
+    dirs = tips.into_iter().map(|(x,y)| {
+        let dx = x - cx;
+        let dy = y - cy;
+        let m = dx.abs().max(dy.abs());
+        (dx/m, dy/m)
+    }).collect();
+    let ray = |(dx, dy): (f32, f32)| {
+        let mut x = cx;
+        let mut y = cy;
+        let mut path = Vec::new();
+        loop {
+            x += dx;
+            y += dy;
+            let i: u64 = y as u64 * w + x as u64;
+            path.push(i);
+            if x < 0.0 || x.ceil() > w as f32  || y < 0.0 || y.ceil() > h as f32 { break; }
+        }
+        path
+    };
+
+    return dirs.into_par_iter().map(ray).collect();
 }
 
 fn path_rect_spiral(w: u64, h: u64, square: bool) -> Vec<Vec<u64>> {
