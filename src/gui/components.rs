@@ -47,6 +47,7 @@ impl PixelsorterGui {
             PathCreator::AllVertically,
             PathCreator::HorizontalLines,
             PathCreator::VerticalLines,
+            PathCreator::Rays,
             PathCreator::Circles,
             PathCreator::Spiral,
             PathCreator::SquareSpiral,
