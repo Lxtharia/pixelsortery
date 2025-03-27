@@ -1,0 +1,90 @@
+name: Build Release
+
+on:
+  release:
+    types: [published]
+    branches: [main]
+  workflow_dispatch:  
+    inputs:
+      tag_name:
+        description: "Tag name of the release"
+        required: true
+# push:
+#   branches:
+#     - main
+      
+
+env:
+  CARGO_TERM_COLOR: always
+  TAG_NAME: ${{ github.event.release.tag_name || github.event.inputs.tag_name }}
+
+jobs:
+  build:
+
+    permissions:
+      contents: write  
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            bin_name: pixelsortery-linux
+            cargo_target: release
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            bin_name: pixelsortery-darwin
+            cargo_target: release
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            bin_name: pixelsortery-darwin-aarch
+            cargo_target: release
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            bin_name: pixelsortery-windows
+            cargo_target: release
+    runs-on: ${{ matrix.os }}
+    name: Build for ${{ matrix.os }} (${{ matrix.target }})
+    
+    steps:
+    - uses: actions/checkout@v4
+      with: 
+        ref: ${{ env.TAG_NAME }}
+    - name: Show Rustup Info
+      run: rustup show
+      
+    - name: Cache
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+    # This is mainly for the two different targets on darwin/macos
+    - name: Set default toolchain to target
+      run: |
+          rustup update stable
+          rustup default stable-${{ matrix.target }}
+
+    - name: Build binaries in mode "${{ matrix.cargo_target }}" for os "${{ matrix.os }}"
+      run: cargo build --profile ${{ matrix.cargo_target }} --target ${{ matrix.target }}
+    # - name: Run tests
+    #   run: cargo test --profile ${{ matrix.BUILD_TARGET }}
+    - name: Add version to binary name
+      shell: bash
+      run: |
+        if [[ "$RUNNER_OS" == "Windows" ]] ; then EXT=".exe"; fi
+        src=target/${{ matrix.target }}/${{ matrix.cargo_target }}/pixelsortery$EXT
+        dst=${{ matrix.bin_name }}-${{ env.TAG_NAME }}$EXT
+        ls -lah target/*
+        mv  "$src" "$dst"
+        echo "BIN_NAME=$dst" >> $GITHUB_ENV
+          
+    - name: Upload artifact to release
+      uses: softprops/action-gh-release@v2
+      # if: startsWith(github.ref, 'refs/tags/')
+      with:
+        tag_name: ${{ env.TAG_NAME }}
+        files:  ${{ env.BIN_NAME }}
+        
