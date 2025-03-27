@@ -174,6 +174,7 @@ fn main() {
             "--left"       => { ps.path_creator = PathCreator::HorizontalLines; ps.reverse = true},
             "--down"       =>   ps.path_creator = PathCreator::VerticalLines,
             "--up"         => { ps.path_creator = PathCreator::VerticalLines;   ps.reverse = true},
+            "--rays"           =>   ps.path_creator = PathCreator::Rays,
             "--circles"           =>   ps.path_creator = PathCreator::Circles,
             "--spiral"            =>   ps.path_creator = PathCreator::Spiral,
             "--spiral-square"     =>   ps.path_creator = PathCreator::SquareSpiral,

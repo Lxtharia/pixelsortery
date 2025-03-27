@@ -5,7 +5,7 @@ use log::{error, info, warn};
 use path_creator::PathCreator;
 use rayon::prelude::*;
 use span_sorter::{SortingCriteria, SpanSorter};
-use std::{path::Path, time::Instant};
+use std::{fmt::Debug, path::Path, time::Instant};
 
 use crate::pixel_selector::PixelSelector;
 
@@ -47,6 +47,7 @@ impl Pixelsorter {
             PathCreator::RectSpiral => "Rect Spiral".into(),
             PathCreator::Diagonally(a) => format!("Diagonally ({}°)", a),
             PathCreator::Hilbert => "Hilbert Curve".into(),
+            p => format!("{}", p),
         }
         .as_str();
         s += "-";
@@ -99,6 +100,7 @@ impl Pixelsorter {
             PathCreator::RectSpiral => "Rect".into(),
             PathCreator::Diagonally(a) => format!("Diag({}°)", a),
             PathCreator::Hilbert => "Hilbert".into(),
+            p => format!("{}", p),
         }
         .as_str();
         if self.reverse {
@@ -153,6 +155,7 @@ impl Pixelsorter {
             PathCreator::RectSpiral => "spRe".into(),
             PathCreator::Diagonally(a) => format!("diag{}", a),
             PathCreator::Hilbert => "hilb".into(),
+            p => format!("{}", p).to_lowercase(),
         }
         .as_str();
         s += "-";
