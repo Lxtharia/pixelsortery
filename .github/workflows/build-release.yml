@@ -107,9 +107,10 @@ jobs:
          GH_TOKEN: ${{ github.token }}
     - name: Delete previous nightly release
       if: env.TAG_NAME == 'nightly'
+      continue-on-error: true
       shell: bash
       run: |
-        { gh release delete --yes "$TAG" || true }
+        gh release delete --yes "$TAG"
       env:
          TAG: nightly
          GH_TOKEN: ${{ github.token }} 
