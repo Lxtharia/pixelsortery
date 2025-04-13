@@ -89,8 +89,8 @@ jobs:
 
     - uses: actions/upload-artifact@v4
       with:
-        name: ${{ env.BIN_NAME }}
-        path: ${{ matrix.bin_name }}
+        path: ${{ env.BIN_NAME }}
+        name: ${{ matrix.bin_name }}
         retention-days: 1
 
 
@@ -104,13 +104,6 @@ jobs:
     permissions:
       contents: write
     steps:
-    # Update normal release artifacts
-    - name: Upload artifact to release
-      uses: softprops/action-gh-release@v2
-      if: env.TAG_NAME != 'nightly'
-      with:
-        tag_name: ${{ env.TAG_NAME }}
-        files: ${{ env.ARTIFACTS }}
 
     # Nightly Gedöns
     # Must perform checkout first, since it deletes the target directory
@@ -121,10 +114,18 @@ jobs:
         ref: main
 
     - uses: actions/download-artifact@v4
-      if: env.TAG_NAME == 'nightly'
       with:
         path: artifacts
         merge-multiple: true
+
+
+    # Update normal release artifacts
+    - name: Upload artifact to release
+      uses: softprops/action-gh-release@v2
+      if: env.TAG_NAME != 'nightly'
+      with:
+        tag_name: ${{ env.TAG_NAME }}
+        files: ${{ env.ARTIFACTS }}
 
     # Update nightly tag
     - name: Update the nightly tag
