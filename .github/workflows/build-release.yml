@@ -32,7 +32,7 @@ jobs:
             cargo_target: release
           - os: macos-latest
             target: x86_64-apple-darwin
-            bin_name: pixelsortery-darwin
+            bin_name: pixelsortery-darwin-x86
             cargo_target: release
           - os: macos-latest
             target: aarch64-apple-darwin
@@ -73,8 +73,10 @@ jobs:
 
     - name: Build binaries in mode "${{ matrix.cargo_target }}" for os "${{ matrix.os }}"
       run: cargo build --profile ${{ matrix.cargo_target }} --target ${{ matrix.target }}
+      
     # - name: Run tests
     #   run: cargo test --profile ${{ matrix.BUILD_TARGET }}
+    
     - name: Add version to binary name
       shell: bash
       run: |
@@ -85,18 +87,45 @@ jobs:
         mv  "$src" "$dst"
         echo "BIN_NAME=$dst" >> $GITHUB_ENV
 
-    # Update normal release
+    - uses: actions/upload-artifact@v4
+      with:
+        name: ${{ matrix.binname }}
+        path: artifacts/${{ env.BIN_NAME }}
+        retention-days: 1
+
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    env:
+      GH_REPO: ${{ github.repository }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      ARTIFACTS: pixelsortery-linux  pixelsortery-darwin-x86 pixelsortery-darwin-aarch pixelsortery-windows
+    permissions:
+      contents: write
+    steps:
+    # Update normal release artifacts
     - name: Upload artifact to release
       uses: softprops/action-gh-release@v2
       if: env.TAG_NAME != 'nightly'
       with:
         tag_name: ${{ env.TAG_NAME }}
-        files:  ${{ env.BIN_NAME }}
+        files: ${{ env.ARTIFACTS }}
 
-    # Update nightly release
+    # Nightly Gedöns
+    # Must perform checkout first, since it deletes the target directory
+    # before running, and would therefore delete the downloaded artifacts
+    - uses: actions/checkout@v4
+      if: env.TAG_NAME == 'nightly'
+      with: 
+        ref: main
+
+    - uses: actions/download-artifact@v4
+      if: env.TAG_NAME == 'nightly'
+
+    # Update nightly tag
     - name: Update the nightly tag
       if: env.TAG_NAME == 'nightly'
-      shell: bash
       run: |
          git config user.name "github-actions[bot]"
          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -105,29 +134,30 @@ jobs:
       env:
          TAG: nightly
          GH_TOKEN: ${{ github.token }}
+    # Delete previous nightly release
     - name: Delete previous nightly release
       if: env.TAG_NAME == 'nightly'
       continue-on-error: true
-      shell: bash
       run: |
         gh release delete --yes "$TAG"
       env:
          TAG: nightly
          GH_TOKEN: ${{ github.token }} 
+    # Create new nightly release
     - name: Publish pre-release on GitHub
       if: env.TAG_NAME == 'nightly'
-      shell: bash
       run: |
          gh release create \
-           --title "$TAG" \
+           --title "$TITLE" \
            --notes "$NOTES" \
            --prerelease \
            --draft=false \
            "$TAG"
-         gh release upload --clobber "$TAG" $ARTIFACTS
+         ls -l artifacts/
+         gh release upload --clobber "$TAG" artifacts/*
       env:
          NOTES: This is a prerelease and may contain faulty or non functional code.
-         ARTIFACTS: ${{ env.BIN_NAME }}
+         TITLE: Nightly Release
          TAG: ${{ env.TAG_NAME }}
          GH_TOKEN: ${{ github.token }}
 
