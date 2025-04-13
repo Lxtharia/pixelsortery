@@ -30,7 +30,7 @@ jobs:
             target: x86_64-unknown-linux-gnu
             bin_name: pixelsortery-linux
             cargo_target: release
-          - os: ubuntu-latest
+          - os: macos-latest
             target: x86_64-apple-darwin
             bin_name: pixelsortery-darwin
             cargo_target: release
