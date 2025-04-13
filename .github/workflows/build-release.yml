@@ -69,7 +69,7 @@ jobs:
     - name: Set default toolchain to target
       run: |
           rustup update stable
-          rustup default stable-${{ matrix.target }}
+          rustup default --force-non-host stable-${{ matrix.target }}
 
     - name: Build binaries in mode "${{ matrix.cargo_target }}" for os "${{ matrix.os }}"
       run: cargo build --profile ${{ matrix.cargo_target }} --target ${{ matrix.target }}
