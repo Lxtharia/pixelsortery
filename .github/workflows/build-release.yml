@@ -90,7 +90,7 @@ jobs:
     - uses: actions/upload-artifact@v4
       with:
         name: ${{ env.BIN_NAME }}
-        path: ${{ matrix.binname }}
+        path: ${{ matrix.bin_name }}
         retention-days: 1
 
 
