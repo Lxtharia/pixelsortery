@@ -46,12 +46,16 @@ jobs:
     name: Build for ${{ matrix.os }} (${{ matrix.target }})
     
     steps:
+    # Checkout either the tag or main (on nightly build)
     - uses: actions/checkout@v4
+      if: env.TAG_NAME != 'nightly'
       with: 
         ref: ${{ env.TAG_NAME }}
-    - name: Show Rustup Info
-      run: rustup show
-      
+    - uses: actions/checkout@v4
+      if: env.TAG_NAME == 'nightly'
+      with: 
+        ref: main
+    
     - name: Cache
       uses: actions/cache@v4
       with:
@@ -80,11 +84,52 @@ jobs:
         ls -lah target/*
         mv  "$src" "$dst"
         echo "BIN_NAME=$dst" >> $GITHUB_ENV
-          
+
+    # Update normal release
     - name: Upload artifact to release
       uses: softprops/action-gh-release@v2
-      # if: startsWith(github.ref, 'refs/tags/')
+      if: env.TAG_NAME != 'nightly'
       with:
         tag_name: ${{ env.TAG_NAME }}
         files:  ${{ env.BIN_NAME }}
+
+    # Update nightly release
+    - name: Update the nightly tag
+      if: env.TAG_NAME == 'nightly'
+      shell: bash
+      run: |
+         git config user.name "github-actions[bot]"
+         git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+         git tag --force "$TAG"
+         git push --force origin "$TAG"
+      env:
+         TAG: nightly
+         GH_TOKEN: ${{ github.token }}
+    - name: Delete previous nightly release
+      if: env.TAG_NAME == 'nightly'
+      shell: bash
+      run: |
+        { gh release delete --yes "$TAG" || true }
+      env:
+         TAG: nightly
+         GH_TOKEN: ${{ github.token }} 
+    - name: Publish pre-release on GitHub
+      if: env.TAG_NAME == 'nightly'
+      shell: bash
+      run: |
+         gh release create \
+           --title "$TAG" \
+           --notes "$NOTES" \
+           --prerelease \
+           --draft=false \
+           "$TAG"
+         gh release upload --clobber "$TAG" $ARTIFACTS
+      env:
+         NOTES: This is a prerelease and may contain faulty or non functional code.
+         ARTIFACTS: ${{ env.BIN_NAME }}
+         TAG: ${{ env.TAG_NAME }}
+         GH_TOKEN: ${{ github.token }}
+
+        
+        
         
