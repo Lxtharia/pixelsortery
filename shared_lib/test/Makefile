@@ -1,9 +1,9 @@
 
-libpixelsortery.so: src/lib.rs
+libpixelsortery_swaylock.so: ../src/lib.rs
 	cargo build --lib --release
 
-ctest.out: main.c libpixelsortery.so
-	gcc main.c -o test/$@ -L. -lpixelsortery
+ctest.out: main.c libpixelsortery_swaylock.so
+	gcc main.c -o $@ -L. -lpixelsortery_swaylock
 
 .PHONY: ctest.out
 

@@ -16,7 +16,7 @@ pub extern "C" fn swaylock_effect(data: *mut u32, width: u32, height: u32) {
     let mut img = ppm_to_image(data, width, height);
 
     // This needs to be changed during compile time
-    let sorters = hilbert_glitch();
+    let sorters = circle_glitch();
 
     for sorter in sorters {
         sorter.sort(&mut img);
@@ -85,6 +85,18 @@ fn image_to_ppm(data: *mut u32, img: &RgbImage) {
 //    }
 //}
 
+
+fn circle_glitch() -> Vec<Pixelsorter> {
+    let mut hilb = Pixelsorter::new();
+    hilb.path_creator = PathCreator::Hilbert;
+    hilb.selector = PixelSelector::Random { max: 500 };
+
+    let mut glitch = Pixelsorter::new();
+    glitch.path_creator = PathCreator::Circles;
+    glitch.sorter.algorithm = SortingAlgorithm::Glitchsort;
+
+    vec![hilb,glitch]
+}
 
 fn hilbert_glitch() -> Vec<Pixelsorter> {
     let mut glitch = Pixelsorter::new();

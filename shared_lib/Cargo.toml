@@ -1,0 +1,13 @@
+[package]
+name = "shared_library"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "pixelsortery_swaylock"
+path = "src/lib.rs"
+crate-type = ["cdylib"]
+
+[dependencies]
+image = { version = "0.24.6", features = ["jpeg", "png", "webp"] }
+pixelsortery = { path="../" }

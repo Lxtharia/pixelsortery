@@ -968,7 +968,7 @@ dependencies = [
  "glow 0.14.2",
  "glutin",
  "glutin-winit",
- "image 0.25.2",
+ "image 0.25.6",
  "js-sys",
  "log",
  "objc2",
@@ -1047,7 +1047,7 @@ dependencies = [
  "ahash",
  "egui",
  "enum-map",
- "image 0.25.2",
+ "image 0.25.6",
  "log",
  "mime_guess2",
 ]
@@ -1689,9 +1689,9 @@ dependencies = [
 
 [[package]]
 name = "image"
-version = "0.25.2"
+version = "0.25.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "99314c8a2152b8ddb211f924cdae532d8c5e4c8bb54728e12fff1b0cd5963a10"
+checksum = "db35664ce6b9810857a38a906215e75a9c879f0696556a39f59c62829710251a"
 dependencies = [
  "bytemuck",
  "byteorder-lite",
@@ -2761,7 +2761,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "shared_lib"
+name = "shared_library"
 version = "0.1.0"
 dependencies = [
  "image 0.24.9",
