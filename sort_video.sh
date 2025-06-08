@@ -47,11 +47,11 @@ tmp_framelist=$(mktemp --suffix -framelist.txt)
 
 # Get frame information/duration and save it to a file
 echo "=== Getting frame information"
-ffprobe -v error -i "$infile" -of csv=p=0 -select_streams v -show_entries packet=pts_time > "$tmp_timestamps"
+ffprobe -v error -i "$infile" -of csv=p=0 -select_streams v -show_entries packet=pts_time | sort -n | uniq > "$tmp_timestamps"
 
 # Split to frames
 echo "=== Splitting video into frames..."
-ffmpeg -i "$infile" "$tmp1/frame_%06d.png" || exit -1
+ffmpeg -i "$infile" -fps_mode passthrough -q:v 1 "$tmp1/frame_%06d.png" || exit -1
     # -progress pipe:1 -loglevel warning 
 
 # Format the file that ffmpeg can read
@@ -82,8 +82,7 @@ wait
 
 echo "=== Creating video..."
 # Stitch back together
-ffmpeg -f concat -safe 0 -i "$tmp_framelist" -i "$infile" -map 0:v -map 1:a -shortest "$outfile"
-    # -c:v libx264 -pix_fmt yuv420p -c:a copy 
+ffmpeg -f concat -safe 0 -i "$tmp_framelist" -i "$infile" -map 0:v -map 1:a -shortest -c:v libx264 -pix_fmt yuv420p -c:a copy "$outfile"
 
 # Clean up
 rm "$tmp_timestamps" "$tmp_framelist"
