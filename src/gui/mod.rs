@@ -3,20 +3,17 @@ use eframe::egui::{
     self, Align, Button, Color32, Image, Key, Layout, Modifiers, RichText, ScrollArea,
     TextureFilter, TextureHandle, TextureOptions, Ui, Vec2,
 };
-use egui::{scroll_area::ScrollBarVisibility, style::ScrollStyle};
+use egui::{scroll_area::ScrollBarVisibility, style::ScrollStyle, warn_if_debug_build, IconData};
 use egui_flex::{item, Flex, FlexAlign, FlexAlignContent, FlexJustify};
-use image::RgbImage;
+use image::{DynamicImage, RgbImage};
 use inflections::case::to_title_case;
 use layers::LayeredSorter;
 use log::{info, warn};
 use pixelsortery::{
-    path_creator::PathCreator,
-    pixel_selector::{
+    path_creator::PathCreator, pixel_selector::{
         PixelSelectCriteria,
         PixelSelector::{self, *},
-    },
-    span_sorter::{SortingAlgorithm, SortingCriteria},
-    Pixelsorter,
+    }, span_sorter::{SortingAlgorithm, SortingCriteria}, Mask, Pixelsorter
 };
 use std::{
     ffi::OsString,
@@ -24,18 +21,20 @@ use std::{
     time::{Duration, Instant},
 };
 
-use crate::{AUTHORS, PACKAGE_NAME, VERSION};
+use crate::{AUTHORS, PACKAGE_NAME, VERSION, ISDEBUG};
 mod layers;
 
 /// How long the "Saved" Label should be visible before it vanishes
-const SAVED_LABEL_VANISH_TIMEOUT: f32 = 2.0;
+const SAVED_LABEL_VANISH_TIMEOUT: f32 = 15.0;
 const INITIAL_WINDOW_SIZE: Vec2 = egui::vec2(1000.0, 700.0);
 
 mod components;
 
-pub fn init(ps: Option<&Pixelsorter>, img: Option<(RgbImage, PathBuf)>) -> eframe::Result {
+pub fn init(ps: Option<&Pixelsorter>, img: Option<(RgbImage, PathBuf)>, mask: Option<Mask>) -> eframe::Result {
     let options = eframe::NativeOptions {
-        viewport: egui::ViewportBuilder::default().with_inner_size(INITIAL_WINDOW_SIZE),
+        viewport: egui::ViewportBuilder::default()
+            .with_icon(components::load_icon())
+            .with_inner_size(INITIAL_WINDOW_SIZE),
         ..Default::default()
     };
 
@@ -46,6 +45,7 @@ pub fn init(ps: Option<&Pixelsorter>, img: Option<(RgbImage, PathBuf)>) -> efram
     if let Some((img, img_path)) = img {
         psgui = psgui.with_image(img, img_path);
     }
+    psgui.values.mask = mask;
 
     eframe::run_native(
         "Pixelsortery",
@@ -77,12 +77,13 @@ struct PixelsorterGui {
     auto_sort: bool,
     do_sort: bool,
     saving_success_timeout: Option<Instant>,
+    saving_success_filename: PathBuf,
     change_layer: SwitchLayerMessage,
     show_base_image: bool,
 }
 
 /// Adjustable components of the pixelsorter, remembers values like diagonal angle
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, PartialEq)]
 struct PixelsorterValues {
     reverse: bool,
     path: PathCreator,
@@ -95,6 +96,7 @@ struct PixelsorterValues {
     selector_random: PixelSelector,
     selector_fixed: PixelSelector,
     selector_thres: PixelSelector,
+    mask: Option<Mask>,
 }
 
 #[derive(PartialEq)]
@@ -106,6 +108,10 @@ enum SwitchLayerMessage {
 }
 
 impl PixelsorterValues {
+    fn sort(&self, img: &mut RgbImage) {
+        self.to_pixelsorter().sort(img, self.mask.as_ref());
+    }
+
     // Reads values and returns a Pixelsorter
     fn to_pixelsorter(&self) -> Pixelsorter {
         let mut ps = Pixelsorter::new();
@@ -165,12 +171,14 @@ impl Default for PixelsorterGui {
                     max: 360,
                     criteria: PixelSelectCriteria::Brightness,
                 },
+                mask: None,
             },
             time_last_sort: Duration::default(),
             auto_sort: true,
             output_directory: None,
             save_into_parent_dir: false,
             saving_success_timeout: None,
+            saving_success_filename: PathBuf::new(),
             change_layer: SwitchLayerMessage::None,
             do_sort: true,
             show_base_image: false,
@@ -248,30 +256,35 @@ impl PixelsorterGui {
         }
     }
 
-    fn open_file(&mut self, ctx: &egui::Context) -> () {
-        // Opening image until cancled or until valid image loaded
-        loop {
-            let file = rfd::FileDialog::new()
-                .add_filter("Images", &["png", "jpg", "jpeg", "webp"])
-                .pick_file();
-            match file {
-                None => break,
-                Some(f) => match image::open(f.as_path()) {
-                    Ok(i) => {
-                        let img = i.into_rgb8();
-                        if let Some(ls) = &mut self.layered_sorter {
-                            ls.set_base_img(img.clone());
-                        }
-                        // I want to make layered_sorter mandatory and remove the possibility of it being None
-                        self.img = Some(img);
-                        self.update_texture(ctx);
-                        self.path = Some(f);
-                        break;
-                    }
-                    Err(_) => {}
-                },
+    fn open_mask(&mut self, ctx: &egui::Context) -> () {
+        open_file(|i: DynamicImage, f| {
+            let img = i.into_luma_alpha8();
+            if let Some(ls) = &mut self.layered_sorter {
+                if let Some(m) = &mut self.values.mask {
+                    m.image = img;
+                    m.file_path = Some(f);
+                } else {
+                    let mut newmask = Mask::new(img, 0, 0);
+                    newmask.file_path = Some(f);
+                    self.values.mask = Some(newmask);
+                }
             }
-        }
+            return true;
+        } );
+    }
+
+    fn open_image(&mut self, ctx: &egui::Context) -> () {
+        open_file(|i: DynamicImage, f| {
+            let img = i.into_rgb8();
+            if let Some(ls) = &mut self.layered_sorter {
+                ls.set_base_img(img.clone());
+            }
+            // I want to make layered_sorter mandatory and remove the possibility of it being None
+            self.img = Some(img);
+            self.update_texture(ctx);
+            self.path = Some(f);
+            return true;
+        } );
     }
 
     /// Sorts and saves the image to the current output directory with a given filename
@@ -315,6 +328,7 @@ impl PixelsorterGui {
                     if let Ok(p) = save_image(sorted, &outpath) {
                         info!("Saved file to '{}' ...", p.to_string_lossy());
                         self.saving_success_timeout = Some(Instant::now());
+                        self.saving_success_filename = p;
                     }
                 }
             } else {
@@ -351,6 +365,7 @@ impl PixelsorterGui {
                     } else {
                         info!("Saved file to '{}' ...", f.to_string_lossy());
                         self.saving_success_timeout = Some(Instant::now());
+                        self.saving_success_filename = f;
                     };
                 }
             }
@@ -377,6 +392,7 @@ impl eframe::App for PixelsorterGui {
                 self.do_sort = true;
             }
             if i.consume_key(Modifiers::NONE, Key::Questionmark) {
+                #[cfg(debug_assertions)]
                 self.layered_sorter.as_ref().unwrap().print_state();
             }
         });
@@ -388,7 +404,7 @@ impl eframe::App for PixelsorterGui {
 
         // Open file on startup
         if do_open_file {
-            self.open_file(ctx);
+            self.open_image(ctx);
         }
         if let Some(ls) = &self.layered_sorter {
             // Load current values
@@ -396,7 +412,7 @@ impl eframe::App for PixelsorterGui {
         } else {
             // Create a layering thingy if we don't have one yet
             if let Some(img) = &self.img {
-                self.layered_sorter = Some(LayeredSorter::new(img.clone(), self.values));
+                self.layered_sorter = Some(LayeredSorter::new(img.clone(), self.values.clone()));
             }
         }
 
@@ -412,15 +428,17 @@ impl eframe::App for PixelsorterGui {
                     if inst.elapsed() > Duration::from_secs_f32(SAVED_LABEL_VANISH_TIMEOUT) {
                         self.saving_success_timeout = None;
                     } else {
-                        ui.label(RichText::new("Saved!").color(Color32::DARK_GREEN));
+                        ui.label(RichText::new("Saved!").color(Color32::GREEN));
+                        ui.label(RichText::new(format!("to '{}'", self.saving_success_filename.to_string_lossy())).color(Color32::LIGHT_GREEN));
                         ui.separator();
                     }
                 }
                 ui.with_layout(Layout::right_to_left(Align::Max), |ui| {
                     ui.label(format!(
-                        "{} v{} by {}",
+                        "{} v{}{} by {}",
                         to_title_case(PACKAGE_NAME),
                         VERSION,
+                        if ISDEBUG {"(debug)"} else{""},
                         AUTHORS
                     ));
                     ui.separator();
@@ -447,7 +465,7 @@ impl eframe::App for PixelsorterGui {
                         ui.group(|ui| {
                             ui.set_width(full_width(&ui));
                             if ui.button("Open image...").clicked() {
-                                self.open_file(ctx);
+                                self.open_image(ctx);
                             }
 
                             if let Some(p) = &self.path {
@@ -623,4 +641,20 @@ pub fn save_image(img: &RgbImage, path: &PathBuf) -> Result<PathBuf, String> {
         return Err(e.to_string());
     }
     Ok(new_path)
+}
+
+fn open_file(mut fun: impl FnMut (DynamicImage, PathBuf) -> bool) {
+    // Opening image until cancled or until valid image loaded
+    loop {
+        let file = rfd::FileDialog::new()
+            .add_filter("Images", &["png", "jpg", "jpeg", "webp"])
+            .pick_file();
+        match file {
+            None => break,
+            Some(f) => match image::open(f.as_path()) {
+                Ok(i) => { if fun(i,f) { break; } }
+                Err(_) => {}
+            },
+        }
+    }
 }

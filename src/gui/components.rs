@@ -5,7 +5,7 @@ use eframe::{
     },
     epaint::Hsva,
 };
-use egui::{Align2, Frame, SliderClamping, Stroke};
+use egui::{Align2, DragValue, Frame, Label, SliderClamping, Stroke};
 use egui_flex::FlexInstance;
 use log::info;
 use pixelsortery::{
@@ -20,6 +20,24 @@ use super::*;
 fn important_text(s: &str) -> RichText {
     //RichText::new(s).underline()
     RichText::new(s).size(14.0)
+}
+
+pub(crate) fn load_icon() -> egui::IconData {
+	let (icon_rgba, icon_width, icon_height) = {
+		let icon = include_bytes!("../../assets/icon.png");
+		let image = image::load_from_memory(icon)
+			.expect("Failed to open icon path")
+			.into_rgba8();
+		let (width, height) = image.dimensions();
+		let rgba = image.into_raw();
+		(rgba, width, height)
+	};
+
+	egui::IconData {
+		rgba: icon_rgba,
+		width: icon_width,
+		height: icon_height,
+	}
 }
 
 impl PixelsorterGui {
@@ -268,6 +286,10 @@ impl PixelsorterGui {
                 ui.separator();
                 ui.end_row();
 
+                ui.label(important_text("Mask"));
+                self.mask_options_panel(ui);
+                ui.end_row();
+
                 // PATH
                 ui.label(important_text("Path"));
                 self.path_combo_box(ui, id);
@@ -289,6 +311,45 @@ impl PixelsorterGui {
                 });
                 ui.end_row();
             });
+    }
+
+    pub(super) fn mask_options_panel(&mut self, ui: &mut Ui) {
+        ui.vertical(|ui|{
+            ui.horizontal(|ui| {
+                if ui.button("Load mask").clicked() {
+                    info!("Loading mask...");
+                    self.open_mask(ui.ctx());
+                }
+                if let Some(m) = &mut self.values.mask {
+                    let dragx = DragValue::new(&mut m.x);
+                    let dragy = DragValue::new(&mut m.y);
+                    ui.label("x:");
+                    ui.add(dragx);
+                    ui.label("y:");
+                    ui.add(dragy);
+                    ui.checkbox(&mut m.invert, "Invert");
+                }
+            });
+
+            let mut do_remove_mask = false;
+            ui.horizontal(|ui| {
+                let mut text = RichText::new("").italics();
+                if let Some(m) = &mut self.values.mask {
+                    if ui.button("Remove mask").clicked() {
+                        do_remove_mask = true;
+                    }
+                    if let Some(p) = &m.file_path {
+                        text = RichText::new(p.to_string_lossy()).monospace();
+                    }
+                }
+                let label = Label::new(text.clone()).truncate();
+                ui.add(label);
+            });
+
+            if do_remove_mask  {
+                self.values.mask = None;
+            }
+        });
     }
 
     pub(super) fn save_options_panel(&mut self, ui: &mut Ui) {
@@ -322,18 +383,24 @@ impl PixelsorterGui {
             ui.checkbox(&mut self.save_into_parent_dir, "Same directory");
         });
         ui.add_space(5.0);
-        ui.horizontal_wrapped(|ui| {
+        ui.horizontal(|ui|{
             ui.label("Saving into: ");
-            let text = if self.save_into_parent_dir {
-                let mut parent_dir = self.path.as_ref().unwrap().clone();
-                parent_dir.pop();
-                RichText::new(parent_dir.to_string_lossy()).monospace()
-            } else if let Some(output_dir) = &self.output_directory {
-                RichText::new(output_dir.to_string_lossy()).monospace()
-            } else {
-                RichText::new("No output directory set").italics()
-            };
-            ui.label(text);
+            ScrollArea::horizontal()
+                .scroll_bar_visibility(ScrollBarVisibility::AlwaysHidden)
+                .drag_to_scroll(true)
+                .max_height(20.0)
+                .show(ui, |ui| {
+                let text = if self.save_into_parent_dir {
+                    let mut parent_dir = self.path.as_ref().unwrap().clone();
+                    parent_dir.pop();
+                    RichText::new(parent_dir.to_string_lossy()).monospace()
+                } else if let Some(output_dir) = &self.output_directory {
+                    RichText::new(output_dir.to_string_lossy()).monospace()
+                } else {
+                    RichText::new("No output directory set").italics()
+                };
+                ui.label(text).scroll_to_me(Some(Align::Max));
+            });
         });
     }
 

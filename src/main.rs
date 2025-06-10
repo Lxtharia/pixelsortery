@@ -1,11 +1,9 @@
-use image::RgbImage;
+use image::{DynamicImage, GrayAlphaImage, RgbImage};
 use log::{error, info, warn};
 use pixelsortery::{
-    path_creator::PathCreator,
-    pixel_selector::{
+    load_image, path_creator::PathCreator, pixel_selector::{
         PixelSelectCriteria, PixelSelector
-    },
-    span_sorter::{SortingAlgorithm, SortingCriteria},
+    }, span_sorter::{SortingAlgorithm, SortingCriteria}, Mask
 };
 use std::{io::Read, path::PathBuf, str::FromStr};
 use std::time::Instant;
@@ -16,6 +14,7 @@ mod gui;
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 const AUTHORS: &str = env!("CARGO_PKG_AUTHORS");
 const PACKAGE_NAME: &str = env!("CARGO_PKG_NAME");
+const ISDEBUG: bool = cfg!(debug_assertions);
 
 
 fn parse_parameter<T: FromStr>(arg: Option<String>, usage: &str) -> T {
@@ -26,6 +25,28 @@ fn parse_parameter<T: FromStr>(arg: Option<String>, usage: &str) -> T {
     }
     eprintln!("[ERROR] Wrong syntax, usage {}", usage);
     exit(-1);
+}
+
+fn parse_mask_pos(arg: Option<String>) -> (i32,i32) {
+    if let Some(arg2) = arg {
+        let mut opts: VecDeque<&str> = VecDeque::from_iter(arg2.split(":"));
+
+        let x = opts
+            .pop_front()
+            .unwrap_or("")
+            .parse()
+            .unwrap_or(0);
+        let y = opts
+            .pop_front()
+            .unwrap_or("")
+            .parse()
+            .unwrap_or(0);
+        return (x,y);
+    } else {
+        eprintln!("[ERROR] Wrong syntax, usage: --mask-pos <x>:<y>");
+        exit(-1)
+    }
+
 }
 
 fn parse_thres_selector_parameters(arg: Option<String>) -> PixelSelector {
@@ -77,6 +98,9 @@ const HELP_STRING: &str = "
    --show-mask    : Outputs a mask showing what areas would be sorted (requires --thres)
    --gui          : Starts the gui;
                     | When using the gui, setting <output> is optional
+   --mask <file>  : Use a mask to prevent specific areas from being sorted
+   --mask-pos x:y :
+   --mask-invert  : Inverts the mask
 
 ================ Direction Options ==============
 
@@ -133,7 +157,7 @@ fn main() {
 
     if args.is_empty() {
         eprintln!("No arguments passed. Starting gui...");
-        gui::init(None, None).unwrap();
+        gui::init(None, None, None).unwrap();
         exit(0);
     }
 
@@ -144,8 +168,11 @@ fn main() {
     // CREATE DEFAULT PIXELSORTER
     let mut ps = pixelsortery::Pixelsorter::new();
     let mut do_reverse = false;
-    let mut show_mask = false;
     let mut start_gui = false;
+    let mut show_mask = false;
+    let mut mask_path = PathBuf::new();
+    let mut mask_pos = (0,0);
+    let mut mask_invert = false;
 
     // I should just use some argument library tbh
     while let Some(arg) = args.pop_front() {
@@ -163,6 +190,9 @@ fn main() {
 
             "--gui" => start_gui = true,
             "--show-mask" => show_mask = true,
+            "--mask" => { mask_path = parse_parameter::<PathBuf>(args.pop_front(), "--mask <file>" ); },
+            "--mask-pos"  => mask_pos = parse_mask_pos(args.pop_front()),
+            "--mask-invert" => mask_invert = true,
 
             "--random" => ps.selector = PixelSelector::Random { max: parse_parameter(args.pop_front(), "--random <max>")},
             "--fixed"  => ps.selector = PixelSelector::Fixed  { len: parse_parameter(args.pop_front(), "--fixed <len>")},
@@ -213,27 +243,31 @@ fn main() {
         ps.reverse = ! ps.reverse;
     }
 
+    if mask_invert && mask_path.as_os_str().is_empty() {
+        warn!("No mask to invert, ignoring...")
+    }
 
-    /// Open image or read from stdin
-    fn load_image(path: &str) -> RgbImage {
-        match path {
-            "-" => {
-                let mut buf = Vec::new();
-                std::io::stdin().read_to_end(&mut buf).unwrap();
-                image::load_from_memory(&buf).unwrap().into_rgb8()
-            },
-            _ => image::open(&path).unwrap().into_rgb8(),
-        }
+    // Create mask
+    let mut mask = None;
+    if ! mask_path.as_os_str().is_empty() {
+        let mask_img = DynamicImage::from(load_image(&mask_path.to_string_lossy()));
+        // let x = (img.width() - m_img.width()) / 2;
+        // let y = (img.height() - m_img.height()) / 2;
+        let mut newmask = Mask::new(mask_img.to_luma_alpha8(), mask_pos.0, mask_pos.1);
+        newmask.invert = mask_invert;
+        newmask.file_path = Some(mask_path.clone());
+        mask = Some(newmask);
+
     }
 
     // Start gui with set options
     if start_gui {
         // TODO: give optional output path
         if input_path.is_empty() {
-            gui::init(Some(&ps), None).unwrap();
+            gui::init(Some(&ps), None, mask).unwrap();
         } else {
             let img = load_image(&input_path);
-            gui::init(Some(&ps), Some((img, PathBuf::from(&input_path)))).unwrap();
+            gui::init(Some(&ps), Some((img, PathBuf::from(&input_path))), mask).unwrap();
         }
         exit(0);
     }
@@ -263,7 +297,7 @@ fn main() {
         }
     } else {
         // SORTING
-        ps.sort(&mut img);
+        ps.sort(&mut img, mask.as_ref());
     }
 
     let duration = start.elapsed();
@@ -281,5 +315,3 @@ fn main() {
         }
     }
 }
-
-

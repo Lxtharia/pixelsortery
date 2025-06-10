@@ -97,7 +97,7 @@ fn fixed_selector<'a>(
     let mut spans: Vec<Vec<&'a mut Rgb<u8>>> = Vec::new();
 
     // Prevent an endless loop
-    if len == 0 {
+    if len <= 1 {
         return spans;
     }
 
@@ -165,7 +165,7 @@ fn threshold_selector<'a>(
         } else {
             // A invalid pixel, close the span and create a new one
             // Only do that when the current span isn't empty anyway
-            if span.len() > 0 {
+            if span.len() > 1 {
                 spans.push(span);
                 span = Vec::new();
             }
@@ -174,4 +174,3 @@ fn threshold_selector<'a>(
     spans.push(span);
     spans
 }
-
