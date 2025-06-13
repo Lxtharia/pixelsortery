@@ -307,8 +307,20 @@ impl Pixelsorter {
         let mut frame_counter = 1;
         loop {
             // Read exactly that amount of bytes that make one frame
-            buffer = in_pipe.by_ref().bytes().map(|b| b.unwrap()).take(bytes as usize).collect();
+            let timestart = Instant::now();
             info!("[VIDEO] Reading Frame {frame_counter:05}");
+            match in_pipe.read_exact(&mut buffer) {
+                Ok(_) => {},
+                Err(e) => {
+                    if e.kind() == ErrorKind::UnexpectedEof {
+                        info!("[VIDEO] Encountered EOF");
+                        break;
+                    } else {
+                        info!("[VIDEO] Error reading frame: {e}");
+                    }
+                }
+            }
+            info!("[VIDEO][TIME] Reading bytes {:?}", timestart.elapsed());
             frame_counter += 1;
             debug!("[VIDEO] Bufsize: Read {} of expected {}", buffer.len(), bytes );
             // Convert the read bytes into a image and sort it
