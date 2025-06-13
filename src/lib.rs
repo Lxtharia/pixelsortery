@@ -1,11 +1,11 @@
 #![allow(unused_parens, unused)]
 use eframe::egui::TextBuffer;
 use image::{codecs::png::PngEncoder, ImageResult, Rgb, RgbImage};
-use log::{error, info, warn};
+use log::{debug, error, info, warn};
 use path_creator::PathCreator;
 use rayon::prelude::*;
 use span_sorter::{SortingCriteria, SpanSorter};
-use std::{fmt::Debug, path::Path, time::Instant};
+use std::{fmt::Debug, io::{ErrorKind, Read, Write}, path::{Path, PathBuf}, process::{self, Command, Output, Stdio}, time::Instant};
 
 use crate::pixel_selector::PixelSelector;
 
@@ -249,6 +249,77 @@ impl Pixelsorter {
 
         let timeend = timestart.elapsed();
         info!("TIME [Sorting]: \t{:?}", timeend);
+    }
+
+    /// Reads a video stream from a file, sorts every frame and then writes it to another file
+    /// Hacky, but hopefully better/faster than my shitty bash script
+    pub fn sort_video(&self, input: &Path, output: &Path) {
+        // TODO: Create mkfifos
+        // Will only work on linux though :sob:
+        match self.try_sort_video(input, output) {
+            Ok(_) => println!("Success!"),
+            Err(e) => error!("Error sorting video: {e}")
+        };
+    }
+
+    fn try_sort_video(&self, input: &Path, output: &Path) -> Result<(), Box<dyn std::error::Error>> {
+        // Get video width,height,bytes
+        // Most horrible parsing of all time
+        let output: Output = Command::new("ffprobe")
+            .arg("-v").arg("error")
+            .arg("-select_streams").arg("v:0")
+            .arg("-show_entries").arg("stream=width,height")
+            .arg("-of").arg("csv=p=0:s=x")
+            .arg(input.as_os_str())
+            .output().expect("Could not run ffprobe command.");
+        let s = String::from_utf8(output.stdout)
+            .expect("Command output was not utf8. Handling this should be fixed tbh.");
+        let mut words = s.trim().split('x');
+        let w: u32 = words.next().expect("Could not parse ffprobe output").parse()?;
+        let h: u32 = words.next().expect("Could not parse ffprobe output").parse()?;
+        let bytes: u32 = w*h*3;
+        info!("[VIDEO] Analyzed video: {w}x{h} = {bytes} Bytes");
+        // ffmpeg -y -loglevel error -i "$VID" -pix_fmt rgb24 -f rawvideo "$RAW_IN" &
+        let mut ff_in = Command::new("ffmpeg")
+            .arg("-y")
+            .arg("-loglevel").arg("quiet")
+            .arg("-i").arg(input.as_os_str())
+            .arg("-pix_fmt").arg("rgb24")
+            .arg("-f").arg("rawvideo")
+            .arg("-")
+            .stdout(Stdio::piped())
+            .spawn().expect("Failed to run ffmpeg")
+            ;
+
+        let mut ff_out = Command::new("ffplay")
+            .arg("-loglevel").arg("error")
+            .arg("-pixel_format").arg("rgb24")
+            .arg("-f").arg("rawvideo")
+            .arg("-video_size").arg(format!("{w}x{h}"))
+            .arg("-i").arg("-")
+            .stdin(Stdio::piped())
+            .spawn().expect("Failed to run ffplay")
+            ;
+
+        let mut in_pipe = ff_in.stdout.take().expect("");
+        let mut out_pipe = ff_out.stdin.take().expect("");
+        let mut buffer = vec![0u8; bytes as usize];
+        let mut frame_counter = 1;
+        loop {
+            // Read exactly that amount of bytes that make one frame
+            buffer = in_pipe.by_ref().bytes().map(|b| b.unwrap()).take(bytes as usize).collect();
+            info!("[VIDEO] Reading Frame {frame_counter:05}");
+            frame_counter += 1;
+            debug!("[VIDEO] Bufsize: Read {} of expected {}", buffer.len(), bytes );
+            // Convert the read bytes into a image and sort it
+            let mut frame = RgbImage::from_raw(w, h, buffer.clone()).expect("Could not read data into image format");
+            self.sort(&mut frame);
+            // Write the sorted image out to the second ffmpeg process
+            out_pipe.write(frame.as_raw().as_slice());
+        }
+
+        Ok(())
+
     }
 
     pub fn mask(&self, img: &mut RgbImage) -> bool {

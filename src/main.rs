@@ -139,6 +139,7 @@ fn main() {
 
     // Find the non-option arguments
     let mut input_path = String::new();
+    let mut video_input_path = String::new();
     let mut output_path = String::new();
 
     // CREATE DEFAULT PIXELSORTER
@@ -152,6 +153,9 @@ fn main() {
         match arg.as_str() {
             "-h" | "--help"    => { println!("{}", HELP_STRING); exit(0); }
             "-V" | "--version" => { println!("{} {}", PACKAGE_NAME, VERSION); exit(0); }
+            "-vi"| "--video_input"  => {
+                    video_input_path = parse_parameter::<String>(args.pop_front(), "--input <FILE>")
+                }
             "-i" | "--input"  => {
                     if ! input_path.is_empty() {warn!("--input flag taking precedence over positional argument")}
                     input_path = parse_parameter::<String>(args.pop_front(), "--input <FILE>")
@@ -238,18 +242,24 @@ fn main() {
         exit(0);
     }
 
-    if input_path.is_empty() {
+    if input_path.is_empty() && video_input_path.is_empty() {
         eprintln!("You need to specify an input file!");
         exit(-1);
     }
-
-    let mut img = load_image(&input_path);
 
     // If no gui is opened, we need an output path
     if output_path.is_empty() {
         eprintln!("You need to specify an output file!");
         exit(-1)
     }
+
+    if ! video_input_path.is_empty() {
+        println!("~~~ Video sorting mode! ~~~");
+        ps.sort_video(&PathBuf::from(video_input_path), &PathBuf::from(output_path));
+        return;
+    }
+
+    let mut img = load_image(&input_path);
 
     // SORTING WITHOUT A GUI! //
 
