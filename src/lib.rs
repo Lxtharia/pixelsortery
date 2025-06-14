@@ -1,11 +1,12 @@
 #![allow(unused_parens, unused)]
 use eframe::egui::TextBuffer;
-use image::{codecs::png::PngEncoder, ImageResult, Rgb, RgbImage};
+use image::{codecs::png::PngEncoder, GenericImageView, ImageResult, Rgb, RgbImage};
 use log::{debug, error, info, warn};
 use path_creator::PathCreator;
 use rayon::prelude::*;
 use span_sorter::{SortingCriteria, SpanSorter};
 use std::{fmt::Debug, fs, io::{ErrorKind, Read, Write}, path::{Path, PathBuf}, process::{self, Command, Output, Stdio}, time::Instant};
+use ffmpeg_the_third::{self as ffmpeg, codec::{self, Parameters}, frame, media, packet, software::{scaler, scaling}, Stream};
 
 use crate::pixel_selector::PixelSelector;
 
@@ -256,10 +257,198 @@ impl Pixelsorter {
     pub fn sort_video(&self, input: &str, output: &str) {
         // TODO: Create mkfifos
         // Will only work on linux though :sob:
-        match self.try_sort_video(input, output) {
+        match self.try_sort_video2(input, output) {
             Ok(_) => println!("Success!"),
             Err(e) => error!("Error sorting video: {e}")
         };
+    }
+
+    fn try_sort_video2(&self, input_path: &str, output_path: &str) -> Result<(), Box<dyn std::error::Error>> {
+        ffmpeg::init()?;
+        // Copied from https://github.com/shssoichiro/ffmpeg-the-third/blob/master/examples/dump-frames.rs
+
+        let mut ictx = ffmpeg::format::input(input_path)?;
+        let mut octx = ffmpeg::format::output(output_path)?;
+
+
+        info!("[VIDEO] Opening input file and decoder");
+
+        // Print information about the input file
+        ffmpeg::format::context::input::dump(&ictx, 0, Some(&input_path));
+        // -------- Open input stream 
+        let input_stream = ictx.streams()
+            .best(ffmpeg::media::Type::Video)
+            .ok_or(ffmpeg::Error::StreamNotFound)?;
+        let video_stream_index = input_stream.index(); // The stream index we want to manipulate
+
+        // Create a corresponding output stream for each input stream
+        for (idx, stream) in ictx.streams().enumerate() {
+            // TODO: copy code
+            // if idx == video_stream_index { continue; }
+            // let mut new_stream = octx.add_stream(codec).unwrap();
+            // new_stream.set_parameters(stream.parameters());
+            // new_stream.set_time_base(stream.time_base());
+        }
+        // Guess the codec from output format and add a stream for that
+        let mut codec = ffmpeg::encoder::find(octx.format().codec(output_path, media::Type::Video)).unwrap();
+        let mut output_stream = octx.add_stream(codec)?;
+
+            // Stuff
+            let mut context = ffmpeg::codec::context::Context::from_parameters(input_stream.parameters())?;
+            // Boost performance, hell yeah!
+            if let Ok(parallelism) = std::thread::available_parallelism() {
+                context.set_threading(ffmpeg::threading::Config {
+                    kind: ffmpeg::threading::Type::Frame,
+                    count: parallelism.get(),
+                });
+            }
+        // A decoder. `send_packet()` to it and `receive_frame()` from it
+        let mut decoder = context.decoder().video()?;
+
+
+        info!("[VIDEO] Opening output file and encoder");
+        // -------- Open output file 
+        // Read codec
+
+        // Add Encoder with specific codec
+        info!("[VIDEO] Opening encoder?");
+        let mut prep_encoder = ffmpeg::codec::context::Context::new_with_codec(codec)
+            .encoder()
+            .video()?;
+        // Set a bunch of optins, including preset=medium
+        output_stream.set_parameters(Parameters::from(&prep_encoder));
+        prep_encoder.set_width(decoder.width());
+        prep_encoder.set_height(decoder.height());
+        prep_encoder.set_aspect_ratio(decoder.aspect_ratio());
+        prep_encoder.set_format(decoder.format());
+        prep_encoder.set_frame_rate(decoder.frame_rate());
+        prep_encoder.set_time_base((input_stream.time_base()));
+        // "Open" encoder, whatever that means
+        let mut opts = ffmpeg::Dictionary::new();
+        opts.set("preset", "medium");
+        let mut encoder = prep_encoder
+            .open_with(opts)
+            .expect("Error opening encoder with supplied settings");
+        output_stream.set_parameters(Parameters::from(&encoder));
+        // Whatever a time base is
+        let ost_time_base = output_stream.time_base();
+        let ist_time_base = input_stream.time_base();
+        let nb_frames = input_stream.frames();
+        info!("[VIDEO] Stage 1 complete: V_index: {video_stream_index}");
+
+        //
+        // Preperation done (?)
+        //
+
+        octx.set_metadata(ictx.metadata().to_owned());
+        ffmpeg::format::context::output::dump(&octx, 0, Some(&output_path));
+        octx.write_header().unwrap();
+
+        let (width, height, format) = (decoder.width(), decoder.height(), decoder.format());
+        // No idea. Somehow important to get good image data
+        let mut yuv_to_rgb = scaling::context::Context::get(
+            format, width, height,
+            ffmpeg::format::Pixel::RGB24, width, height,
+            scaling::Flags::BILINEAR,
+        )?;
+        let mut rgb_to_yuv = scaling::context::Context::get(
+            ffmpeg::format::Pixel::RGB24, width, height,
+            format, width, height,
+            scaling::Flags::BILINEAR,
+        )?;
+
+        let mut frame_count = 0;
+
+        let mut manipulate_frame = |in_frame: &mut frame::Video| -> frame::Video {
+            let mut rgb_frame = frame::Video::empty();
+            yuv_to_rgb.run(in_frame, &mut rgb_frame);
+
+            // Processing, yippie!
+            println!("\tTrying to decode frame: {:?}, {}", rgb_frame.width(), rgb_frame.planes());
+            let mut img: RgbImage = RgbImage::from_raw(
+                rgb_frame.width(),
+                rgb_frame.height(),
+                rgb_frame.data(0).to_vec()
+            ).unwrap();
+            println!("\tDecoded Frame {}x{}", img.width(), img.height());
+            let mut yuv_frame = frame::Video::empty();
+
+            rgb_to_yuv.run(&rgb_frame, &mut yuv_frame); // TODO: reverse scale??
+            println!("\tEncoded to: {:?}, {}", yuv_frame.width(), yuv_frame.planes());
+            yuv_frame
+        };
+
+        let mut receive_and_process_encoded_frames =
+            |
+            encoder: &mut ffmpeg::encoder::video::Video,
+            out: &mut ffmpeg::format::context::Output,
+            | -> Result<(), ffmpeg::Error> {
+                // Receive encoded frame
+                let mut encoded_packet = packet::packet::Packet::empty();
+                while encoder.receive_packet(&mut encoded_packet).is_ok() {
+                    encoded_packet.set_stream(video_stream_index);
+                    // encoded_packet.rescale_ts(ist_time_base, ost_time_base);
+                    encoded_packet.write_interleaved(out).unwrap();
+                }
+                Ok(())
+            };
+        // Will be called after every packet sent
+        let mut receive_and_process_decoded_frames =
+            |
+            decoder: &mut ffmpeg::decoder::Video,
+            encoder: &mut ffmpeg::encoder::video::Video,
+            out: &mut ffmpeg::format::context::Output,
+            | -> Result<(), ffmpeg::Error>
+            {
+                let mut decoded_frame = frame::Video::empty();
+                while decoder.receive_frame(&mut decoded_frame).is_ok() {
+                    frame_count += 1;
+                    let timestamp = decoded_frame.timestamp();
+                    println!("Processing frame [{:>5} / {}] | {timestamp:?}", frame_count, nb_frames);
+
+                    let mut sorted_frame = manipulate_frame(&mut decoded_frame);
+
+                    sorted_frame.set_pts(timestamp.or(Some(frame_count)));
+                    sorted_frame.set_kind(ffmpeg::picture::Type::None);
+
+                    // And back into the encoder it goes
+                    encoder.send_frame(&sorted_frame).unwrap();
+
+                    receive_and_process_encoded_frames(encoder, out);
+                }
+
+                Ok(())
+            };
+
+
+        // Go through each data packet and do stuff
+        for (stream, mut packet) in ictx.packets().filter_map(Result::ok) {
+            if stream.index() == video_stream_index {
+                decoder.send_packet(&packet).unwrap();
+                receive_and_process_decoded_frames(&mut decoder, &mut encoder, &mut octx)?;
+            } else {
+                // TODO: Clone every other stream
+                /*
+                   packet.set_stream(stream.index());
+                // No idea
+                packet.rescale_ts(
+                stream.time_base(),
+                octx.stream(stream.index()).unwrap().time_base()
+                );
+                // Copy any other stream packets
+                packet.write_interleaved(&mut octx);
+                */
+            }
+        }
+
+        // Flush encoders and decoders.
+        decoder.send_eof().unwrap();
+        receive_and_process_decoded_frames(&mut decoder, &mut encoder, &mut octx)?;
+        encoder.send_eof().unwrap();
+        receive_and_process_encoded_frames(&mut encoder, &mut octx);
+        octx.write_trailer().unwrap();
+
+        Ok(())
     }
 
     fn try_sort_video(&self, input: &str, output: &str) -> Result<(), Box<dyn std::error::Error>> {
@@ -365,7 +554,6 @@ impl Pixelsorter {
             // Write the sorted image out to the second ffmpeg process
             out_pipe.write(frame.as_raw().as_slice())?;
         }
-
         Ok(())
 
     }
