@@ -5,7 +5,7 @@ use log::{debug, error, info, warn};
 use path_creator::PathCreator;
 use rayon::prelude::*;
 use span_sorter::{SortingCriteria, SpanSorter};
-use std::{fmt::Debug, fs, io::{ErrorKind, Read, Write}, path::{Path, PathBuf}, process::{self, Command, Output, Stdio}, time::Instant};
+use std::{any::Any, fmt::Debug, fs, io::{self, ErrorKind, Read, Write}, path::{Path, PathBuf}, process::{self, Command, Output, Stdio}, time::Instant};
 use ffmpeg_the_third::{self as ffmpeg, codec::{self, Parameters}, frame, media, packet, software::{scaler, scaling}, Stream};
 
 use crate::pixel_selector::PixelSelector;
@@ -281,26 +281,35 @@ impl Pixelsorter {
             .ok_or(ffmpeg::Error::StreamNotFound)?;
         let video_stream_index = input_stream.index(); // The stream index we want to manipulate
 
-        // Create a corresponding output stream for each input stream
-        for (idx, stream) in ictx.streams().enumerate() {
-            // TODO: copy code
-            // if idx == video_stream_index { continue; }
-            // let mut new_stream = octx.add_stream(codec).unwrap();
-            // new_stream.set_parameters(stream.parameters());
-            // new_stream.set_time_base(stream.time_base());
-        }
         // Guess the codec from output format and add a stream for that
         let mut codec = ffmpeg::encoder::find(octx.format().codec(output_path, media::Type::Video)).unwrap();
 
-            // Stuff
-            let mut context = ffmpeg::codec::context::Context::from_parameters(input_stream.parameters())?;
-            // Boost performance, hell yeah!
-            if let Ok(parallelism) = std::thread::available_parallelism() {
-                context.set_threading(ffmpeg::threading::Config {
-                    kind: ffmpeg::threading::Type::Frame,
-                    count: parallelism.get(),
-                });
+        // Create a corresponding output stream for each input stream
+        for (idx, stream) in ictx.streams().enumerate() {
+            if idx == video_stream_index {
+                octx.add_stream(codec);
+            } else {
+                // Set up for stream copy for non-video stream.
+                let mut ost = octx.add_stream(ffmpeg::encoder::find(codec::Id::None)).unwrap();
+                ost.set_parameters(stream.parameters());
+                // We need to set codec_tag to 0 lest we run into incompatible codec tag
+                // issues when muxing into a different container format. Unfortunately
+                // there's no high level API to do this (yet).
+                unsafe {
+                    (*ost.parameters_mut().as_mut_ptr()).codec_tag = 0;
+                }
             }
+        }
+
+        // Stuff
+        let mut context = ffmpeg::codec::context::Context::from_parameters(input_stream.parameters())?;
+        // Boost performance, hell yeah!
+        if let Ok(parallelism) = std::thread::available_parallelism() {
+            context.set_threading(ffmpeg::threading::Config {
+                kind: ffmpeg::threading::Type::Frame,
+                count: parallelism.get(),
+            });
+        }
         // A decoder. `send_packet()` to it and `receive_frame()` from it
         let mut decoder = context.decoder().video()?;
 
@@ -327,7 +336,7 @@ impl Pixelsorter {
         let mut encoder = prep_encoder .open_with(opts) .expect("Error opening encoder with supplied settings");
 
         // Set parameters and extract some data
-        let mut output_stream = octx.add_stream(codec)?;
+        let mut output_stream = octx.stream_mut(video_stream_index).unwrap();
         output_stream.set_parameters(Parameters::from(&encoder));
         output_stream.set_time_base(ist_time_base);
         output_stream.set_rate(ist_time_base); // Just for metadata
@@ -388,7 +397,7 @@ impl Pixelsorter {
                     let oldts = encoded_packet.pts();
                     encoded_packet.set_stream(video_stream_index);
                     // encoded_packet.rescale_ts(ist_time_base, ost_time_base);
-                    println!("\t OLD TS: {:?} | {} -> {} | NEW TS: {:?}", oldts, ist_time_base, ost_time_base, encoded_packet.pts());
+                    info!("\t OLD TS: {:?} | {} -> {} | NEW TS: {:?}", oldts, ist_time_base, ost_time_base, encoded_packet.pts());
                     // println!("TS: {}", encoded_packet.timestamp());
                     encoded_packet.write_interleaved(out).unwrap();
                 }
@@ -406,7 +415,7 @@ impl Pixelsorter {
                 while decoder.receive_frame(&mut decoded_frame).is_ok() {
                     frame_count += 1;
                     let timestamp = decoded_frame.timestamp();
-                    println!("Processing frame [{:>5} / {}] | {timestamp:?}", frame_count, nb_frames);
+                    info!("Processing frame [{:>5} / {}] | {timestamp:?}", frame_count, nb_frames);
 
                     // let mut sorted_frame = manipulate_frame(&mut decoded_frame);
                     let mut sorted_frame = decoded_frame.clone();
@@ -430,17 +439,15 @@ impl Pixelsorter {
                 decoder.send_packet(&packet).unwrap();
                 receive_and_process_decoded_frames(&mut decoder, &mut encoder, &mut octx)?;
             } else {
-                // TODO: Clone every other stream
-                /*
-                   packet.set_stream(stream.index());
+                // Copy any other stream packets
                 // No idea
                 packet.rescale_ts(
-                stream.time_base(),
-                octx.stream(stream.index()).unwrap().time_base()
+                    stream.time_base(),
+                    octx.stream(stream.index()).unwrap().time_base()
                 );
-                // Copy any other stream packets
+                packet.set_position(-1);
+                packet.set_stream(stream.index());
                 packet.write_interleaved(&mut octx);
-                */
             }
         }
 
@@ -535,7 +542,7 @@ impl Pixelsorter {
         let mut frame_counter = 1;
         loop {
             // Read exactly that amount of bytes that make one frame
-            println!("[VIDEO] Reading Frame [{frame_counter:_>5} / {packet_count}]");
+            print!("\r[VIDEO] Reading Frame [{frame_counter:_>5} / {packet_count}]"); io::stdout().flush();
             let timestart = Instant::now();
             match in_pipe.read_exact(&mut buffer) {
                 Ok(_) => {},
