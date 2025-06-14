@@ -255,7 +255,7 @@ fn main() {
 
     if ! video_input_path.is_empty() {
         println!("~~~ Video sorting mode! ~~~");
-        ps.sort_video(&PathBuf::from(video_input_path), &PathBuf::from(output_path));
+        ps.sort_video(&video_input_path, &output_path);
         return;
     }
 
