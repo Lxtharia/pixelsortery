@@ -368,16 +368,23 @@ impl Pixelsorter {
         let mut frame_count = 0;
 
         let mut manipulate_frame = |in_frame: &mut frame::Video| -> frame::Video {
+            // Create rgb frame and rgb image
             let mut rgb_frame = frame::Video::empty();
             yuv_to_rgb.run(in_frame, &mut rgb_frame);
-
-            // Processing, yippie!
             info!("\tTrying to decode frame: {:?}, {}", rgb_frame.width(), rgb_frame.planes());
             let mut img: RgbImage = RgbImage::from_raw(
                 rgb_frame.width(),
                 rgb_frame.height(),
                 rgb_frame.data(0).to_vec()
             ).unwrap();
+
+            // Processing, yippie!
+            image::imageops::invert(&mut img);
+
+            // Copy pixels back to frame
+            let mut dst: &mut [u8] = &mut rgb_frame.data_mut(0)[0..];
+            dst.clone_from_slice(img.as_raw());
+
             info!("\tDecoded Frame {}x{}", img.width(), img.height());
             let mut yuv_frame = frame::Video::empty();
 
@@ -417,10 +424,9 @@ impl Pixelsorter {
                     let timestamp = decoded_frame.timestamp();
                     info!("Processing frame [{:>5} / {}] | {timestamp:?}", frame_count, nb_frames);
 
-                    // let mut sorted_frame = manipulate_frame(&mut decoded_frame);
-                    let mut sorted_frame = decoded_frame.clone();
+                    let mut sorted_frame = manipulate_frame(&mut decoded_frame);
 
-                    // sorted_frame.set_pts(timestamp.or(Some(frame_count)));
+                    sorted_frame.set_pts(timestamp.or(Some(frame_count)));
                     // sorted_frame.set_kind(ffmpeg::picture::Type::None);
 
                     // And back into the encoder it goes
