@@ -291,7 +291,6 @@ impl Pixelsorter {
         }
         // Guess the codec from output format and add a stream for that
         let mut codec = ffmpeg::encoder::find(octx.format().codec(output_path, media::Type::Video)).unwrap();
-        let mut output_stream = octx.add_stream(codec)?;
 
             // Stuff
             let mut context = ffmpeg::codec::context::Context::from_parameters(input_stream.parameters())?;
@@ -306,35 +305,36 @@ impl Pixelsorter {
         let mut decoder = context.decoder().video()?;
 
 
-        info!("[VIDEO] Opening output file and encoder");
-        // -------- Open output file 
-        // Read codec
+        // -------- Create encoder and output_stream
 
+        const FORCED_TB: ffmpeg::Rational = ffmpeg::Rational(1, 30);
+        let mut opts = ffmpeg::Dictionary::new();
+        opts.set("preset", "medium");
         // Add Encoder with specific codec
         info!("[VIDEO] Opening encoder?");
         let mut prep_encoder = ffmpeg::codec::context::Context::new_with_codec(codec)
             .encoder()
             .video()?;
         // Set a bunch of optins, including preset=medium
-        output_stream.set_parameters(Parameters::from(&prep_encoder));
+        // output_stream.set_parameters(Parameters::from(&prep_encoder));
         prep_encoder.set_width(decoder.width());
         prep_encoder.set_height(decoder.height());
         prep_encoder.set_aspect_ratio(decoder.aspect_ratio());
         prep_encoder.set_format(decoder.format());
         prep_encoder.set_frame_rate(decoder.frame_rate());
-        prep_encoder.set_time_base((input_stream.time_base()));
+        prep_encoder.set_time_base(FORCED_TB);
         // "Open" encoder, whatever that means
-        let mut opts = ffmpeg::Dictionary::new();
-        opts.set("preset", "medium");
-        let mut encoder = prep_encoder
-            .open_with(opts)
-            .expect("Error opening encoder with supplied settings");
+        let mut encoder = prep_encoder .open_with(opts) .expect("Error opening encoder with supplied settings");
+
+        // Set parameters and extract some data
+        let mut output_stream = octx.add_stream(codec)?;
         output_stream.set_parameters(Parameters::from(&encoder));
-        // Whatever a time base is
-        let ost_time_base = output_stream.time_base();
+        output_stream.set_time_base(FORCED_TB);
+        output_stream.set_rate(FORCED_TB); // Just for metadata
         let ist_time_base = input_stream.time_base();
+        let ost_time_base = output_stream.time_base();
         let nb_frames = input_stream.frames();
-        info!("[VIDEO] Stage 1 complete: V_index: {video_stream_index}");
+        info!("[VIDEO] Stage 1 complete: V_index: {video_stream_index} | ist_TB: {ist_time_base} | ost_TB: {ost_time_base}");
 
         //
         // Preperation done (?)
@@ -364,17 +364,17 @@ impl Pixelsorter {
             yuv_to_rgb.run(in_frame, &mut rgb_frame);
 
             // Processing, yippie!
-            println!("\tTrying to decode frame: {:?}, {}", rgb_frame.width(), rgb_frame.planes());
+            info!("\tTrying to decode frame: {:?}, {}", rgb_frame.width(), rgb_frame.planes());
             let mut img: RgbImage = RgbImage::from_raw(
                 rgb_frame.width(),
                 rgb_frame.height(),
                 rgb_frame.data(0).to_vec()
             ).unwrap();
-            println!("\tDecoded Frame {}x{}", img.width(), img.height());
+            info!("\tDecoded Frame {}x{}", img.width(), img.height());
             let mut yuv_frame = frame::Video::empty();
 
             rgb_to_yuv.run(&rgb_frame, &mut yuv_frame); // TODO: reverse scale??
-            println!("\tEncoded to: {:?}, {}", yuv_frame.width(), yuv_frame.planes());
+            info!("\tEncoded to: {:?}, {}", yuv_frame.width(), yuv_frame.planes());
             yuv_frame
         };
 
@@ -384,10 +384,13 @@ impl Pixelsorter {
             out: &mut ffmpeg::format::context::Output,
             | -> Result<(), ffmpeg::Error> {
                 // Receive encoded frame
-                let mut encoded_packet = packet::packet::Packet::empty();
+                let mut encoded_packet = ffmpeg::Packet::empty();
                 while encoder.receive_packet(&mut encoded_packet).is_ok() {
+                    let oldts = encoded_packet.pts();
                     encoded_packet.set_stream(video_stream_index);
                     // encoded_packet.rescale_ts(ist_time_base, ost_time_base);
+                    println!("\t OLD TS: {:?} | {} -> {} | NEW TS: {:?}", oldts, ist_time_base, ost_time_base, encoded_packet.pts());
+                    // println!("TS: {}", encoded_packet.timestamp());
                     encoded_packet.write_interleaved(out).unwrap();
                 }
                 Ok(())
@@ -406,10 +409,11 @@ impl Pixelsorter {
                     let timestamp = decoded_frame.timestamp();
                     println!("Processing frame [{:>5} / {}] | {timestamp:?}", frame_count, nb_frames);
 
-                    let mut sorted_frame = manipulate_frame(&mut decoded_frame);
+                    // let mut sorted_frame = manipulate_frame(&mut decoded_frame);
+                    let mut sorted_frame = decoded_frame.clone();
 
-                    sorted_frame.set_pts(timestamp.or(Some(frame_count)));
-                    sorted_frame.set_kind(ffmpeg::picture::Type::None);
+                    // sorted_frame.set_pts(timestamp.or(Some(frame_count)));
+                    // sorted_frame.set_kind(ffmpeg::picture::Type::None);
 
                     // And back into the encoder it goes
                     encoder.send_frame(&sorted_frame).unwrap();
