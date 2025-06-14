@@ -268,18 +268,21 @@ impl Pixelsorter {
         let cmd_output: Output = Command::new("ffprobe")
             .arg("-v").arg("error")
             .arg("-select_streams").arg("v:0")
-            .arg("-show_entries").arg("stream=width,height,r_frame_rate")
+            .arg("-count_packets")
+            .arg("-show_entries").arg("stream=width,height,nb_read_packets,r_frame_rate")
             .arg("-of").arg("csv=p=0:s=x")
             .arg(input)
             .output().expect("Could not run ffprobe command.");
         let s = String::from_utf8(cmd_output.stdout)
             .expect("Command output was not utf8. Handling this should be fixed tbh.");
+        info!("[VIDEO] FFProbe Output: {s}");
         // Most horrible parsing of all time
         let mut words = s.trim().split('x');
         let w: u32 = words.next().expect("Could not parse ffprobe output").parse()?;
         let h: u32 = words.next().expect("Could not parse ffprobe output").parse()?;
         let bytes: u32 = w*h*3;
         let mut frame_rate = words.next().expect("Could not parse ffprobe output").split('/');
+        let packet_count: u32 = words.next().expect("Could not parse ffprobe output").parse()?;
         let fps: f64 = frame_rate.next()
             .expect("Could not parse ffprobe output: frame rate")
             .parse::<u32>()? as f64
@@ -288,13 +291,14 @@ impl Pixelsorter {
             .unwrap_or("1")
             .parse::<u32>()? as f64;
 
-        info!("[VIDEO] Analyzed video: {w}x{h} = {bytes} Bytes | {fps} fps ");
+        println!("[VIDEO] Video information: {w}x{h} (= {bytes} bytes/frame) | {fps} fps ");
 
         // ffmpeg -y -loglevel error -i "$VID" -pix_fmt rgb24 -f rawvideo "$RAW_IN" &
         let mut ff_in = Command::new("ffmpeg")
             .arg("-y")
             .arg("-loglevel").arg("quiet")
             .arg("-i").arg(input)
+            .arg("-fps_mode").arg("passthrough")
             .arg("-pix_fmt").arg("rgb24")
             .arg("-f").arg("rawvideo")
             .arg("-")
@@ -315,6 +319,7 @@ impl Pixelsorter {
             info!("[VIDEO] Trying to write video to {output}");
             Command::new("ffmpeg")
                 .arg("-y")
+                .arg("-loglevel").arg("quiet")
                 .arg("-f").arg("rawvideo")
                 .arg("-pix_fmt").arg("rgb24")
                 .arg("-video_size").arg(format!("{w}x{h}"))
@@ -338,8 +343,8 @@ impl Pixelsorter {
         let mut frame_counter = 1;
         loop {
             // Read exactly that amount of bytes that make one frame
+            println!("[VIDEO] Reading Frame [{frame_counter:_>5} / {packet_count}]");
             let timestart = Instant::now();
-            info!("[VIDEO] Reading Frame {frame_counter:05}");
             match in_pipe.read_exact(&mut buffer) {
                 Ok(_) => {},
                 Err(e) => {
