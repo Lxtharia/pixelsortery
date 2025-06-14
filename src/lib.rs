@@ -307,7 +307,7 @@ impl Pixelsorter {
 
         // -------- Create encoder and output_stream
 
-        const FORCED_TB: ffmpeg::Rational = ffmpeg::Rational(1, 30);
+        let ist_time_base = input_stream.time_base();
         let mut opts = ffmpeg::Dictionary::new();
         opts.set("preset", "medium");
         // Add Encoder with specific codec
@@ -322,16 +322,15 @@ impl Pixelsorter {
         prep_encoder.set_aspect_ratio(decoder.aspect_ratio());
         prep_encoder.set_format(decoder.format());
         prep_encoder.set_frame_rate(decoder.frame_rate());
-        prep_encoder.set_time_base(FORCED_TB);
+        prep_encoder.set_time_base(ist_time_base);
         // "Open" encoder, whatever that means
         let mut encoder = prep_encoder .open_with(opts) .expect("Error opening encoder with supplied settings");
 
         // Set parameters and extract some data
         let mut output_stream = octx.add_stream(codec)?;
         output_stream.set_parameters(Parameters::from(&encoder));
-        output_stream.set_time_base(FORCED_TB);
-        output_stream.set_rate(FORCED_TB); // Just for metadata
-        let ist_time_base = input_stream.time_base();
+        output_stream.set_time_base(ist_time_base);
+        output_stream.set_rate(ist_time_base); // Just for metadata
         let ost_time_base = output_stream.time_base();
         let nb_frames = input_stream.frames();
         info!("[VIDEO] Stage 1 complete: V_index: {video_stream_index} | ist_TB: {ist_time_base} | ost_TB: {ost_time_base}");
