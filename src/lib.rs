@@ -256,7 +256,12 @@ impl Pixelsorter {
     /// Hacky, but hopefully better/faster than my shitty bash script
     pub fn sort_video(&self, input: &str, output: &str) {
         let timer = Instant::now();
-        match self.try_sort_video2(input, output) {
+        let res = if output == "-" {
+            self.stream_sorted_video(input)
+        } else {
+            self.try_sort_video2(input, output) 
+        };
+        match res {
             Ok(_) => {
                 println!("\n=== Success! Finished in {:?} !===", timer.elapsed());
             },
@@ -476,7 +481,9 @@ impl Pixelsorter {
         Ok(())
     }
 
-    fn try_sort_video(&self, input: &str, output: &str) -> Result<(), Box<dyn std::error::Error>> {
+    /// Read a video from an input file, sort it and play the result with ffplay
+    /// Does not support audio
+    fn stream_sorted_video(&self, input: &str) -> Result<(), Box<dyn std::error::Error>> {
         // Get video width,height,bytes
         // ffprobe -v error -select_stream v:0 -show_entries stream=width,height
         let cmd_output: Output = Command::new("ffprobe")
@@ -520,37 +527,16 @@ impl Pixelsorter {
             .spawn().expect("Failed to run ffmpeg")
             ;
 
-        let mut ff_out = if output == "-" {
-            Command::new("ffplay")
+        let mut ff_out = Command::new("ffplay")
                 .arg("-loglevel").arg("error")
                 .arg("-pixel_format").arg("rgb24")
                 .arg("-f").arg("rawvideo")
                 .arg("-video_size").arg(format!("{w}x{h}"))
                 .arg("-i").arg("-")
                 .stdin(Stdio::piped())
-                .spawn().expect("Failed to run ffplay")
-        } else {
-            info!("[VIDEO] Trying to write video to {output}");
-            Command::new("ffmpeg")
-                .arg("-y")
-                .arg("-loglevel").arg("quiet")
-                .arg("-f").arg("rawvideo")
-                .arg("-pix_fmt").arg("rgb24")
-                .arg("-video_size").arg(format!("{w}x{h}"))
-                .arg("-i").arg("-")
-                .arg("-i").arg(input)
-                .arg("-map").arg("0:v")
-                .arg("-map").arg("1:a")
-                .arg("-c:v").arg("libx264")
-                .arg("-pix_fmt").arg("yuv420p")
-                .arg("-c:a").arg("copy")
-                .arg("-r").arg(fps.to_string())
-                .arg(output)
-                .stdin(Stdio::piped())
-                .spawn().expect("Failed to run ffmpeg")
-        };
+                .spawn().expect("Failed to run ffplay");
 
-        // Read stdoutput from in_pipe, sort it and write it to out_pipe
+        // Read rawvideo from in_pipe, sort the frames, and write it to out_pipe
         let mut in_pipe = ff_in.stdout.take().expect("");
         let mut out_pipe = ff_out.stdin.take().expect("");
         let mut buffer = vec![0u8; bytes as usize];
