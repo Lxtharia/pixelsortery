@@ -139,7 +139,6 @@ fn main() {
 
     // Find the non-option arguments
     let mut input_path = String::new();
-    let mut video_input_path = String::new();
     let mut output_path = String::new();
 
     // CREATE DEFAULT PIXELSORTER
@@ -153,9 +152,6 @@ fn main() {
         match arg.as_str() {
             "-h" | "--help"    => { println!("{}", HELP_STRING); exit(0); }
             "-V" | "--version" => { println!("{} {}", PACKAGE_NAME, VERSION); exit(0); }
-            "-vi"| "--video_input"  => {
-                    video_input_path = parse_parameter::<String>(args.pop_front(), "--input <FILE>")
-                }
             "-i" | "--input"  => {
                     if ! input_path.is_empty() {warn!("--input flag taking precedence over positional argument")}
                     input_path = parse_parameter::<String>(args.pop_front(), "--input <FILE>")
@@ -218,15 +214,23 @@ fn main() {
     }
 
 
-    /// Open image or read from stdin
-    fn load_image(path: &str) -> RgbImage {
+    /// Tries to open a image or reads from stdin
+    fn load_image(path: &str) -> Option<RgbImage> {
         match path {
             "-" => {
                 let mut buf = Vec::new();
                 std::io::stdin().read_to_end(&mut buf).unwrap();
-                image::load_from_memory(&buf).unwrap().into_rgb8()
+                image::load_from_memory(&buf)
+                    .ok()
+                    .and_then(
+                        |i| Some(i.into_rgb8())
+                    )
             },
-            _ => image::open(&path).unwrap().into_rgb8(),
+            _ => image::open(&path)
+                    .ok()
+                    .and_then(
+                        |i| Some(i.into_rgb8())
+                    )
         }
     }
 
@@ -236,13 +240,18 @@ fn main() {
         if input_path.is_empty() {
             gui::init(Some(&ps), None).unwrap();
         } else {
-            let img = load_image(&input_path);
-            gui::init(Some(&ps), Some((img, PathBuf::from(&input_path)))).unwrap();
+            // Exit if the input file is not an image
+            if let Some(img) =  load_image(&input_path) {
+                gui::init(Some(&ps), Some((img, PathBuf::from(&input_path)))).unwrap();
+            } else {
+                eprintln!("The GUI does not support video yet");
+                exit(-1);
+            }
         }
         exit(0);
     }
 
-    if input_path.is_empty() && video_input_path.is_empty() {
+    if input_path.is_empty() {
         eprintln!("You need to specify an input file!");
         exit(-1);
     }
@@ -253,13 +262,18 @@ fn main() {
         exit(-1)
     }
 
-    if ! video_input_path.is_empty() {
-        println!("=== Video sorting mode! ===");
-        ps.sort_video(&video_input_path, &output_path);
+    // Start Video mode if needed //
+
+    let img = load_image(&input_path);
+
+    if img.is_none() {
+        println!("=== Input file could not be opened as an image. Starting Video mode! ===\n");
+        ps.sort_video(&input_path, &output_path);
         return;
     }
 
-    let mut img = load_image(&input_path);
+    let mut img = img.unwrap();
+
 
     // SORTING WITHOUT A GUI! //
 
