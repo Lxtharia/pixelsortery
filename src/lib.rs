@@ -302,16 +302,21 @@ impl Pixelsorter {
         }
 
         // Stuff
-        let mut context = ffmpeg::codec::context::Context::from_parameters(input_stream.parameters())?;
+        let mut dec_context = ffmpeg::codec::context::Context::from_parameters(input_stream.parameters())?;
+        let mut enc_context = ffmpeg::codec::context::Context::new_with_codec(codec);
         // Boost performance, hell yeah!
         if let Ok(parallelism) = std::thread::available_parallelism() {
-            context.set_threading(ffmpeg::threading::Config {
+            dec_context.set_threading(ffmpeg::threading::Config {
+                kind: ffmpeg::threading::Type::Frame,
+                count: parallelism.get(),
+            });
+            enc_context.set_threading(ffmpeg::threading::Config {
                 kind: ffmpeg::threading::Type::Frame,
                 count: parallelism.get(),
             });
         }
         // A decoder. `send_packet()` to it and `receive_frame()` from it
-        let mut decoder = context.decoder().video()?;
+        let mut decoder = dec_context.decoder().video()?;
 
 
         // -------- Create encoder and output_stream
@@ -320,7 +325,7 @@ impl Pixelsorter {
         let mut opts = ffmpeg::Dictionary::new();
         opts.set("preset", "medium");
         // Add new Encoder
-        let mut prep_encoder = ffmpeg::codec::context::Context::new_with_codec(codec)
+        let mut prep_encoder = enc_context
             .encoder()
             .video()?;
         prep_encoder.set_width(decoder.width());
