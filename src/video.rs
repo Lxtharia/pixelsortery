@@ -1,13 +1,9 @@
 use crate::Pixelsorter;
-use crate::path_creator::PathCreator;
-use crate::span_sorter::{SortingCriteria, SpanSorter};
-use eframe::egui::TextBuffer;
-use image::{codecs::png::PngEncoder, GenericImageView, ImageResult, Rgb, RgbImage};
-use log::{debug, error, info, warn};
-use rayon::prelude::*;
-use std::{any::Any, fmt::Debug, fs, io::{self, ErrorKind, Read, Write}, path::{Path, PathBuf}, process::{self, Command, Output, Stdio}, time::Instant};
-
-use ffmpeg_the_third::{self as ffmpeg, codec::{self, Parameters}, frame, media, packet, software::{scaler, scaling}, Stream};
+use ffmpeg_the_third::format;
+use image::RgbImage;
+use log::{debug, error, info};
+use std::{io::{self, ErrorKind, Read, Write}, process::{Command, Output, Stdio}, time::Instant};
+use ffmpeg_the_third::{self as ffmpeg, codec::{self, Parameters}, frame, media, software::scaling};
 
 impl Pixelsorter {
 
@@ -29,16 +25,18 @@ impl Pixelsorter {
     }
 
     fn try_sort_video(&self, input_path: &str, output_path: &str) -> Result<(), Box<dyn std::error::Error>> {
-        ffmpeg::init()?;
+        let mut enc_opts = ffmpeg::Dictionary::new();
+        enc_opts.set("preset", "medium");
         // Copied from https://github.com/shssoichiro/ffmpeg-the-third/blob/master/examples/dump-frames.rs
+        ffmpeg::init()?;
 
         let mut ictx = ffmpeg::format::input(input_path)?;
         let mut octx = ffmpeg::format::output(output_path)?;
+        let global_header = octx.format().flags().contains(format::Flags::GLOBAL_HEADER);
+
 
         // Print information about the input file
-        if log::max_level() > log::Level::Info {
-            ffmpeg::format::context::input::dump(&ictx, 0, Some(&input_path));
-        }
+        ffmpeg::format::context::input::dump(&ictx, 0, Some(&input_path));
         // -------- Open input stream
         let input_stream = ictx.streams()
             .best(ffmpeg::media::Type::Video)
@@ -50,22 +48,23 @@ impl Pixelsorter {
 
         // Create a corresponding output stream for each input stream
         for (idx, stream) in ictx.streams().enumerate() {
-            if idx == video_stream_index {
-                octx.add_stream(codec);
+            let mut ost = if idx == video_stream_index {
+                octx.add_stream(codec).unwrap()
             } else {
                 // Set up for stream copy for non-video stream.
-                let mut ost = octx.add_stream(ffmpeg::encoder::find(codec::Id::None)).unwrap();
-                ost.set_parameters(stream.parameters());
-                // We need to set codec_tag to 0 lest we run into incompatible codec tag
-                // issues when muxing into a different container format. Unfortunately
-                // there's no high level API to do this (yet).
-                unsafe {
-                    (*ost.parameters_mut().as_mut_ptr()).codec_tag = 0;
-                }
+                octx.add_stream(ffmpeg::encoder::find(codec::Id::None)).unwrap()
+            };
+            ost.set_parameters(stream.parameters());
+            // We need to set codec_tag to 0 lest we run into incompatible codec tag
+            // issues when muxing into a different container format. Unfortunately
+            // there's no high level API to do this (yet).
+            unsafe {
+                (*ost.parameters_mut().as_mut_ptr()).codec_tag = 0;
             }
+            println!("INITIAL TIMEBASE, HELP: {}", ost.time_base());
         }
 
-        // Stuff
+        // Set context parallelism
         let mut dec_context = ffmpeg::codec::context::Context::from_parameters(input_stream.parameters())?;
         let mut enc_context = ffmpeg::codec::context::Context::new_with_codec(codec);
         // Boost performance, hell yeah!
@@ -84,10 +83,8 @@ impl Pixelsorter {
 
 
         // -------- Create encoder and output_stream
-
         let ist_time_base = input_stream.time_base();
-        let mut opts = ffmpeg::Dictionary::new();
-        opts.set("preset", "medium");
+        let fps = input_stream.avg_frame_rate();
         // Add new Encoder
         let mut prep_encoder = enc_context
             .encoder()
@@ -96,29 +93,39 @@ impl Pixelsorter {
         prep_encoder.set_height(decoder.height());
         prep_encoder.set_aspect_ratio(decoder.aspect_ratio());
         prep_encoder.set_format(decoder.format());
-        prep_encoder.set_frame_rate(decoder.frame_rate());
+        prep_encoder.set_frame_rate(Some(fps));
         prep_encoder.set_time_base(ist_time_base);
+        if global_header {
+            prep_encoder.set_flags(codec::Flags::GLOBAL_HEADER);
+        }
         // "Open" encoder, whatever that means
-        let mut encoder = prep_encoder.open_with(opts).expect("Error opening encoder with supplied settings");
+        let mut encoder = prep_encoder.open_with(enc_opts).expect("Error opening encoder with supplied settings");
 
         // Set parameters of output stream
         let mut output_stream = octx.stream_mut(video_stream_index).unwrap();
         output_stream.set_parameters(Parameters::from(&encoder));
-        output_stream.set_time_base(ist_time_base);
-        output_stream.set_rate(ist_time_base); // Just for metadata
-        let ost_time_base = output_stream.time_base();
-        let nb_frames = input_stream.frames();
-        info!("[VIDEO] Video read successfully, modifing stream #{video_stream_index} | : {ist_time_base} | ost_TB: {ost_time_base}");
+        output_stream.set_rate(fps); // Just for metadata
 
+        // Do some internal stuff. This sets time base for the streams
         octx.set_metadata(ictx.metadata().to_owned());
-        if log::max_level() > log::Level::Info {
-            ffmpeg::format::context::output::dump(&octx, 0, Some(&output_path));
-        }
+        ffmpeg::format::context::output::dump(&octx, 0, Some(&output_path));
         octx.write_header().unwrap();
 
+        let ost_time_base = octx.stream(video_stream_index).unwrap().time_base();
+        let nb_frames = if input_stream.frames() != 0 {
+            input_stream.frames()
+        } else {
+            // Calculate frames if frames() could not be read. Duration might also be 0 though
+            let duration = input_stream.duration() as f32;
+            ((input_stream.avg_frame_rate().numerator() as f32
+                / input_stream.avg_frame_rate().denominator() as f32)
+                * duration) as i64
+        };
+        info!("[VIDEO] Video read successfully, modifing stream #{video_stream_index} | {:?}",
+            input_stream);
         //
         // Encoder/Decoder and Stream setup done
-        //
+
         let timer = Instant::now();
 
         let (width, height, format) = (decoder.width(), decoder.height(), decoder.format());
@@ -149,7 +156,7 @@ impl Pixelsorter {
 
             // Processing frame, yippie!
             self.sort(&mut img);
-            // Processing end!
+            //
 
             // Copy pixels back to frame
             let mut dst: &mut [u8] = &mut rgb_frame.data_mut(0)[0..];
@@ -168,9 +175,8 @@ impl Pixelsorter {
                 // Receive encoded frame
                 let mut encoded_packet = ffmpeg::Packet::empty();
                 while encoder.receive_packet(&mut encoded_packet).is_ok() {
-                    let oldts = encoded_packet.pts();
                     encoded_packet.set_stream(video_stream_index);
-                    // encoded_packet.rescale_ts(ist_time_base, ost_time_base); // Time base is already set in the encoder
+                    encoded_packet.rescale_ts(ist_time_base, ost_time_base);
                     encoded_packet.write_interleaved(out).unwrap();
                 }
                 Ok(())
@@ -190,6 +196,7 @@ impl Pixelsorter {
 
                     // Wonderful progress update code
                     let progress = frame_counter as f32/nb_frames as f32;
+                    info!("Frame: {:?}, {:?}, {:?}", decoded_frame.timestamp(), timestamp, decoded_frame.pts());
                     print!("\r [VIDEO] Processing Frame [{frame_counter: >5} / {nb_frames}] ({:>3}%) | {:?} elapsed\t| {:?}s left\t",
                         (100.0 * progress) as u32,
                         timer.elapsed(),
@@ -197,13 +204,17 @@ impl Pixelsorter {
                     );
                     io::stdout().flush();
 
-                    let mut sorted_frame = manipulate_frame(&mut decoded_frame);
+                    let mut processed_frame = manipulate_frame(&mut decoded_frame);
+                    // let mut processed_frame = decoded_frame.clone();
 
-                    sorted_frame.set_pts(timestamp.or(Some(frame_counter.into())));
-                    // sorted_frame.set_kind(ffmpeg::picture::Type::None);
+                    processed_frame.set_pts(timestamp.or(Some(frame_counter.into())));
+                    processed_frame.set_format(decoded_frame.format());
+                    processed_frame.set_kind(decoded_frame.kind());
+                    info!("Sorted {:?}, {:?}, {:?}", processed_frame.timestamp(), processed_frame.format(), processed_frame.pts());
+                    // processed_frame.set_kind(ffmpeg::picture::Type::None);
 
                     // And back into the encoder it goes
-                    encoder.send_frame(&sorted_frame).unwrap();
+                    encoder.send_frame(&processed_frame).unwrap();
                     receive_and_process_encoded_frames(encoder, out);
                 }
 
@@ -225,9 +236,11 @@ impl Pixelsorter {
                 );
                 packet.set_position(-1);
                 packet.set_stream(stream.index());
-                packet.write_interleaved(&mut octx);
+                packet.write_interleaved(&mut octx).unwrap();
             }
         }
+        // println!("{:?}, {}, {}", output_stream.time_base(), output_stream.rate(), output_stream.avg_frame_rate());
+
 
         // Flush encoders and decoders.
         decoder.send_eof().unwrap();
