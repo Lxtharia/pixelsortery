@@ -2,7 +2,7 @@ use crate::Pixelsorter;
 use ffmpeg_the_third::format;
 use image::RgbImage;
 use log::{debug, error, info};
-use std::{io::{self, ErrorKind, Read, Write}, process::{Command, Output, Stdio}, time::Instant};
+use std::{fs::File, io::{self, ErrorKind, Read, Write}, process::{Command, Output, Stdio}, time::Instant};
 use ffmpeg_the_third::{self as ffmpeg, codec::{self, Parameters}, frame, media, software::scaling};
 
 impl Pixelsorter {
@@ -36,7 +36,7 @@ impl Pixelsorter {
 
 
         // Print information about the input file
-        ffmpeg::format::context::input::dump(&ictx, 0, Some(&input_path));
+        if log::max_level() >= log::Level::Info { ffmpeg::format::context::input::dump(&ictx, 0, Some(&input_path)); }
         // -------- Open input stream
         let input_stream = ictx.streams()
             .best(ffmpeg::media::Type::Video)
@@ -81,7 +81,6 @@ impl Pixelsorter {
         // A decoder. `send_packet()` to it and `receive_frame()` from it
         let mut decoder = dec_context.decoder().video()?;
 
-
         // -------- Create encoder and output_stream
         let ist_time_base = input_stream.time_base();
         let fps = input_stream.avg_frame_rate();
@@ -108,7 +107,7 @@ impl Pixelsorter {
 
         // Do some internal stuff. This sets time base for the streams
         octx.set_metadata(ictx.metadata().to_owned());
-        ffmpeg::format::context::output::dump(&octx, 0, Some(&output_path));
+        if log::max_level() >= log::Level::Info { ffmpeg::format::context::output::dump(&octx, 0, Some(&output_path)); }
         octx.write_header().unwrap();
 
         let ost_time_base = octx.stream(video_stream_index).unwrap().time_base();
@@ -137,30 +136,23 @@ impl Pixelsorter {
         )?;
         let mut rgb_to_yuv = scaling::context::Context::get(
             ffmpeg::format::Pixel::RGB24, width, height,
-            format, width, height,
+            encoder.format(), encoder.width(), encoder.height(),
             scaling::Flags::BILINEAR,
         )?;
 
         let mut frame_counter = 0u32;
 
-        let mut manipulate_frame = |in_frame: &mut frame::Video| -> frame::Video {
+        let mut manipulate_frame = |in_frame: &frame::Video| -> frame::Video {
             // Create rgb frame and rgb image
             let mut rgb_frame = frame::Video::empty();
             yuv_to_rgb.run(in_frame, &mut rgb_frame);
-            info!("\tTrying to decode frame: {:?}, {}", rgb_frame.width(), rgb_frame.planes());
-            let mut img: RgbImage = RgbImage::from_raw(
-                rgb_frame.width(),
-                rgb_frame.height(),
-                rgb_frame.data(0).to_vec()
-            ).unwrap();
 
+            let mut img = frame_to_img(&rgb_frame);
             // Processing frame, yippie!
             self.sort(&mut img);
-            //
+            // Write image back into frame
+            img_to_frame(&img, &mut rgb_frame);
 
-            // Copy pixels back to frame
-            let mut dst: &mut [u8] = &mut rgb_frame.data_mut(0)[0..];
-            dst.clone_from_slice(img.as_raw());
             // Convert rgb back to yuv (or whatever format it was before)
             let mut yuv_frame = frame::Video::empty();
             rgb_to_yuv.run(&rgb_frame, &mut yuv_frame);
@@ -340,4 +332,45 @@ impl Pixelsorter {
         Ok(())
 
     }
+}
+
+/// Creates a RgbImage from a frame
+fn frame_to_img(frame: &frame::Video) -> RgbImage {
+    info!("\tTrying to decode frame: {:?}, {}", frame.width(), frame.planes());
+    let (w, h, linelength) = (frame.width() as usize, frame.height() as usize, frame.stride(0) as usize);
+    let mut data = vec![0; w*h*3];
+    let frame_data = frame.data(0);
+    for y in 0..h {
+        let img_start_of_line = (y * 3 * w);
+        let frame_start_of_line = (y * linelength);
+        let nb_bytes = (3 * w);
+        let dst = &mut data  [img_start_of_line   .. img_start_of_line + nb_bytes];
+        let src = &frame_data[frame_start_of_line .. frame_start_of_line + nb_bytes];
+        dst.copy_from_slice(src);
+    }
+    let mut img: RgbImage = RgbImage::from_raw(w as u32, h as u32, data).unwrap();
+    img
+}
+
+/// Copies pixel data from the image back to the frame.
+fn img_to_frame(img: &RgbImage, frame: &mut frame::Video) {
+    // This copies the data line by line to take the frames stride into account.
+    let (w, h, linelength) = (frame.width() as usize, frame.height() as usize, frame.stride(0) as usize);
+    let frame_data = frame.data_mut(0);
+    for y in 0..h as usize {
+        let img_start_of_line = (y * 3 * w);
+        let frame_start_of_line = (y * linelength);
+        let nb_bytes = (3 * w);
+        let src = &img.as_raw()[ img_start_of_line .. img_start_of_line + nb_bytes];
+        let dst = &mut frame_data[frame_start_of_line .. frame_start_of_line + nb_bytes];
+        dst.copy_from_slice(src);
+    }
+}
+
+// For debugging
+fn save_frame(data: &[u8],w: u32, h: u32, path: &str) -> std::result::Result<(), std::io::Error> {
+    let mut file = File::create(path)?;
+    file.write_all(format!("P6\n{} {}\n255\n", w, h).as_bytes())?;
+    file.write_all(data)?;
+    Ok(())
 }
