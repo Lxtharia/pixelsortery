@@ -6,4 +6,7 @@
 *.png
 *.jpeg
 *.jpg
+*.mp4
+*.webm
+*.gif
 /out
