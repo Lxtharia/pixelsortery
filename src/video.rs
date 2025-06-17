@@ -5,26 +5,24 @@ use log::{debug, error, info};
 use std::{fs::File, io::{self, ErrorKind, Read, Write}, process::{Command, Output, Stdio}, time::Instant};
 use ffmpeg_the_third::{self as ffmpeg, codec::{self, Parameters}, frame, media, software::scaling};
 
-impl Pixelsorter {
+struct Transcoder {
+    ictx: Option<ffmpeg::format::context::Input>,
+    octx: ffmpeg::format::context::Output,
+    ist_time_base: ffmpeg::Rational,
+    ost_time_base: ffmpeg::Rational,
+    encoder: ffmpeg::encoder::Video,
+    decoder: ffmpeg::decoder::Video,
+    scaler_to_rgb: ffmpeg::software::scaling::context::Context,
+    scaler_from_rgb: ffmpeg::software::scaling::context::Context,
+    main_stream_index: usize,
+    current_frame: u32,
+    timer: Instant,
+    // enc_opts: ffmpeg::Dictionary,
+    // loglevel: log::Level,
+}
 
-    /// Reads a video stream from a file, sorts every frame and then writes it to another file
-    /// Hacky, but hopefully better/faster than my shitty bash script
-    pub fn sort_video(&self, input: &str, output: &str) {
-        let timer = Instant::now();
-        let res = if output == "-" {
-            self.stream_sorted_video(input)
-        } else {
-            self.try_sort_video(input, output)
-        };
-        match res {
-            Ok(_) => {
-                println!("\n=== Success! Finished in {:?} !===", timer.elapsed());
-            },
-            Err(e) => error!("Error sorting video: {e}")
-        };
-    }
-
-    fn try_sort_video(&self, input_path: &str, output_path: &str) -> Result<(), Box<dyn std::error::Error>> {
+impl Transcoder {
+    fn new(input_path: &str, output_path: &str) -> Result<Self, Box<dyn std::error::Error>> {
         let mut enc_opts = ffmpeg::Dictionary::new();
         enc_opts.set("preset", "medium");
         // Copied from https://github.com/shssoichiro/ffmpeg-the-third/blob/master/examples/dump-frames.rs
@@ -61,7 +59,6 @@ impl Pixelsorter {
             unsafe {
                 (*ost.parameters_mut().as_mut_ptr()).codec_tag = 0;
             }
-            println!("INITIAL TIMEBASE, HELP: {}", ost.time_base());
         }
 
         // Set context parallelism
@@ -94,6 +91,7 @@ impl Pixelsorter {
         prep_encoder.set_format(decoder.format());
         prep_encoder.set_frame_rate(Some(fps));
         prep_encoder.set_time_base(ist_time_base);
+        prep_encoder.set_quality(100);
         if global_header {
             prep_encoder.set_flags(codec::Flags::GLOBAL_HEADER);
         }
@@ -111,6 +109,43 @@ impl Pixelsorter {
         octx.write_header().unwrap();
 
         let ost_time_base = octx.stream(video_stream_index).unwrap().time_base();
+        info!("[VIDEO] Video read successfully, modifing stream #{video_stream_index} | {:?}", input_stream);
+        //
+        // Encoder/Decoder and Stream setup done
+
+        let (width, height, format) = (decoder.width(), decoder.height(), decoder.format());
+        // No idea. Somehow important to get good image data
+        let mut scaler_to_rgb = scaling::context::Context::get(
+            format, width, height,
+            ffmpeg::format::Pixel::RGB24, width, height,
+            scaling::Flags::BILINEAR,
+        )?;
+        let mut scaler_from_rgb = scaling::context::Context::get(
+            ffmpeg::format::Pixel::RGB24, width, height,
+            encoder.format(), encoder.width(), encoder.height(),
+            scaling::Flags::BILINEAR,
+        )?;
+
+        Ok(Transcoder {
+            ictx: Some(ictx),
+            octx,
+            ist_time_base,
+            ost_time_base,
+            encoder,
+            decoder,
+            scaler_to_rgb,
+            scaler_from_rgb,
+            main_stream_index: video_stream_index,
+            timer: Instant::now(),
+            current_frame: 0,
+            // loglevel: log::Level::Info,
+        })
+    }
+
+    fn transcode(&mut self, pixelsorter: &Pixelsorter) -> Result<(), ffmpeg::Error> {
+        // Try to find number of frames, for progress printing
+        let mut ictx = self.ictx.take().unwrap(); // Hacky. Take ictx to prevent conflicts of borrowing self twice
+        let input_stream = ictx.stream(self.main_stream_index).unwrap();
         let nb_frames = if input_stream.frames() != 0 {
             input_stream.frames()
         } else {
@@ -120,129 +155,127 @@ impl Pixelsorter {
                 / input_stream.avg_frame_rate().denominator() as f32)
                 * duration) as i64
         };
-        info!("[VIDEO] Video read successfully, modifing stream #{video_stream_index} | {:?}",
-            input_stream);
-        //
-        // Encoder/Decoder and Stream setup done
-
-        let timer = Instant::now();
-
-        let (width, height, format) = (decoder.width(), decoder.height(), decoder.format());
-        // No idea. Somehow important to get good image data
-        let mut yuv_to_rgb = scaling::context::Context::get(
-            format, width, height,
-            ffmpeg::format::Pixel::RGB24, width, height,
-            scaling::Flags::BILINEAR,
-        )?;
-        let mut rgb_to_yuv = scaling::context::Context::get(
-            ffmpeg::format::Pixel::RGB24, width, height,
-            encoder.format(), encoder.width(), encoder.height(),
-            scaling::Flags::BILINEAR,
-        )?;
-
-        let mut frame_counter = 0u32;
-
-        let mut manipulate_frame = |in_frame: &frame::Video| -> frame::Video {
-            // Create rgb frame and rgb image
-            let mut rgb_frame = frame::Video::empty();
-            yuv_to_rgb.run(in_frame, &mut rgb_frame);
-
-            let mut img = frame_to_img(&rgb_frame);
-            // Processing frame, yippie!
-            self.sort(&mut img);
-            // Write image back into frame
-            img_to_frame(&img, &mut rgb_frame);
-
-            // Convert rgb back to yuv (or whatever format it was before)
-            let mut yuv_frame = frame::Video::empty();
-            rgb_to_yuv.run(&rgb_frame, &mut yuv_frame);
-            yuv_frame
-        };
-
-        let mut receive_and_process_encoded_frames =
-            |
-            encoder: &mut ffmpeg::encoder::video::Video,
-            out: &mut ffmpeg::format::context::Output,
-            | -> Result<(), ffmpeg::Error> {
-                // Receive encoded frame
-                let mut encoded_packet = ffmpeg::Packet::empty();
-                while encoder.receive_packet(&mut encoded_packet).is_ok() {
-                    encoded_packet.set_stream(video_stream_index);
-                    encoded_packet.rescale_ts(ist_time_base, ost_time_base);
-                    encoded_packet.write_interleaved(out).unwrap();
-                }
-                Ok(())
-            };
-        // Will be called after every packet sent
-        let mut receive_and_process_decoded_frames =
-            |
-            decoder: &mut ffmpeg::decoder::Video,
-            encoder: &mut ffmpeg::encoder::video::Video,
-            out: &mut ffmpeg::format::context::Output,
-            | -> Result<(), ffmpeg::Error>
-            {
-                let mut decoded_frame = frame::Video::empty();
-                while decoder.receive_frame(&mut decoded_frame).is_ok() {
-                    frame_counter += 1;
-                    let timestamp = decoded_frame.timestamp();
-
-                    // Wonderful progress update code
-                    let progress = frame_counter as f32/nb_frames as f32;
-                    info!("Frame: {:?}, {:?}, {:?}", decoded_frame.timestamp(), timestamp, decoded_frame.pts());
-                    print!("\r [VIDEO] Processing Frame [{frame_counter: >5} / {nb_frames}] ({:>3}%) | {:?} elapsed\t| {:?}s left\t",
-                        (100.0 * progress) as u32,
-                        timer.elapsed(),
-                        if progress == 0.0 {0} else { (timer.elapsed().as_secs() as f32 * ((1.0/progress) - 1.0) ).round() as u32 },
-                    );
-                    io::stdout().flush();
-
-                    let mut processed_frame = manipulate_frame(&mut decoded_frame);
-                    // let mut processed_frame = decoded_frame.clone();
-
-                    processed_frame.set_pts(timestamp.or(Some(frame_counter.into())));
-                    processed_frame.set_format(decoded_frame.format());
-                    processed_frame.set_kind(decoded_frame.kind());
-                    info!("Sorted {:?}, {:?}, {:?}", processed_frame.timestamp(), processed_frame.format(), processed_frame.pts());
-                    // processed_frame.set_kind(ffmpeg::picture::Type::None);
-
-                    // And back into the encoder it goes
-                    encoder.send_frame(&processed_frame).unwrap();
-                    receive_and_process_encoded_frames(encoder, out);
-                }
-
-                Ok(())
-            };
-
-
-        println!("");
+        println!("\n");
         // Go through each data packet and do stuff
         for (stream, mut packet) in ictx.packets().filter_map(Result::ok) {
-            if stream.index() == video_stream_index {
-                decoder.send_packet(&packet).unwrap();
-                receive_and_process_decoded_frames(&mut decoder, &mut encoder, &mut octx)?;
+            if stream.index() == self.main_stream_index {
+                self.decoder.send_packet(&packet).unwrap();
+                self.receive_and_process_decoded_frames(pixelsorter)?;
+                self.current_frame += 1;
+                Transcoder::print_progress(self.current_frame, nb_frames, self.timer);
             } else {
                 // Copy any other stream packets
                 packet.rescale_ts(
                     stream.time_base(),
-                    octx.stream(stream.index()).unwrap().time_base()
+                    self.octx.stream(stream.index()).unwrap().time_base()
                 );
                 packet.set_position(-1);
                 packet.set_stream(stream.index());
-                packet.write_interleaved(&mut octx).unwrap();
+                packet.write_interleaved(&mut self.octx).unwrap();
             }
         }
-        // println!("{:?}, {}, {}", output_stream.time_base(), output_stream.rate(), output_stream.avg_frame_rate());
 
 
         // Flush encoders and decoders.
-        decoder.send_eof().unwrap();
-        receive_and_process_decoded_frames(&mut decoder, &mut encoder, &mut octx)?;
-        encoder.send_eof().unwrap();
-        receive_and_process_encoded_frames(&mut encoder, &mut octx);
-        octx.write_trailer().unwrap();
+        self.decoder.send_eof().unwrap();
+        self.receive_and_process_decoded_frames(pixelsorter)?;
+        self.encoder.send_eof().unwrap();
+        self.receive_and_process_encoded_frames();
+        self.octx.write_trailer().unwrap();
         println!("");
+        Ok(())
+    }
+
+    fn receive_and_process_encoded_frames(&mut self) -> Result<(), ffmpeg::Error> {
+        // Receive encoded frame
+        let mut encoded_packet = ffmpeg::Packet::empty();
+        while self.encoder.receive_packet(&mut encoded_packet).is_ok() {
+            encoded_packet.set_stream(self.main_stream_index);
+            encoded_packet.rescale_ts(self.ist_time_base, self.ost_time_base);
+            encoded_packet.write_interleaved(&mut self.octx).unwrap();
+        }
+        Ok(())
+    }
+
+        // Will be called after every packet sent
+    fn receive_and_process_decoded_frames(&mut self, pixelsorter: &Pixelsorter) -> Result<(), ffmpeg::Error>
+    {
+        let mut decoded_frame = frame::Video::empty();
+        while self.decoder.receive_frame(&mut decoded_frame).is_ok() {
+            let timestamp = decoded_frame.timestamp();
+
+            info!("Frame: {:?}, {:?}, {:?}", decoded_frame.timestamp(), timestamp, decoded_frame.pts());
+
+            let mut processed_frame = self.manipulate_frame(pixelsorter, &mut decoded_frame);
+            // let mut processed_frame = decoded_frame.clone();
+
+            processed_frame.set_pts(timestamp.or(Some(self.current_frame.into())));
+            processed_frame.set_format(decoded_frame.format());
+            processed_frame.set_kind(decoded_frame.kind());
+            info!("Sorted {:?}, {:?}, {:?}", processed_frame.timestamp(), processed_frame.format(), processed_frame.pts());
+            // processed_frame.set_kind(ffmpeg::picture::Type::None);
+
+            // And back into the encoder it goes
+            self.encoder.send_frame(&processed_frame).unwrap();
+            self.receive_and_process_encoded_frames()?;
+        }
 
         Ok(())
+    }
+
+    fn manipulate_frame (&mut self, pixelsorter: &Pixelsorter, in_frame: &frame::Video) -> frame::Video {
+        // Create rgb frame and rgb image
+        let mut rgb_frame = frame::Video::empty();
+        self.scaler_to_rgb.run(in_frame, &mut rgb_frame);
+
+        let mut img = frame_to_img(&rgb_frame);
+        // Processing frame, yippie!
+        pixelsorter.sort(&mut img);
+        // Write image back into frame
+        img_to_frame(&img, &mut rgb_frame);
+
+        // Convert rgb back to yuv (or whatever format it was before)
+        let mut yuv_frame = frame::Video::empty();
+        self.scaler_from_rgb.run(&rgb_frame, &mut yuv_frame);
+        yuv_frame
+    }
+
+    fn print_progress(current_frame: u32, nb_frames: i64, timer: Instant) {
+        // Wonderful progress update code
+        let progress = current_frame as f32/nb_frames as f32;
+        print!("\r [VIDEO] Processing Frame [{: >5} / {nb_frames}] ({:>3}%) | {:?} elapsed\t| {:?}s left\t",
+            current_frame,
+            (100.0 * progress) as u32,
+            timer.elapsed(),
+            if progress == 0.0 {0} else { (timer.elapsed().as_secs() as f32 * ((1.0/progress) - 1.0) ).round() as u32 },
+        );
+        io::stdout().flush();
+    }
+
+}
+
+impl Pixelsorter {
+
+    /// Reads a video stream from a file, sorts every frame and then writes it to another file
+    /// Hacky, but hopefully better/faster than my shitty bash script
+    pub fn sort_video(&self, input: &str, output: &str) {
+        let timer = Instant::now();
+        let res = if output == "-" {
+            self.stream_sorted_video(input)
+        } else {
+            self.try_sort_video(input, output)
+        };
+        match res {
+            Ok(_) => {
+                println!("\n=== Success! Finished in {:?} !===", timer.elapsed());
+            },
+            Err(e) => error!("Error sorting video: {e}")
+        };
+    }
+
+    fn try_sort_video(&self, input_path: &str, output_path: &str) -> Result<(), Box<dyn std::error::Error>> {
+        let mut transcoder = Transcoder::new(input_path, output_path)?;
+        Ok(transcoder.transcode(self)?)
     }
 
     /// Read a video from an input file, sort it and play the result with ffplay
@@ -307,7 +340,7 @@ impl Pixelsorter {
         let mut frame_counter = 1;
         loop {
             // Read exactly that amount of bytes that make one frame
-            print!("\r[VIDEO] Reading Frame [{frame_counter:_>5} / {packet_count}]\n"); io::stdout().flush();
+            print!("\r[VIDEO] Reading Frame [{frame_counter:_>5} / {packet_count}]"); io::stdout().flush();
             let timestart = Instant::now();
             match in_pipe.read_exact(&mut buffer) {
                 Ok(_) => {},
