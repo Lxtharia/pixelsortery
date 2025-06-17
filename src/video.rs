@@ -142,7 +142,9 @@ impl Transcoder {
         })
     }
 
-    fn transcode(&mut self, pixelsorter: &Pixelsorter) -> Result<(), ffmpeg::Error> {
+    fn transcode<F>(&mut self, img_filter: F) -> Result<(), ffmpeg::Error>
+        where F: Fn(&mut RgbImage)
+    {
         // Try to find number of frames, for progress printing
         let mut ictx = self.ictx.take().unwrap(); // Hacky. Take ictx to prevent conflicts of borrowing self twice
         let input_stream = ictx.stream(self.main_stream_index).unwrap();
@@ -160,7 +162,7 @@ impl Transcoder {
         for (stream, mut packet) in ictx.packets().filter_map(Result::ok) {
             if stream.index() == self.main_stream_index {
                 self.decoder.send_packet(&packet).unwrap();
-                self.receive_and_process_decoded_frames(pixelsorter)?;
+                self.receive_and_process_decoded_frames(&img_filter)?;
                 self.current_frame += 1;
                 Transcoder::print_progress(self.current_frame, nb_frames, self.timer);
             } else {
@@ -178,7 +180,7 @@ impl Transcoder {
 
         // Flush encoders and decoders.
         self.decoder.send_eof().unwrap();
-        self.receive_and_process_decoded_frames(pixelsorter)?;
+        self.receive_and_process_decoded_frames(&img_filter)?;
         self.encoder.send_eof().unwrap();
         self.receive_and_process_encoded_frames();
         self.octx.write_trailer().unwrap();
@@ -198,7 +200,8 @@ impl Transcoder {
     }
 
         // Will be called after every packet sent
-    fn receive_and_process_decoded_frames(&mut self, pixelsorter: &Pixelsorter) -> Result<(), ffmpeg::Error>
+    fn receive_and_process_decoded_frames<F>(&mut self, img_filter: &F) -> Result<(), ffmpeg::Error>
+        where F: Fn(&mut RgbImage)
     {
         let mut decoded_frame = frame::Video::empty();
         while self.decoder.receive_frame(&mut decoded_frame).is_ok() {
@@ -206,7 +209,7 @@ impl Transcoder {
 
             info!("Frame: {:?}, {:?}, {:?}", decoded_frame.timestamp(), timestamp, decoded_frame.pts());
 
-            let mut processed_frame = self.manipulate_frame(pixelsorter, &mut decoded_frame);
+            let mut processed_frame = self.manipulate_frame(img_filter, &mut decoded_frame);
             // let mut processed_frame = decoded_frame.clone();
 
             processed_frame.set_pts(timestamp.or(Some(self.current_frame.into())));
@@ -223,14 +226,16 @@ impl Transcoder {
         Ok(())
     }
 
-    fn manipulate_frame (&mut self, pixelsorter: &Pixelsorter, in_frame: &frame::Video) -> frame::Video {
+    fn manipulate_frame<F> (&mut self, img_filter: F, in_frame: &frame::Video) -> frame::Video
+        where F: Fn(&mut RgbImage)
+    {
         // Create rgb frame and rgb image
         let mut rgb_frame = frame::Video::empty();
         self.scaler_to_rgb.run(in_frame, &mut rgb_frame);
 
         let mut img = frame_to_img(&rgb_frame);
         // Processing frame, yippie!
-        pixelsorter.sort(&mut img);
+        img_filter(&mut img);
         // Write image back into frame
         img_to_frame(&img, &mut rgb_frame);
 
@@ -263,7 +268,7 @@ impl Pixelsorter {
         let res = if output == "-" {
             self.stream_sorted_video(input)
         } else {
-            self.try_sort_video(input, output)
+            self.transcode_sorted_video(input, output)
         };
         match res {
             Ok(_) => {
@@ -273,9 +278,11 @@ impl Pixelsorter {
         };
     }
 
-    fn try_sort_video(&self, input_path: &str, output_path: &str) -> Result<(), Box<dyn std::error::Error>> {
+    fn transcode_sorted_video(&self, input_path: &str, output_path: &str) -> Result<(), Box<dyn std::error::Error>> {
         let mut transcoder = Transcoder::new(input_path, output_path)?;
-        Ok(transcoder.transcode(self)?)
+        Ok(
+            transcoder.transcode(|img| self.sort(img))?
+        )
     }
 
     /// Read a video from an input file, sort it and play the result with ffplay
