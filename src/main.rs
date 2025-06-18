@@ -133,7 +133,7 @@ fn main() {
 
     if args.is_empty() {
         eprintln!("No arguments passed. Starting gui...");
-        gui::init(None, None).unwrap();
+        gui::init(None, None, None).unwrap();
         exit(0);
     }
 
@@ -242,13 +242,13 @@ fn main() {
     if start_gui {
         // TODO: give optional output path
         if input_path.is_empty() {
-            gui::init(Some(&ps), None).unwrap();
+            gui::init(Some(&ps), None, None).unwrap();
         } else {
             // Exit if the input file is not an image
             if let Some(img) =  load_image(&input_path) {
-                gui::init(Some(&ps), Some((img, PathBuf::from(&input_path)))).unwrap();
+                gui::init(Some(&ps), Some((img, PathBuf::from(&input_path))), None).unwrap();
             } else {
-                eprintln!("The GUI does not support video yet");
+                gui::init(Some(&ps), None, Some(PathBuf::from(&input_path))).unwrap();
                 exit(-1);
             }
         }
