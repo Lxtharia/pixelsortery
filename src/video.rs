@@ -1,5 +1,5 @@
 use crate::Pixelsorter;
-use ffmpeg_the_third::format;
+use ffmpeg_the_third::{format, Rescale};
 use image::RgbImage;
 use log::{debug, error, info};
 use std::{fs::File, io::{self, ErrorKind, Read, Write}, process::{Command, Output, Stdio}, time::Instant};
@@ -372,6 +372,52 @@ impl Pixelsorter {
         Ok(())
 
     }
+}
+
+/// Opens and decodes a input file, seeks to the frame with the provided timestamp and converts the frame to an image.
+/// The time_stamp has to be in the format of the input streams time base.
+pub fn extract_video_frame(input_path: &str, frame_time_stamp: f32) -> Result<RgbImage, Box<dyn std::error::Error>> {
+    ffmpeg::init().unwrap();
+    let mut ictx = ffmpeg::format::input(input_path).unwrap();
+    let input_stream = ictx.streams()
+        .best(ffmpeg::media::Type::Video)
+        .ok_or(ffmpeg::Error::StreamNotFound).unwrap();
+    let video_stream_index = input_stream.index(); // The stream index we want to manipulate
+    let mut dec_context = ffmpeg::codec::context::Context::from_parameters(input_stream.parameters()).unwrap();
+    let mut decoder = dec_context.decoder().video().unwrap();
+    let (width, height, format) = (decoder.width(), decoder.height(), decoder.format());
+    // No idea. Somehow important to get good image data
+    let mut scaler_to_rgb = scaling::context::Context::get(
+        format, width, height,
+        ffmpeg::format::Pixel::RGB24, width, height,
+        scaling::Flags::BILINEAR,
+    )?;
+    for s in ictx.streams() {
+        if s.index() != video_stream_index {
+            s.discard();
+        }
+    }
+    let position = (frame_time_stamp / (input_stream.time_base().1 as f32 / input_stream.time_base().0 as f32)) as i64;
+    info!("Seeking to {}s with timebase {} (= {})", frame_time_stamp, input_stream.time_base(), position);
+
+    ictx.seek(position, position..);
+    // TODO: .seek() is broken. Replace it with a manual heuristic to choose the correct frame for a given timestamp
+    // TODO: If looping through all packets is slow, load the packets into a hashmap or something
+    let mut img = Err(ffmpeg::Error::Unknown);
+    'outer: for (stream, mut packet) in ictx.packets().filter_map(Result::ok) {
+        if stream.index() == video_stream_index {
+            decoder.send_packet(&packet).unwrap();
+            let mut decoded_frame = frame::Video::empty();
+            while decoder.receive_frame(&mut decoded_frame).is_ok() {
+                info!("Extracting frame with timestamp {:?} or {:?}", decoded_frame.pts(), decoded_frame.timestamp());
+                let mut rgb_frame = frame::Video::empty();
+                scaler_to_rgb.run(&decoded_frame, &mut rgb_frame);
+                img = Ok(frame_to_img(&rgb_frame));
+                break 'outer;
+            }
+        }
+    }
+    Ok(img?)
 }
 
 /// Creates a RgbImage from a frame
