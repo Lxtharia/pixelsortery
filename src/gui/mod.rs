@@ -3,9 +3,9 @@ use eframe::egui::{
     self, Align, Button, Color32, Image, Key, Layout, Modifiers, RichText, ScrollArea,
     TextureFilter, TextureHandle, TextureOptions, Ui, Vec2,
 };
-use egui::{scroll_area::ScrollBarVisibility, style::ScrollStyle};
+use egui::{scroll_area::ScrollBarVisibility, style::ScrollStyle, ColorImage};
 use egui_flex::{item, Flex, FlexAlign, FlexAlignContent, FlexJustify};
-use image::RgbImage;
+use image::{RgbImage, RgbaImage};
 use inflections::case::to_title_case;
 use layers::LayeredSorter;
 use log::{info, warn};
@@ -20,7 +20,7 @@ use pixelsortery::{
 };
 use std::{
     ffi::OsString,
-    path::PathBuf,
+    path::{Path, PathBuf},
     time::{Duration, Instant},
 };
 
@@ -33,25 +33,29 @@ const INITIAL_WINDOW_SIZE: Vec2 = egui::vec2(1000.0, 700.0);
 
 mod components;
 
-pub fn init(ps: Option<&Pixelsorter>, img: Option<(RgbImage, PathBuf)>) -> eframe::Result {
+pub fn init(ps: Option<&Pixelsorter>, img: Option<(RgbImage, PathBuf)>, video: Option<PathBuf>) -> eframe::Result {
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default().with_inner_size(INITIAL_WINDOW_SIZE),
         ..Default::default()
     };
 
     let mut psgui = PixelsorterGui::default();
+    psgui.audio_device = egui_video::AudioDevice::new().ok();
+
     if let Some(ps) = ps {
         psgui = psgui.with_values(ps);
     }
     if let Some((img, img_path)) = img {
         psgui = psgui.with_image(img, img_path);
+    } else if let Some(video_path) = video {
+        psgui.path = Some(video_path);
+        psgui.do_open_video = true;
     }
-
     eframe::run_native(
         "Pixelsortery",
         options,
         Box::new(|cc| {
-            // This gives us image support
+ // This gives us image support
             egui_extras::install_image_loaders(&cc.egui_ctx);
             Ok(Box::new(psgui))
         }),
@@ -79,6 +83,9 @@ struct PixelsorterGui {
     saving_success_timeout: Option<Instant>,
     change_layer: SwitchLayerMessage,
     show_base_image: bool,
+    audio_device: Option<egui_video::AudioDevice>, 
+    video_player: Option<egui_video::Player>, 
+    do_open_video: bool,
 }
 
 /// Adjustable components of the pixelsorter, remembers values like diagonal angle
@@ -174,6 +181,9 @@ impl Default for PixelsorterGui {
             change_layer: SwitchLayerMessage::None,
             do_sort: true,
             show_base_image: false,
+            audio_device: None,
+            video_player: None,
+            do_open_video: false,
         }
     }
 }
@@ -356,6 +366,29 @@ impl PixelsorterGui {
             }
         }
     }
+
+    fn init_video(&mut self, ctx: &egui::Context, video_path: &Path) {
+        /* called once (creating a player) */
+
+        let mut player = egui_video::Player::new(ctx, &video_path.to_string_lossy().to_string())
+            .and_then(|player|{
+                if let Some(audio) = &mut self.audio_device {
+                    player.with_audio(audio)
+                } else {
+                    Ok(player)
+                }
+            });
+        self.video_player = player.ok();
+        if let Some(player) = &mut self.video_player {
+            player.video_streamer.lock().filter_video_frame_fn = Some(Box::new(|frame| {
+                let mut img = colimg_to_rgbaimg(frame);
+                // TODO: SORT
+                image::imageops::invert(&mut img);
+                let newimg = ColorImage::from_rgba_unmultiplied(frame.size, img.as_raw());
+                *frame = newimg;
+            }));
+        }
+    }
 }
 
 impl eframe::App for PixelsorterGui {
@@ -389,6 +422,14 @@ impl eframe::App for PixelsorterGui {
         // Open file on startup
         if do_open_file {
             self.open_file(ctx);
+        }
+
+        // Load video if no image is set
+        // if self.img.is_none() && self.path.is_some() && self.video_player.is_none() {
+        if self.do_open_video {
+            if let Some(video_path) = &self.path.clone() {
+                self.init_video(ctx, video_path);
+            }
         }
         if let Some(ls) = &self.layered_sorter {
             // Load current values
@@ -525,7 +566,12 @@ impl eframe::App for PixelsorterGui {
             });
 
         egui::CentralPanel::default().show(ctx, |ui| {
-            self.show_img(ui);
+            use egui_video;
+            if let Some(player) = &mut self.video_player {
+                player.ui(ui, ui.available_size());
+            } else {
+                self.show_img(ui);
+            }
         });
         if let Some(ls) = &mut self.layered_sorter {
             // info!("Setting values for current: {}", self.values.to_pixelsorter().to_compact_string());
@@ -623,4 +669,16 @@ pub fn save_image(img: &RgbImage, path: &PathBuf) -> Result<PathBuf, String> {
         return Err(e.to_string());
     }
     Ok(new_path)
+}
+
+fn colimg_to_rgbaimg(cimg: &ColorImage) -> RgbaImage  {
+    let (w, h) = (cimg.width(), cimg.height());
+    let mut buffer = Vec::with_capacity(w*h*3);
+    for c in cimg.pixels.iter() {
+        buffer.push(c.r());
+        buffer.push(c.g());
+        buffer.push(c.b());
+        buffer.push(c.a());
+    }
+    RgbaImage::from_raw(w as u32, h as u32, buffer).unwrap()
 }
