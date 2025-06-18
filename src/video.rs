@@ -376,7 +376,8 @@ impl Pixelsorter {
 
 /// Opens and decodes a input file, seeks to the frame with the provided timestamp and converts the frame to an image.
 /// The time_stamp has to be in the format of the input streams time base.
-pub fn extract_video_frame(input_path: &str, frame_time_stamp: f32) -> Result<RgbImage, Box<dyn std::error::Error>> {
+pub fn extract_video_frame(input_path: &str, frame_time_stamp: f32) -> Result<Option<RgbImage>, Box<dyn std::error::Error>> {
+    let timer = Instant::now();
     ffmpeg::init().unwrap();
     let mut ictx = ffmpeg::format::input(input_path).unwrap();
     let input_stream = ictx.streams()
@@ -397,27 +398,40 @@ pub fn extract_video_frame(input_path: &str, frame_time_stamp: f32) -> Result<Rg
             s.discard();
         }
     }
-    let position = (frame_time_stamp / (input_stream.time_base().1 as f32 / input_stream.time_base().0 as f32)) as i64;
-    info!("Seeking to {}s with timebase {} (= {})", frame_time_stamp, input_stream.time_base(), position);
+    let target_pts = (frame_time_stamp / (input_stream.time_base().0 as f32 / input_stream.time_base().1 as f32)) as i64;
+    info!("Seeking to {}s with timebase {} (= {})", frame_time_stamp, input_stream.time_base(), target_pts);
 
-    ictx.seek(position, position..);
-    // TODO: .seek() is broken. Replace it with a manual heuristic to choose the correct frame for a given timestamp
+    // let mut found_packet = Some(ffmpeg::Packet::new(0));
     // TODO: If looping through all packets is slow, load the packets into a hashmap or something
-    let mut img = Err(ffmpeg::Error::Unknown);
+    let mut skip_first_frame = true;
+    let mut saved_frame = None;
     'outer: for (stream, mut packet) in ictx.packets().filter_map(Result::ok) {
         if stream.index() == video_stream_index {
             decoder.send_packet(&packet).unwrap();
             let mut decoded_frame = frame::Video::empty();
             while decoder.receive_frame(&mut decoded_frame).is_ok() {
-                info!("Extracting frame with timestamp {:?} or {:?}", decoded_frame.pts(), decoded_frame.timestamp());
-                let mut rgb_frame = frame::Video::empty();
-                scaler_to_rgb.run(&decoded_frame, &mut rgb_frame);
-                img = Ok(frame_to_img(&rgb_frame));
-                break 'outer;
+                if let Some(ts) = decoded_frame.pts() {
+                    info!("Extracting frame with timestamp {:?} or {:?}", decoded_frame.pts(), decoded_frame.timestamp());
+                    if ts >= target_pts {
+                        break 'outer;
+                    }
+                    saved_frame = Some(decoded_frame.clone());
+                }
             }
         }
     }
-    Ok(img?)
+    let mut img = None;
+    if let Some(frame) = saved_frame{
+        let mut rgb_frame = frame::Video::empty();
+        scaler_to_rgb.run(&frame, &mut rgb_frame);
+        img = Some(frame_to_img(&rgb_frame));
+    } else {
+        eprintln!("Could not seek to time {} at pts {} ", frame_time_stamp, target_pts);
+    }
+
+    info!("Took {:?} to extract frame", timer.elapsed());
+
+    Ok(img)
 }
 
 /// Creates a RgbImage from a frame

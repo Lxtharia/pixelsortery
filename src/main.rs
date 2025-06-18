@@ -7,7 +7,7 @@ use pixelsortery::{
     },
     span_sorter::{SortingAlgorithm, SortingCriteria},
 };
-use std::{io::Read, path::PathBuf, str::FromStr};
+use std::{io::Read, path::PathBuf, str::FromStr, time::Duration};
 use std::time::Instant;
 use std::{collections::VecDeque, env, process::exit};
 
@@ -272,15 +272,21 @@ fn main() {
 
     if img.is_none() {
 
-        if let Some(ts) = frame_ts {
-            match pixelsortery::extract_video_frame(&input_path, ts) {
-                Ok(mut i) => {
-                    ps.sort(&mut i);
-                    i.save(output_path).expect("Could not save image to output file");
-                    exit(0);
-                },
-                Err(e) => { panic!("Error extracting frame: {e}"); }
+        if let Some(mut ts) = frame_ts {
+            let ts_end = ts+1.0;
+            while ts < ts_end {
+                ts+=0.1;
+                std::thread::sleep(Duration::from_secs(2));
+                match pixelsortery::extract_video_frame(&input_path, ts) {
+                    Ok(Some(mut i)) => {
+                        ps.sort(&mut i);
+                        i.save(&output_path).expect("Could not save image to output file");
+                    },
+                    Ok(None) => {println!("Could not seek to timestamp."); exit(-1)},
+                    Err(e) => { panic!("Error extracting frame: {e}"); }
+                }
             }
+            exit(0);
         }
         println!("=== Input file could not be opened as an image. Starting Video mode! ===\n");
         ps.sort_video(&input_path, &output_path);
