@@ -147,6 +147,8 @@ fn main() {
     let mut show_mask = false;
     let mut start_gui = false;
 
+    let mut frame_ts = None;
+
     // I should just use some argument library tbh
     while let Some(arg) = args.pop_front() {
         match arg.as_str() {
@@ -163,6 +165,8 @@ fn main() {
 
             "--gui" => start_gui = true,
             "--show-mask" => show_mask = true,
+
+            "--at" => frame_ts = Some(parse_parameter::<f32>(args.pop_front(), "--at <frame_timestamp> Timestamp is the frame number in the time base of the stream")),
 
             "--random" => ps.selector = PixelSelector::Random { max: parse_parameter(args.pop_front(), "--random <max>")},
             "--fixed"  => ps.selector = PixelSelector::Fixed  { len: parse_parameter(args.pop_front(), "--fixed <len>")},
@@ -267,6 +271,17 @@ fn main() {
     let img = load_image(&input_path);
 
     if img.is_none() {
+
+        if let Some(ts) = frame_ts {
+            match pixelsortery::extract_video_frame(&input_path, ts) {
+                Ok(mut i) => {
+                    ps.sort(&mut i);
+                    i.save(output_path).expect("Could not save image to output file");
+                    exit(0);
+                },
+                Err(e) => { panic!("Error extracting frame: {e}"); }
+            }
+        }
         println!("=== Input file could not be opened as an image. Starting Video mode! ===\n");
         ps.sort_video(&input_path, &output_path);
         return;
