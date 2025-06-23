@@ -47,17 +47,10 @@ impl PathCreator {
     pub fn info_string(self) -> String {
         format!("Direction/Order: [{:?}]", self)
     }
-    pub fn create_paths(self, img: &mut RgbImage, reverse: bool) -> Vec<Vec<&mut Rgb<u8>>> {
-        let w: u64 = img.width().into();
-        let h: u64 = img.height().into();
+    pub fn create_paths(self, all_pixels: Vec<&mut Rgb<u8>>, w: u64, h: u64, reverse: bool) -> Vec<Vec<&mut Rgb<u8>>> {
 
         let mut total_timestart = Instant::now();
         let mut timestart = Instant::now();
-
-        // Loading pixels from image
-        let mut all_pixels: Vec<&mut Rgb<u8>> = img.pixels_mut().collect();
-        let timeend_loading = timestart.elapsed();
-        timestart = Instant::now();
 
         // Actual path algorithms
         // Ideas/missing:
@@ -92,7 +85,6 @@ impl PathCreator {
         let pixels = pick_pixels(all_pixels, all_paths_indices);
         let timeend_picking = timestart.elapsed();
 
-        info!("TIME | [Loading pixels]: \t+ {:?}", timeend_loading);
         info!("TIME | [Index Pathing]:  \t+ {:?}", timeend_pathing);
         info!("TIME | [Reversing paths]:\t+ {:?}", timeend_reversing);
         info!("TIME | [Pickin pixels]:  \t+ {:?}", timeend_picking);

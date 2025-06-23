@@ -1,6 +1,6 @@
 #![allow(unused_parens, unused)]
 use eframe::egui::TextBuffer;
-use image::{codecs::png::PngEncoder, GenericImageView, ImageResult, Rgb, RgbImage};
+use image::{codecs::png::PngEncoder, GenericImageView, ImageResult, Rgb, RgbImage, RgbaImage};
 use log::{debug, error, info, warn};
 use path_creator::PathCreator;
 use rayon::prelude::*;
@@ -203,18 +203,17 @@ impl Pixelsorter {
         let mut pixels: Vec<&mut Rgb<u8>> = img.pixels_mut().collect();
         self.sorter.sort(&mut pixels);
     }
+    pub fn sort(&self, img: &mut RgbImage) {
+        let (w, h) = (img.width().into(), img.height().into());
+        self.sort_pixels(img.pixels_mut().collect(), w, h);
+    }
 
     /// Sort a given image in place
-    pub fn sort(&self, img: &mut RgbImage) {
+    pub fn sort_pixels(&self, all_pixels: Vec<&mut Rgb<u8>>, w: u64, h: u64) {
         let mut timestart = Instant::now();
         // a vector containing pointers to each pixel
-        let pixelcount = img.width() * img.height();
-        info!(
-            "Image information: {} x {} ({} pixels)",
-            img.width(),
-            img.height(),
-            pixelcount
-        );
+        let pixelcount = w * h;
+        info!( "Image information: {} x {} ({} pixels)", w, h, pixelcount);
 
         info!(
             "Sorting with:\n   | {}{}\n   | {}\n   | {}",
@@ -224,9 +223,10 @@ impl Pixelsorter {
             self.sorter.info_string(),
         );
 
-        timestart = Instant::now();
         // CUT IMAGE INTO PATHS
-        let ranges = self.path_creator.create_paths(img, self.reverse);
+        timestart = Instant::now();
+        info!("TIME | [Loading pixels]: \t+ {:?}", timestart.elapsed());
+        let ranges = self.path_creator.create_paths(all_pixels, w, h, self.reverse);
 
         info!("TIME [Creating Paths]:\t{:?}", timestart.elapsed());
         timestart = Instant::now();
