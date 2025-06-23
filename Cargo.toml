@@ -24,4 +24,4 @@ rayon = "1.10.0"
 rfd = "0.14.1"
 
 [patch.crates-io]
-egui-video = { path = "deps/egui-video"}
+egui-video = { git = "https://github.com/Lxtharia/egui-video" }
