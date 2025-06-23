@@ -3,9 +3,9 @@ use eframe::egui::{
     self, Align, Button, Color32, Image, Key, Layout, Modifiers, RichText, ScrollArea,
     TextureFilter, TextureHandle, TextureOptions, Ui, Vec2,
 };
-use egui::{scroll_area::ScrollBarVisibility, style::ScrollStyle, ColorImage};
+use egui::{scroll_area::ScrollBarVisibility, style::ScrollStyle, ColorImage, Rgba};
 use egui_flex::{item, Flex, FlexAlign, FlexAlignContent, FlexJustify};
-use image::{RgbImage, RgbaImage};
+use image::{Pixel, Rgb, RgbImage, RgbaImage};
 use inflections::case::to_title_case;
 use layers::LayeredSorter;
 use log::{info, warn};
@@ -380,6 +380,7 @@ impl PixelsorterGui {
             });
         self.video_player = player.ok();
         if let Some(player) = &mut self.video_player {
+            player.options.looping = false;
             player.video_streamer.lock().filter_video_frame_fn = Some(Box::new(|frame| {
                 let mut img = colimg_to_rgbaimg(frame);
                 // TODO: SORT
@@ -569,7 +570,8 @@ impl eframe::App for PixelsorterGui {
         egui::CentralPanel::default().show(ctx, |ui| {
             use egui_video;
             if let Some(player) = &mut self.video_player {
-                player.ui(ui, ui.available_size());
+                let scale_to_fit = (ui.available_width() / player.size.x).min(ui.available_height() / player.size.y) ;
+                player.ui(ui, player.size * scale_to_fit);
             } else {
                 self.show_img(ui);
             }
@@ -583,6 +585,19 @@ impl eframe::App for PixelsorterGui {
         // Auto-Sort current image on changes or if image needs sorting
         let values_changed = self.values != prev_values.0 || self.show_mask != prev_values.1;
         if (self.do_sort || (self.auto_sort && values_changed)) {
+            if let Some(player) = &mut self.video_player {
+                let sorter = self.values.to_pixelsorter();
+                player.video_streamer.lock().filter_video_frame_fn = Some(Box::new(move |frame|{
+                    let mut img = colimg_to_rgbaimg(frame);
+                    let (w, h) = (img.width().into(), img.height().into());
+                    let pixels: Vec<&mut Rgb<u8>> = img.pixels_mut().map(|p|{
+                        Rgb::from_slice_mut(&mut p.0[0..3])
+                    }).collect();
+                    sorter.sort_pixels(pixels, w, h);
+                    let newimg = ColorImage::from_rgba_unmultiplied(frame.size, img.as_raw());
+                    *frame = newimg;
+                }));
+            }
             self.do_sort = false;
             self.sort_img(&ctx, true);
         }
