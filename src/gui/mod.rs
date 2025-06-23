@@ -83,8 +83,8 @@ struct PixelsorterGui {
     saving_success_timeout: Option<Instant>,
     change_layer: SwitchLayerMessage,
     show_base_image: bool,
-    audio_device: Option<egui_video::AudioDevice>, 
-    video_player: Option<egui_video::Player>, 
+    audio_device: Option<egui_video::AudioDevice>,
+    video_player: Option<egui_video::Player>,
     do_open_video: bool,
 }
 
@@ -430,6 +430,7 @@ impl eframe::App for PixelsorterGui {
             if let Some(video_path) = &self.path.clone() {
                 self.init_video(ctx, video_path);
             }
+            self.do_open_video = false;
         }
         if let Some(ls) = &self.layered_sorter {
             // Load current values
