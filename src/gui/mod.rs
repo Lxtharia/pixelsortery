@@ -258,11 +258,13 @@ impl PixelsorterGui {
         }
     }
 
-    fn open_file(&mut self, ctx: &egui::Context) -> () {
+    fn open_file_dialog(&mut self, ctx: &egui::Context) -> () {
         // Opening image until cancled or until valid image loaded
         loop {
             let file = rfd::FileDialog::new()
+                .add_filter("Images and Videos", &["png", "jpg", "jpeg", "webp", "mp4", "mov", "webm", "avi", "mkv", "m4v", "mpg"])
                 .add_filter("Images", &["png", "jpg", "jpeg", "webp"])
+                .add_filter("Videos", &["mp4", "mov", "webm", "avi", "mkv", "m4v", "mpg"])
                 .pick_file();
             match file {
                 None => break,
@@ -278,7 +280,9 @@ impl PixelsorterGui {
                         self.path = Some(f);
                         break;
                     }
-                    Err(_) => {}
+                    Err(_) => {
+                        if self.init_video(ctx, &f).is_ok() {break;}
+                    }
                 },
             }
         }
@@ -367,7 +371,7 @@ impl PixelsorterGui {
         }
     }
 
-    fn init_video(&mut self, ctx: &egui::Context, video_path: &Path) {
+    fn init_video(&mut self, ctx: &egui::Context, video_path: &Path) -> Result<(), Box<dyn std::error::Error>> {
         /* called once (creating a player) */
 
         let mut player = egui_video::Player::new(ctx, &video_path.to_string_lossy().to_string())
@@ -378,17 +382,12 @@ impl PixelsorterGui {
                     Ok(player)
                 }
             });
-        self.video_player = player.ok();
+        self.video_player = Some(player?);
         if let Some(player) = &mut self.video_player {
             player.options.looping = false;
-            player.video_streamer.lock().filter_video_frame_fn = Some(Box::new(|frame| {
-                let mut img = colimg_to_rgbaimg(frame);
-                // TODO: SORT
-                image::imageops::invert(&mut img);
-                let newimg = ColorImage::from_rgba_unmultiplied(frame.size, img.as_raw());
-                *frame = newimg;
-            }));
+            self.do_sort = true;
         }
+        Ok(())
     }
 }
 
@@ -422,7 +421,7 @@ impl eframe::App for PixelsorterGui {
 
         // Open file on startup
         if do_open_file {
-            self.open_file(ctx);
+            self.open_file_dialog(ctx);
         }
 
         // Load video if no image is set
@@ -490,7 +489,7 @@ impl eframe::App for PixelsorterGui {
                         ui.group(|ui| {
                             ui.set_width(full_width(&ui));
                             if ui.button("Open image...").clicked() {
-                                self.open_file(ctx);
+                                self.open_file_dialog(ctx);
                             }
 
                             if let Some(p) = &self.path {
@@ -572,6 +571,10 @@ impl eframe::App for PixelsorterGui {
             if let Some(player) = &mut self.video_player {
                 let scale_to_fit = (ui.available_width() / player.size.x).min(ui.available_height() / player.size.y) ;
                 player.ui(ui, player.size * scale_to_fit);
+                // TODO: "Save frame" Button
+                // TODO: "Export" Button
+                // TODO: "Loop" Button
+                // TODO: "Mute" Button
             } else {
                 self.show_img(ui);
             }
