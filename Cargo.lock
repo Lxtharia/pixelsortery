@@ -548,7 +548,7 @@ version = "0.69.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "271383c67ccabffb7381723dea0672a673f292304fcb45c01cc648c7a8d58088"
 dependencies = [
- "bitflags 2.9.1",
+ "bitflags 2.9.0",
  "cexpr",
  "clang-sys",
  "itertools 0.12.1",
@@ -559,7 +559,7 @@ dependencies = [
  "regex",
  "rustc-hash",
  "shlex",
- "syn 2.0.79",
+ "syn",
 ]
 
 [[package]]
@@ -1063,7 +1063,7 @@ dependencies = [
 [[package]]
 name = "egui-video"
 version = "0.9.0"
-source = "git+https://github.com/Lxtharia/egui-video#c97538acb91000016bb271eb751ec8a0e330c235"
+source = "git+https://github.com/Lxtharia/egui-video?rev=10bfcd7#10bfcd7ef73f07e17fc8c1e5c5a598a23f61b40f"
 dependencies = [
  "anyhow",
  "atomic",
@@ -1071,7 +1071,7 @@ dependencies = [
  "chrono",
  "egui",
  "ffmpeg-the-third",
- "itertools 0.13.0",
+ "itertools 0.14.0",
  "libc",
  "nom",
  "parking_lot",
@@ -1366,7 +1366,7 @@ version = "3.0.2+ffmpeg-7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3a64b051fb2a1ea7422cac21153e2852b3ed1142c9ffa5fac7b3194074611cd3"
 dependencies = [
- "bitflags 2.9.1",
+ "bitflags 2.9.0",
  "ffmpeg-sys-the-third",
  "libc",
 ]
@@ -1761,7 +1761,7 @@ dependencies = [
  "js-sys",
  "log",
  "wasm-bindgen",
- "windows-core 0.58.0",
+ "windows-core",
 ]
 
 [[package]]
@@ -1856,9 +1856,9 @@ dependencies = [
 
 [[package]]
 name = "itertools"
-version = "0.13.0"
+version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "413ee7dfc52ee1a4949ceeb7dbc8a33f2d6c088194d9f922fb8318faf1f01186"
+checksum = "2b192c782037fadd9cfa75548310488aabdbf3d2da73885b31bd0abd03351285"
 dependencies = [
  "either",
 ]
