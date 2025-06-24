@@ -8,10 +8,10 @@ edition = "2021"
 
 [dependencies]
 array-init = "2.1.0"
-eframe = "0.29.1"
-egui = "0.29.1"
-egui_extras = { version = "0.29.1", features = ["file", "image"] }
-egui_flex = "0.1.1"
+eframe = "0.31.1"
+egui = "0.31.1"
+egui_extras = { version = "0.31.1", features = ["file", "image"] }
+egui_flex = "0.3.0"
 env_logger = "0.11.5"
 egui-video = "0.9.0"
 ffmpeg-the-third = "3.0.2"

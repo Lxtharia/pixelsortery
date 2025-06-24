@@ -348,7 +348,7 @@ impl PixelsorterGui {
 
             // ADD LAYER (+)
             let button = Button::new(RichText::new("+").heading());
-            if flex.add(item().basis(30.0), button).inner.clicked() {
+            if flex.add(item().basis(30.0).grow(0.0), button).clicked() {
                 ls.add_layer(ls.get_current_layer().get_sorting_values().clone());
                 // self.change_layer = SwitchLayerMessage::Layer(ls.get_layers().len() - 1);
                 layer_to_select = Some(ls.get_layers().len() - 1);
@@ -373,25 +373,28 @@ impl PixelsorterGui {
                     layer_name.monospace().size(10.5),
                 );
 
-                let delete_button = Button::new("X").rounding(0.0);
+                let delete_button = Button::new("X").corner_radius(0.0);
 
-                flex.add_frame(item().basis(30.0), item_frame, |ui| {
-                    ui.horizontal(|ui| {
-                        ui.spacing_mut().item_spacing = vec2(0.0, 0.0);
+                // Add a layer button
+                flex.add_flex(item().basis(30.0).frame(item_frame), Flex::horizontal(), |flex| {
+                    flex.add_ui(item(), |ui|{
+                        ui.horizontal(|ui| {
+                            ui.spacing_mut().item_spacing = vec2(0.0, 0.0);
 
-                        let res_del = ui.add_enabled_ui(!only_one_layer, |ui|{
-                            ui.add_sized(vec2(20.0, 30.0), delete_button)
-                        }).inner;
-                        let res = ui.add_sized(ui.available_size(), button);
-                        //let res = ui.add_sized(vec2(ui.available_width(), 30.0), button);
+                            let res_del = ui.add_enabled_ui(!only_one_layer, |ui|{
+                                ui.add_sized(vec2(20.0, 30.0), delete_button)
+                            }).inner;
+                            let res = ui.add_sized(ui.available_size(), button);
+                            //let res = ui.add_sized(vec2(ui.available_width(), 30.0), button);
 
-                        // Adding and removing on clicks
-                        if res.clicked() {
-                            layer_to_select = Some(i);
-                        }
-                        if res.middle_clicked() || res_del.clicked() {
-                            layer_to_delete = Some(i);
-                        }
+                            // Adding and removing on clicks
+                            if res.clicked() {
+                                layer_to_select = Some(i);
+                            }
+                            if res.middle_clicked() || res_del.clicked() {
+                                layer_to_delete = Some(i);
+                            }
+                        });
                     });
                 });
             }
@@ -401,7 +404,7 @@ impl PixelsorterGui {
                 self.show_base_image,
                 RichText::new("[Original Image]").underline().monospace(),
             );
-            flex.add_frame(item().basis(30.0), item_frame, |ui| {
+            flex.add_ui(item().basis(30.0).frame(item_frame), |ui| {
                 if ui
                     .add_sized(ui.available_size(), base_image_button)
                     .clicked()
