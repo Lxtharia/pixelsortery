@@ -277,13 +277,20 @@ impl PixelsorterGui {
                             ls.set_base_img(img.clone());
                         }
                         // I want to make layered_sorter mandatory and remove the possibility of it being None
+                        self.video_player = None;
                         self.img = Some(img);
                         self.update_texture(ctx);
                         self.path = Some(f);
                         break;
                     }
                     Err(_) => {
-                        if self.init_video(ctx, &f).is_ok() {break;}
+                        if self.init_video(ctx, &f).is_ok() {
+                            // TODO: Either use layered sorter or save it for the next loaded image
+                            self.layered_sorter = None;
+                            self.img = None;
+                            self.path = Some(f);
+                            break;
+                        }
                     }
                 },
             }
@@ -511,27 +518,25 @@ impl eframe::App for PixelsorterGui {
 
                         ui.add_space(5.0);
 
-                        ui.add_enabled_ui(self.img.is_some(), |ui| {
-                            // SORT IMAGE button
-                            ui.columns(3, |columns| {
-                                let ui = &mut columns[0];
-                                ui.with_layout(Layout::right_to_left(Align::TOP), |ui| {
-                                    ui.checkbox(&mut self.auto_sort, "Auto-sort");
-                                });
-                                let ui = &mut columns[1];
-                                ui.with_layout(Layout::top_down(Align::Center), |ui| {
-                                    if ui.button(RichText::new("SORT IMAGE").heading()).clicked() {
-                                        self.do_sort = true;
-                                    }
-                                });
-                                let ui = &mut columns[2];
-                                ui.add_enabled_ui(
-                                    selector_is_threshold(self.values.selector),
-                                    |ui| {
-                                        ui.checkbox(&mut self.show_mask, "Show mask");
-                                    },
-                                );
+                        // SORT IMAGE button
+                        ui.columns(3, |columns| {
+                            let ui = &mut columns[0];
+                            ui.with_layout(Layout::right_to_left(Align::TOP), |ui| {
+                                ui.checkbox(&mut self.auto_sort, "Auto-sort");
                             });
+                            let ui = &mut columns[1];
+                            ui.with_layout(Layout::top_down(Align::Center), |ui| {
+                                if ui.button(RichText::new("SORT IMAGE").heading()).clicked() {
+                                    self.do_sort = true;
+                                }
+                            });
+                            let ui = &mut columns[2];
+                            ui.add_enabled_ui(
+                                selector_is_threshold(self.values.selector),
+                                |ui| {
+                                    ui.checkbox(&mut self.show_mask, "Show mask");
+                                },
+                            );
                         });
 
                         ui.add_space(5.0);
@@ -548,24 +553,27 @@ impl eframe::App for PixelsorterGui {
                             ui.group(|ui| {
                                 // LAYERING
                                 ui.style_mut().spacing.scroll.floating = false;
-                                ScrollArea::vertical()
-                                    // .scroll_bar_visibility(ScrollBarVisibility::AlwaysVisible)
-                                    .id_salt("LayerScrollArea")
-                                    .show(ui, |ui| {
-                                        Flex::vertical()
-                                            .h_full()
-                                            .wrap(false)
-                                            .justify(FlexJustify::End)
-                                            .align_items(FlexAlign::Stretch)
-                                            .show(ui, |flex| {
-                                                // flex.grow();
-                                                //for i in 0..8 {
-                                                //    let b = Button::new(format!("LMAO: {}", i));
-                                                //    flex.add(item().basis(30.0), b);
-                                                //}
-                                                self.layering_panel(flex);
-                                            });
-                                    });
+                                ui.add_enabled_ui(self.layered_sorter.is_some(), |ui|{
+                                    ScrollArea::vertical()
+                                        // .scroll_bar_visibility(ScrollBarVisibility::AlwaysVisible)
+                                        .id_salt("LayerScrollArea")
+                                        .show(ui, |ui| {
+                                            Flex::vertical()
+                                                .h_full()
+                                                .w_full()
+                                                .wrap(false)
+                                                .justify(FlexJustify::End)
+                                                .align_items(FlexAlign::Stretch)
+                                                .show(ui, |flex| {
+                                                    // flex.grow();
+                                                    //for i in 0..8 {
+                                                    //    let b = Button::new(format!("LMAO: {}", i));
+                                                    //    flex.add(item().basis(30.0), b);
+                                                    //}
+                                                    self.layering_panel(flex);
+                                                });
+                                        });
+                                });
                             });
                         });
                     });

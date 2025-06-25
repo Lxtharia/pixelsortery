@@ -5,7 +5,7 @@ use eframe::{
     },
     epaint::Hsva,
 };
-use egui::{Align2, Frame, SliderClamping, Stroke};
+use egui::{Align2, Frame, Label, SliderClamping, Stroke};
 use egui_flex::FlexInstance;
 use log::info;
 use pixelsortery::{
@@ -454,6 +454,16 @@ impl PixelsorterGui {
             if let Some(i) = layer_to_delete {
                 self.change_layer = SwitchLayerMessage::DeleteLayer(i);
             }
+        } else {
+            // When there is no layered sorter, f.e. when sorting videos
+            let item_frame = Frame::default()
+                .inner_margin(0.0)
+                .stroke(Stroke::new(1.0, Color32::DARK_GRAY));
+
+            flex.add_ui(item().basis(30.0).frame(item_frame), |ui| {
+                ui.set_min_width(ui.available_width());
+                ui.add_sized(ui.available_size(), Label::new("[No Layers]"));
+            });
         }
     }
 }
