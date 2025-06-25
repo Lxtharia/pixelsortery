@@ -573,13 +573,8 @@ impl eframe::App for PixelsorterGui {
 
         egui::CentralPanel::default().show(ctx, |ui| {
             use egui_video;
-            if let Some(player) = &mut self.video_player {
-                let scale_to_fit = (ui.available_width() / player.size.x).min(ui.available_height() / player.size.y) ;
-                player.ui(ui, player.size * scale_to_fit);
-                // TODO: "Save frame" Button
-                // TODO: "Export" Button
-                // TODO: "Loop" Button
-                // TODO: "Mute" Button
+            if self.video_player.is_some() {
+                self.video_panel(ui);
             } else {
                 self.show_img(ui);
             }

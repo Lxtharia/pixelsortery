@@ -337,6 +337,39 @@ impl PixelsorterGui {
         });
     }
 
+    pub(super) fn video_panel(&mut self, ui: &mut Ui) {
+        if let Some(player) = &mut self.video_player {
+            ui.with_layout(Layout::bottom_up(Align::Center).with_cross_justify(true), |ui|{
+                ui.group(|ui| {
+                    ui.horizontal(|ui|{
+                        if ui.button("Save Frame (coming soon)").clicked() {
+                            // TODO: "Save frame" Button
+                        }
+                        if ui.button("Start Export (coming soon)").clicked() {
+                            // TODO: "Export" Button
+                        }
+                        ui.checkbox(&mut player.options.looping, "Loop");
+
+                        if ui.button("Mute/Unmute").clicked() {
+                            if player.options.audio_volume.get() != 0. {
+                                player.options.audio_volume.set(0.)
+                            } else {
+                                player.options
+                                    .audio_volume
+                                    .set(player.options.max_audio_volume / 2.)
+                            }
+                        }
+                        ui.add_space(ui.available_width());
+                    });
+                });
+                ui.with_layout(Layout::top_down(Align::Min), |ui|{
+                    let scale_to_fit = (ui.available_width() / player.size.x).min(ui.available_height() / player.size.y) ;
+                    player.ui(ui, player.size * scale_to_fit);
+                });
+            });
+        }
+    }
+
     pub(super) fn layering_panel(&mut self, flex: &mut FlexInstance) {
         if let Some(ls) = &mut self.layered_sorter {
             let mut layer_to_select = None;
