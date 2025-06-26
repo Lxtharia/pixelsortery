@@ -2,8 +2,24 @@ use crate::Pixelsorter;
 use ffmpeg_the_third::{format, Rescale};
 use image::RgbImage;
 use log::{debug, error, info};
-use std::{fs::File, io::{self, ErrorKind, Read, Write}, process::{Command, Output, Stdio}, time::Instant};
+use std::{fs::File, io::{self, ErrorKind, Read, Write}, process::{Command, Output, Stdio}, sync::{atomic::{AtomicBool, Ordering}, mpsc::{Receiver, Sender}, Arc}, thread::JoinHandle, time::{Duration, Instant}};
 use ffmpeg_the_third::{self as ffmpeg, codec::{self, Parameters}, frame, media, software::scaling};
+
+#[derive(Clone, Copy)]
+pub struct Progress {
+    pub elapsed_time: std::time::Duration,
+    pub current_frame: u32,
+}
+
+// A phone with everything you need to communicate with a processing thread
+pub struct ThreadPhone {
+    /// Handle to join the thread
+    pub join_handle: JoinHandle<()>,
+    /// Used to receive progress updates from the thread
+    pub progress_receiver: Receiver<Progress>,
+    /// Used to signal that the thread should quit/exit as soon as it sees fit
+    pub cancel_signal: Arc<AtomicBool>,
+}
 
 struct Transcoder {
     ictx: Option<ffmpeg::format::context::Input>,
@@ -15,14 +31,16 @@ struct Transcoder {
     scaler_to_rgb: ffmpeg::software::scaling::context::Context,
     scaler_from_rgb: ffmpeg::software::scaling::context::Context,
     main_stream_index: usize,
-    current_frame: u32,
     timer: Instant,
+    progress: Progress,
+    progress_sender: Sender<Progress>,
+    cancel_signal: Arc<AtomicBool>,
     // enc_opts: ffmpeg::Dictionary,
     // loglevel: log::Level,
 }
 
 impl Transcoder {
-    fn new(input_path: &str, output_path: &str) -> Result<Self, Box<dyn std::error::Error>> {
+    fn new(input_path: &str, output_path: &str, progress_sender: Sender<Progress>, cancel_signal: Arc<AtomicBool>) -> Result<Self, Box<dyn std::error::Error>> {
         let mut enc_opts = ffmpeg::Dictionary::new();
         enc_opts.set("preset", "medium");
         // Copied from https://github.com/shssoichiro/ffmpeg-the-third/blob/master/examples/dump-frames.rs
@@ -137,12 +155,16 @@ impl Transcoder {
             scaler_from_rgb,
             main_stream_index: video_stream_index,
             timer: Instant::now(),
-            current_frame: 0,
+            progress: Progress{ elapsed_time: Duration::default(), current_frame: 0 },
+            progress_sender,
+            cancel_signal,
             // loglevel: log::Level::Info,
         })
     }
 
-    fn transcode<F>(&mut self, img_filter: F) -> Result<(), ffmpeg::Error>
+    /// Starts transcoding.
+    /// 
+    fn transcode<F>(&mut self, img_filter: F) -> Result<(), Box<dyn std::error::Error>>
         where F: Fn(&mut RgbImage)
     {
         // Try to find number of frames, for progress printing
@@ -163,8 +185,12 @@ impl Transcoder {
             if stream.index() == self.main_stream_index {
                 self.decoder.send_packet(&packet).unwrap();
                 self.receive_and_process_decoded_frames(&img_filter)?;
-                self.current_frame += 1;
-                Transcoder::print_progress(self.current_frame, nb_frames, self.timer);
+                if self.cancel_signal.load(Ordering::Relaxed) { break; }
+                // Send progress updates
+                self.progress.current_frame += 1;
+                self.progress.elapsed_time = self.timer.elapsed();
+                self.progress_sender.send(self.progress);
+                Transcoder::print_progress(self.progress.current_frame, nb_frames, self.timer);
             } else {
                 // Copy any other stream packets
                 packet.rescale_ts(
@@ -177,7 +203,6 @@ impl Transcoder {
             }
         }
 
-
         // Flush encoders and decoders.
         self.decoder.send_eof().unwrap();
         self.receive_and_process_decoded_frames(&img_filter)?;
@@ -185,6 +210,9 @@ impl Transcoder {
         self.receive_and_process_encoded_frames();
         self.octx.write_trailer().unwrap();
         println!("");
+        if self.cancel_signal.load(Ordering::Relaxed) {
+            return Err("Received signal to cancel process".into());
+        }
         Ok(())
     }
 
@@ -212,7 +240,7 @@ impl Transcoder {
             let mut processed_frame = self.manipulate_frame(img_filter, &mut decoded_frame);
             // let mut processed_frame = decoded_frame.clone();
 
-            processed_frame.set_pts(timestamp.or(Some(self.current_frame.into())));
+            processed_frame.set_pts(timestamp.or(Some(self.progress.current_frame.into())));
             processed_frame.set_format(decoded_frame.format());
             processed_frame.set_kind(decoded_frame.kind());
             info!("Sorted {:?}, {:?}, {:?}", processed_frame.timestamp(), processed_frame.format(), processed_frame.pts());
@@ -264,25 +292,42 @@ impl Pixelsorter {
     /// Reads a video stream from a file, sorts every frame and then writes it to another file
     /// Hacky, but hopefully better/faster than my shitty bash script
     pub fn sort_video(&self, input: &str, output: &str) {
-        let timer = Instant::now();
-        let res = if output == "-" {
-            self.stream_sorted_video(input)
+        if output == "-" {
+            self.stream_sorted_video(input);
         } else {
-            self.transcode_sorted_video(input, output)
-        };
-        match res {
-            Ok(_) => {
-                println!("\n=== Success! Finished in {:?} !===", timer.elapsed());
-            },
-            Err(e) => error!("Error sorting video: {e}")
+            self.transcode_sorted_video(input, output).join_handle.join();
         };
     }
 
-    fn transcode_sorted_video(&self, input_path: &str, output_path: &str) -> Result<(), Box<dyn std::error::Error>> {
-        let mut transcoder = Transcoder::new(input_path, output_path)?;
-        Ok(
-            transcoder.transcode(|img| self.sort(img))?
-        )
+    pub fn sort_video_threaded(&self, input: &str, output: &str) -> ThreadPhone {
+        if output == "-" {
+            panic!("Can't save to file '-'");
+        }
+        self.transcode_sorted_video(input, output)
+    }
+
+    fn transcode_sorted_video(&self, input_path: &str, output_path: &str) -> ThreadPhone {
+        let (sender, progress_receiver) = std::sync::mpsc::channel::<Progress>();
+        let cancel_signal = Arc::new(AtomicBool::new(false));
+        // This is probably not how you'd normally solve this, but it works
+        let (ps, i, o, cs) = (
+                self.clone(),
+                input_path.to_string(),
+                output_path.to_string(),
+                cancel_signal.clone(),
+            );
+        // Start thread
+        let join_handle = std::thread::spawn(move ||{
+            let timer = Instant::now();
+            let mut transcoder = Transcoder::new(&i, &o, sender, cs).unwrap();
+            match transcoder.transcode(|img| ps.sort(img)) {
+                Ok(_) => {
+                    println!("\n=== Success! Finished in {:?} !===", timer.elapsed());
+                },
+                Err(e) => error!("Error sorting video: {e}")
+            };
+        });
+        ThreadPhone {join_handle, progress_receiver, cancel_signal}
     }
 
     /// Read a video from an input file, sort it and play the result with ffplay

@@ -9,7 +9,7 @@ use std::{any::Any, fmt::Debug, fs, io::{self, ErrorKind, Read, Write}, path::{P
 
 use crate::pixel_selector::PixelSelector;
 
-pub use video::extract_video_frame;
+pub use video::{extract_video_frame, Progress, ThreadPhone};
 
 mod color_helpers;
 mod video;

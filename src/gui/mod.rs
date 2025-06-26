@@ -16,10 +16,10 @@ use pixelsortery::{
         PixelSelector::{self, *},
     },
     span_sorter::{SortingAlgorithm, SortingCriteria},
-    Pixelsorter,
+    Pixelsorter, Progress, ThreadPhone,
 };
 use std::{
-    ffi::OsString, path::{Path, PathBuf}, sync::{Arc, Mutex}, thread::JoinHandle, time::{Duration, Instant}
+    ffi::OsString, path::{Path, PathBuf}, sync::{atomic::{AtomicBool, Ordering}, mpsc::Receiver, Arc, Mutex}, thread::JoinHandle, time::{Duration, Instant}
 };
 
 use crate::{AUTHORS, PACKAGE_NAME, VERSION};
@@ -84,7 +84,9 @@ struct PixelsorterGui {
     audio_device: Option<egui_video::AudioDevice>,
     video_player: Option<egui_video::Player>,
     do_open_video: bool,
-    video_sorting_thread_handle: Option<JoinHandle<()>>,
+    /// A tuple for communicating with the current sorting thread
+    /// 
+    video_thread_phone: Option<ThreadPhone>,
 }
 
 /// Adjustable components of the pixelsorter, remembers values like diagonal angle
@@ -183,7 +185,7 @@ impl Default for PixelsorterGui {
             audio_device: None,
             video_player: None,
             do_open_video: false,
-            video_sorting_thread_handle: None,
+            video_thread_phone: None,
         }
     }
 }
@@ -436,14 +438,26 @@ impl eframe::App for PixelsorterGui {
         // UI //
 
         // Show modal if a video is currently being exported
-        if let Some(handle) = &self.video_sorting_thread_handle {
-            if ! handle.is_finished() {
+        if let Some(phone) = &self.video_thread_phone {
+            if ! phone.join_handle.is_finished() {
                 Modal::new("VideoInProgressModal".into())
                     .show(ctx, |ui|{
-                        ui.heading("Sorting in progress...\nPlease wait :)")
+                        ui.heading("Sorting in progress...");
+                        if let Ok(progress) = phone.progress_receiver.recv() {
+                            ui.vertical_centered(|ui| {
+                                ui.label(format!("Frames sorted: {}",  progress.current_frame));
+                                ui.label(format!("Time elapsed: {:?}", progress.elapsed_time));
+                                let cancel_button = Button::new("Cancel")
+                                    .selected(phone.cancel_signal.load(Ordering::Relaxed));
+                                if ui.add(cancel_button).clicked() {
+                                    // Send exit "signal" to thread
+                                    phone.cancel_signal.store(true, Ordering::Relaxed);
+                                }
+                            });
+                        }
                     });
             } else {
-                self.video_sorting_thread_handle = None;
+                self.video_thread_phone = None;
             }
         }
 

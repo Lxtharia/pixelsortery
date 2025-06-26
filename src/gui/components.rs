@@ -384,14 +384,14 @@ impl PixelsorterGui {
                     .add_filter("Videos", &["mp4", "mov", "webm", "avi", "mkv", "m4v", "mpg"])
                     .save_file();
                 if let Some(output) = file {
-                    // Start sorting video
+                    // Start sorting the video in the background
                     let ps = self.values.to_pixelsorter();
-                    self.video_sorting_thread_handle = Some(std::thread::spawn(move || {
-                            ps.sort_video(
-                                path.to_string_lossy().as_str(),
-                                output.to_string_lossy().as_str()
-                            );
-                    }));
+                    self.video_thread_phone = Some(
+                        ps.sort_video_threaded(
+                            path.to_string_lossy().as_str(),
+                            output.to_string_lossy().as_str()
+                        )
+                    );
                 };
             } else {
                 panic!("Video opened, but no path set");
