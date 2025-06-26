@@ -5,7 +5,7 @@ use eframe::{
     },
     epaint::Hsva,
 };
-use egui::{Align2, Frame, Label, SliderClamping, Stroke};
+use egui::{Align2, Frame, Label, SliderClamping, Stroke, TextBuffer};
 use egui_flex::FlexInstance;
 use log::info;
 use pixelsortery::{
@@ -298,7 +298,9 @@ impl PixelsorterGui {
             // ui.set_width(w);
             if ui.button("Save as...").clicked() {
                 info!("Saving image...");
-                self.save_file_as();
+                if let Some(img) = &self.img {
+                    self.save_file_as();
+                }
             }
 
             // Enable Save button, if a dir is set, or if we are saving into the parent directory
@@ -312,11 +314,9 @@ impl PixelsorterGui {
                 },
             );
             if ui.button("Choose destination...").clicked() {
-                // TODO filepick
                 if let Some(dir) = rfd::FileDialog::new().pick_folder() {
                     self.output_directory = Some(dir);
                     self.save_into_parent_dir = false;
-                } else {
                 }
             }
             ui.checkbox(&mut self.save_into_parent_dir, "Same directory");
@@ -338,16 +338,18 @@ impl PixelsorterGui {
     }
 
     pub(super) fn video_panel(&mut self, ui: &mut Ui) {
+        let mut current_frame = None;
+        let mut do_export = false;
         if let Some(player) = &mut self.video_player {
             ui.with_layout(Layout::bottom_up(Align::Center).with_cross_justify(true), |ui|{
                 ui.group(|ui| {
                     ui.horizontal(|ui|{
-                        if ui.button("Save Frame (coming soon)").clicked() {
-                            // TODO: "Save frame" Button
+                        if ui.button("Save Frame").clicked() {
+                            current_frame = player.video_streamer.lock().current_frame().and_then(|frame|{
+                                Some(colimg_to_rgbimg(&frame))
+                            });
                         }
-                        if ui.button("Start Export (coming soon)").clicked() {
-                            // TODO: "Export" Button
-                        }
+                        do_export =  ui.button("Start Export").clicked();
                         ui.checkbox(&mut player.options.looping, "Loop");
 
                         if ui.button("Mute/Unmute").clicked() {
@@ -367,6 +369,28 @@ impl PixelsorterGui {
                     player.ui(ui, player.size * scale_to_fit);
                 });
             });
+        }
+
+        if let Some(frame) = current_frame {
+            save_image_as(&frame, self.path.as_deref());
+        }
+        if do_export {
+            if let Some(path) = self.path.clone() {
+                // Choose file
+                let file = rfd::FileDialog::new()
+                    .add_filter("Videos", &["mp4", "mov", "webm", "avi", "mkv", "m4v", "mpg"])
+                    .save_file();
+                if let Some(output) = file {
+                    self.values
+                        .to_pixelsorter()
+                        .sort_video(
+                            path.to_string_lossy().as_str(),
+                            output.to_string_lossy().as_str()
+                        );
+                };
+            } else {
+                panic!("Video opened, but no path set");
+            }
         }
     }
 

@@ -346,37 +346,13 @@ impl PixelsorterGui {
         }
     }
 
-    /// Sorts and saves the image to a chosen location
-    fn save_file_as(&mut self) -> () {
-        if let Some(p) = &self.path {
-            let suggested_filename = if let (Some(stem), Some(ext)) = (p.file_stem(), p.extension())
-            {
-                format!(
-                    "{}-sorted.{}",
-                    stem.to_string_lossy(),
-                    ext.to_string_lossy()
-                )
-            } else {
-                String::from("")
+    /// Sorts and saves the current image to a location via a file picker
+    fn save_file_as(&mut self) {
+        let path = &self.path.clone();
+        if let Some(img) = &self.img {
+            if save_image_as(img, path.as_deref()).is_ok(){
+                self.saving_success_timeout = Some(Instant::now());
             };
-            let file = rfd::FileDialog::new()
-                .add_filter("Images", &["png", "jpg", "jpeg", "webp"])
-                .set_file_name(suggested_filename)
-                .save_file();
-            if let Some(f) = file {
-                if let Some(sorted) = &self.img {
-                    if let Err(err_msg) = sorted.save(&f) {
-                        warn!(
-                            "Saving image to {} failed: {}",
-                            f.to_string_lossy(),
-                            err_msg
-                        );
-                    } else {
-                        info!("Saved file to '{}' ...", f.to_string_lossy());
-                        self.saving_success_timeout = Some(Instant::now());
-                    };
-                }
-            }
         }
     }
 
@@ -406,7 +382,9 @@ impl eframe::App for PixelsorterGui {
         // Shortcuts
         ctx.input_mut(|i| {
             if i.consume_key(Modifiers::CTRL.plus(Modifiers::SHIFT), Key::S) {
-                self.save_file_as();
+                if let Some(img) = &self.img {
+                    self.save_file_as();
+                }
             }
             if i.consume_key(Modifiers::CTRL, Key::S) {
                 self.save_file_to_out_dir();
@@ -667,6 +645,41 @@ fn selector_is_threshold(sel: PixelSelector) -> bool {
     )
 }
 
+/// opens a file dialog to let the user choose a destination for a file
+/// an optional path can be provided that is used to suggest a new filename
+pub fn save_image_as(img: &RgbImage, original_path: Option<&Path>) -> Result<(), image::ImageError> {
+        let mut suggested_filename = String::from("");
+        if let Some(p) = original_path {
+            if let (Some(stem), Some(ext)) = (p.file_stem(), p.extension()) {
+                suggested_filename = format!(
+                    "{}-sorted.{}",
+                    stem.to_string_lossy(),
+                    ext.to_string_lossy()
+                );
+            };
+        };
+        let file = rfd::FileDialog::new()
+            .add_filter("Images", &["png", "jpg", "jpeg", "webp"])
+            .set_file_name(suggested_filename)
+            .save_file();
+        if let Some(f) = file {
+            let res = img.save(&f);
+            if let Err(err_msg) = &res {
+                warn!(
+                    "Saving image to {} failed: {}",
+                    f.to_string_lossy(),
+                    err_msg
+                );
+            } else {
+                info!("Saved file to '{}' ...", f.to_string_lossy());
+            };
+            res
+        } else {
+            Ok(())
+        }
+}
+
+
 /// Saves image to a path. If the file already exists, increment the name.
 /// Returns the path the image finally gets saved to
 /// Returns an Error if the path is a directory
@@ -696,6 +709,17 @@ pub fn save_image(img: &RgbImage, path: &PathBuf) -> Result<PathBuf, String> {
         return Err(e.to_string());
     }
     Ok(new_path)
+}
+
+fn colimg_to_rgbimg(cimg: &ColorImage) -> RgbImage  {
+    let (w, h) = (cimg.width(), cimg.height());
+    let mut buffer = Vec::with_capacity(w*h*3);
+    for c in cimg.pixels.iter() {
+        buffer.push(c.r());
+        buffer.push(c.g());
+        buffer.push(c.b());
+    }
+    RgbImage::from_raw(w as u32, h as u32, buffer).unwrap()
 }
 
 fn colimg_to_rgbaimg(cimg: &ColorImage) -> RgbaImage  {
