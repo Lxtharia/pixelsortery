@@ -3,7 +3,7 @@ use eframe::egui::{
     self, Align, Button, Color32, Image, Key, Layout, Modifiers, RichText, ScrollArea,
     TextureFilter, TextureHandle, TextureOptions, Ui, Vec2,
 };
-use egui::{scroll_area::ScrollBarVisibility, style::ScrollStyle, ColorImage, Rgba};
+use egui::{scroll_area::ScrollBarVisibility, style::ScrollStyle, ColorImage, Modal, Rgba};
 use egui_flex::{item, Flex, FlexAlign, FlexAlignContent, FlexJustify};
 use image::{Pixel, Rgb, RgbImage, RgbaImage};
 use inflections::case::to_title_case;
@@ -19,9 +19,7 @@ use pixelsortery::{
     Pixelsorter,
 };
 use std::{
-    ffi::OsString,
-    path::{Path, PathBuf},
-    time::{Duration, Instant},
+    ffi::OsString, path::{Path, PathBuf}, sync::{Arc, Mutex}, thread::JoinHandle, time::{Duration, Instant}
 };
 
 use crate::{AUTHORS, PACKAGE_NAME, VERSION};
@@ -86,6 +84,7 @@ struct PixelsorterGui {
     audio_device: Option<egui_video::AudioDevice>,
     video_player: Option<egui_video::Player>,
     do_open_video: bool,
+    video_sorting_thread_handle: Option<JoinHandle<()>>,
 }
 
 /// Adjustable components of the pixelsorter, remembers values like diagonal angle
@@ -184,6 +183,7 @@ impl Default for PixelsorterGui {
             audio_device: None,
             video_player: None,
             do_open_video: false,
+            video_sorting_thread_handle: None,
         }
     }
 }
@@ -374,6 +374,10 @@ impl PixelsorterGui {
         }
         Ok(())
     }
+
+    fn video_mode(&self) -> bool {
+        self.img.is_none() && self.video_player.is_some()
+    }
 }
 
 impl eframe::App for PixelsorterGui {
@@ -413,7 +417,6 @@ impl eframe::App for PixelsorterGui {
         }
 
         // Load video if no image is set
-        // if self.img.is_none() && self.path.is_some() && self.video_player.is_none() {
         if self.do_open_video {
             if let Some(video_path) = &self.path.clone() {
                 self.init_video(ctx, video_path);
@@ -427,6 +430,20 @@ impl eframe::App for PixelsorterGui {
             // Create a layering thingy if we don't have one yet
             if let Some(img) = &self.img {
                 self.layered_sorter = Some(LayeredSorter::new(img.clone(), self.values));
+            }
+        }
+
+        // UI //
+
+        // Show modal if a video is currently being exported
+        if let Some(handle) = &self.video_sorting_thread_handle {
+            if ! handle.is_finished() {
+                Modal::new("VideoInProgressModal".into())
+                    .show(ctx, |ui|{
+                        ui.heading("Sorting in progress...\nPlease wait :)")
+                    });
+            } else {
+                self.video_sorting_thread_handle = None;
             }
         }
 

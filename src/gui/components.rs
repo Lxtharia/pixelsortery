@@ -349,7 +349,10 @@ impl PixelsorterGui {
                                 Some(colimg_to_rgbimg(&frame))
                             });
                         }
-                        do_export =  ui.button("Start Export").clicked();
+                        if ui.button("Start Export").clicked() {
+                            do_export = true;
+                            player.pause();
+                        }
                         ui.checkbox(&mut player.options.looping, "Loop");
 
                         if ui.button("Mute/Unmute").clicked() {
@@ -381,12 +384,14 @@ impl PixelsorterGui {
                     .add_filter("Videos", &["mp4", "mov", "webm", "avi", "mkv", "m4v", "mpg"])
                     .save_file();
                 if let Some(output) = file {
-                    self.values
-                        .to_pixelsorter()
-                        .sort_video(
-                            path.to_string_lossy().as_str(),
-                            output.to_string_lossy().as_str()
-                        );
+                    // Start sorting video
+                    let ps = self.values.to_pixelsorter();
+                    self.video_sorting_thread_handle = Some(std::thread::spawn(move || {
+                            ps.sort_video(
+                                path.to_string_lossy().as_str(),
+                                output.to_string_lossy().as_str()
+                            );
+                    }));
                 };
             } else {
                 panic!("Video opened, but no path set");
