@@ -85,7 +85,6 @@ struct PixelsorterGui {
     video_player: Option<egui_video::Player>,
     do_open_video: bool,
     /// A tuple for communicating with the current sorting thread
-    /// 
     video_thread_phone: Option<ThreadPhone>,
 }
 
@@ -438,26 +437,37 @@ impl eframe::App for PixelsorterGui {
         // UI //
 
         // Show modal if a video is currently being exported
-        if let Some(phone) = &self.video_thread_phone {
-            if ! phone.join_handle.is_finished() {
+        if let Some(phone) = &mut self.video_thread_phone {
+            if phone.join_handle.is_finished() {
+                self.video_thread_phone = None;
+            } else {
+                ctx.request_repaint();
                 Modal::new("VideoInProgressModal".into())
                     .show(ctx, |ui|{
+                        // Receive all progress updates and save the most recent one
+                        while let Ok(prog) = phone.progress_receiver.try_recv() {
+                            phone.last_progress = prog;
+                        };
+                        ui.style_mut().spacing.window_margin *= 2.0;
                         ui.heading("Sorting in progress...");
-                        if let Ok(progress) = phone.progress_receiver.recv() {
-                            ui.vertical_centered(|ui| {
-                                ui.label(format!("Frames sorted: {}",  progress.current_frame));
-                                ui.label(format!("Time elapsed: {:?}", progress.elapsed_time));
-                                let cancel_button = Button::new("Cancel")
-                                    .selected(phone.cancel_signal.load(Ordering::Relaxed));
-                                if ui.add(cancel_button).clicked() {
-                                    // Send exit "signal" to thread
-                                    phone.cancel_signal.store(true, Ordering::Relaxed);
-                                }
+                        ui.vertical_centered(|ui| {
+                            ui.set_width(300.0);
+                            ui.separator();
+                            ui.vertical(|ui|{
+                                ui.label(format!("Frames sorted:\t {:<5}",  phone.last_progress.current_frame));
+                                ui.label(format!("Time elapsed:\t {: <20?}", phone.last_progress.elapsed_time));
                             });
-                        }
+                            ui.add_space(5.0);
+                            let cancel_button = Button::new(RichText::new("Stop").heading())
+                                .selected(phone.cancel_signal.load(Ordering::Relaxed));
+                            if ui.add(cancel_button).clicked() {
+                                // Send exit "signal" to thread
+                                phone.cancel_signal.store(true, Ordering::Relaxed);
+                            }
+                            ui.add_space(5.0);
+                            ui.label(RichText::new("The destination file will not be deleted").small());
+                        });
                     });
-            } else {
-                self.video_thread_phone = None;
             }
         }
 

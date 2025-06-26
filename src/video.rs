@@ -5,7 +5,7 @@ use log::{debug, error, info};
 use std::{fs::File, io::{self, ErrorKind, Read, Write}, process::{Command, Output, Stdio}, sync::{atomic::{AtomicBool, Ordering}, mpsc::{Receiver, Sender}, Arc}, thread::JoinHandle, time::{Duration, Instant}};
 use ffmpeg_the_third::{self as ffmpeg, codec::{self, Parameters}, frame, media, software::scaling};
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Default)]
 pub struct Progress {
     pub elapsed_time: std::time::Duration,
     pub current_frame: u32,
@@ -19,6 +19,8 @@ pub struct ThreadPhone {
     pub progress_receiver: Receiver<Progress>,
     /// Used to signal that the thread should quit/exit as soon as it sees fit
     pub cancel_signal: Arc<AtomicBool>,
+    /// Cool field to store the last received Progress
+    pub last_progress: Progress,
 }
 
 struct Transcoder {
@@ -327,7 +329,7 @@ impl Pixelsorter {
                 Err(e) => error!("Error sorting video: {e}")
             };
         });
-        ThreadPhone {join_handle, progress_receiver, cancel_signal}
+        ThreadPhone {join_handle, progress_receiver, cancel_signal, last_progress: Progress::default() }
     }
 
     /// Read a video from an input file, sort it and play the result with ffplay
