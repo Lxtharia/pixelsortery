@@ -157,7 +157,7 @@ impl Transcoder {
             scaler_from_rgb,
             main_stream_index: video_stream_index,
             timer: Instant::now(),
-            progress: Progress{ elapsed_time: Duration::default(), current_frame: 0 },
+            progress: Progress::default(),
             progress_sender,
             cancel_signal,
             // loglevel: log::Level::Info,

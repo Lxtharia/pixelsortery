@@ -75,7 +75,7 @@ struct PixelsorterGui {
     texture: Option<TextureHandle>,
     output_directory: Option<PathBuf>,
     save_into_parent_dir: bool,
-    time_last_sort: Duration,
+    time_last_sort: Arc<Mutex<Duration>>,
     auto_sort: bool,
     do_sort: bool,
     saving_success_timeout: Option<Instant>,
@@ -173,7 +173,7 @@ impl Default for PixelsorterGui {
                     criteria: PixelSelectCriteria::Brightness,
                 },
             },
-            time_last_sort: Duration::default(),
+            time_last_sort: Arc::new(Mutex::new(Duration::default())),
             auto_sort: true,
             output_directory: None,
             save_into_parent_dir: false,
@@ -224,7 +224,7 @@ impl PixelsorterGui {
                 };
                 // Set the time only when it actually sorted something (because it might decide that it doesnt need to sort)
                 if did_sort {
-                    self.time_last_sort = timestart.elapsed();
+                    *self.time_last_sort.lock().unwrap() = timestart.elapsed();
                 }
                 self.img = Some(ls.get_current_layer().get_img().clone());
             }
@@ -473,10 +473,11 @@ impl eframe::App for PixelsorterGui {
 
         egui::TopBottomPanel::bottom("info-bar").show(ctx, |ui| {
             ui.horizontal(|ui| {
-                ui.label(format!("Time of last sort:\t{:?}", self.time_last_sort));
+                let tls = self.time_last_sort.lock().unwrap();
+                ui.label(format!("Time of last sort:\t{:?}", tls));
                 ui.label(format!(
                     "({:.3} fps)",
-                    (1.0 / self.time_last_sort.as_secs_f32())
+                    (1.0 / tls.as_secs_f32())
                 ));
                 ui.separator();
                 if let Some(inst) = self.saving_success_timeout {
@@ -615,9 +616,14 @@ impl eframe::App for PixelsorterGui {
         // Auto-Sort current image on changes or if image needs sorting
         let values_changed = self.values != prev_values.0 || self.show_mask != prev_values.1;
         if (self.do_sort || (self.auto_sort && values_changed)) {
+            self.do_sort = false;
+            self.sort_img(&ctx, true);
+            // Update the video filter function to use the new values
             if let Some(player) = &mut self.video_player {
                 let sorter = self.values.to_pixelsorter();
+                let time_last_sort_arc = self.time_last_sort.clone();
                 player.video_streamer.lock().filter_video_frame_fn = Some(Box::new(move |frame|{
+                    let timer = Instant::now();
                     let mut img = colimg_to_rgbaimg(frame);
                     let (w, h) = (img.width().into(), img.height().into());
                     let pixels: Vec<&mut Rgb<u8>> = img.pixels_mut().map(|p|{
@@ -626,10 +632,9 @@ impl eframe::App for PixelsorterGui {
                     sorter.sort_pixels(pixels, w, h);
                     let newimg = ColorImage::from_rgba_unmultiplied(frame.size, img.as_raw());
                     *frame = newimg;
+                    *time_last_sort_arc.lock().unwrap() = timer.elapsed();
                 }));
             }
-            self.do_sort = false;
-            self.sort_img(&ctx, true);
         }
 
         //
