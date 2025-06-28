@@ -501,6 +501,11 @@ impl eframe::App for PixelsorterGui {
                         ui.label(format!("{} x {} ({} pixels)", w, h, w * h));
                         ui.separator();
                     }
+                    if let Some(player) = &self.video_player {
+                        let (fps, (w, h)) = (player.framerate, player.size.into());
+                        ui.label(format!("{fps} fps | {} x {} ({} pixels)", w, h, w * h));
+                        ui.separator();
+                    }
                 });
             });
         });
