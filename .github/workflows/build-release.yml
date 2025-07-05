@@ -35,12 +35,12 @@ jobs:
             target: x86_64-apple-darwin
             bin_name: pixelsortery-darwin-x86
             cargo_target: release
-            package_manager_cmd: homebrew install
+            package_manager_cmd: brew update && brew install
           - os: macos-latest
             target: aarch64-apple-darwin
             bin_name: pixelsortery-darwin-aarch
             cargo_target: release
-            package_manager_cmd: homebrew install
+            package_manager_cmd: brew update && brew install
           - os: windows-latest
             target: x86_64-pc-windows-msvc
             bin_name: pixelsortery-windows
