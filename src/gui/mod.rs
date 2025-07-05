@@ -3,7 +3,7 @@ use eframe::egui::{
     self, Align, Button, Color32, Image, Key, Layout, Modifiers, RichText, ScrollArea,
     TextureFilter, TextureHandle, TextureOptions, Ui, Vec2,
 };
-use egui::{scroll_area::ScrollBarVisibility, style::ScrollStyle, ColorImage, Modal, Rgba};
+use egui::{scroll_area::ScrollBarVisibility, style::ScrollStyle, ColorImage, Hyperlink, Modal, Rgba};
 use egui_flex::{item, Flex, FlexAlign, FlexAlignContent, FlexJustify};
 use egui_video::PlayerState;
 use image::{Pixel, Rgb, RgbImage, RgbaImage};
@@ -491,12 +491,16 @@ impl eframe::App for PixelsorterGui {
                     }
                 }
                 ui.with_layout(Layout::right_to_left(Align::Max), |ui| {
-                    ui.label(format!(
-                        "{} v{} by {}",
-                        to_title_case(PACKAGE_NAME),
-                        VERSION,
-                        AUTHORS
-                    ));
+                    ui.horizontal(|ui|{
+                        ui.spacing_mut().item_spacing.x = 0.0;
+                        ui.label(format!(
+                            " v{} by {}",
+                            VERSION,
+                            AUTHORS
+                        ));
+                        ui.label(" ");
+                        ui.hyperlink_to(to_title_case(PACKAGE_NAME), "https://github.com/Lxtharia/pixelsortery");
+                    });
                     ui.separator();
                     if let Some(tex) = &self.texture {
                         let [w, h] = tex.size();
