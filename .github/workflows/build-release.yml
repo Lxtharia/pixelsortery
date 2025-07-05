@@ -37,16 +37,16 @@ jobs:
             bin_name: pixelsortery-darwin-x86
             cargo_target: release
             package_manager_cmd: |
-              echo "LIBRARY_PATH=/opt/homebrew/lib" >> $GITHUB_ENV
-              echo "PKG_CONFIG_PATH=/opt/homebrew/lib/pkgconfig" >> $GITHUB_ENV
+              # echo "LIBRARY_PATH=/opt/homebrew/lib" >> $GITHUB_ENV
+              # echo "PKG_CONFIG_PATH=/opt/homebrew/lib/pkgconfig" >> $GITHUB_ENV
               brew update && brew install ffmpeg sdl2
           - os: macos-14
             target: aarch64-apple-darwin
             bin_name: pixelsortery-darwin-aarch
             cargo_target: release
             package_manager_cmd: |
-              echo "LIBRARY_PATH=/opt/homebrew/lib" >> $GITHUB_ENV
-              echo "PKG_CONFIG_PATH=/opt/homebrew/lib/pkgconfig" >> $GITHUB_ENV
+              # echo "LIBRARY_PATH=/opt/homebrew/lib" >> $GITHUB_ENV
+              # echo "PKG_CONFIG_PATH=/opt/homebrew/lib/pkgconfig" >> $GITHUB_ENV
               brew update && brew install ffmpeg sdl2
           - os: windows-latest
             target: x86_64-pc-windows-msvc
@@ -54,13 +54,13 @@ jobs:
             cargo_target: release
             package_manager_cmd: |
               choco install pkgconfiglite ffmpeg-full
-              wget "https://github.com/libsdl-org/SDL/releases/download/release-2.32.8/SDL2-devel-2.32.8-VC.zip"
-              unzip SDL2-devel-2.32.8-VC.zip
-              export LIB=$LIB:$PWD/SDL2-2.32.8/lib/x64
+              # wget "https://github.com/libsdl-org/SDL/releases/download/release-2.32.8/SDL2-devel-2.32.8-VC.zip"
+              # unzip SDL2-devel-2.32.8-VC.zip
+              # export LIB=$LIB:$PWD/SDL2-2.32.8/lib/x64
               # ls -l C:\Program Files\Rust\lib\rustlib\x86_64-pc-windows-msvc\lib
               # mkdir -p C:\Program Files\Rust\lib\rustlib\x86_64-pc-windows-msvc\lib
               # cp -r SDL2-2.0.32.8\lib\x64\*  C:\Program Files\Rust\lib\rustlib\x86_64-pc-windows-msvc\lib
-              cp SDL2-2.0.32.8\lib\x64\SDL2.lib SDL2.dll .
+              # cp SDL2-2.0.32.8\lib\x64\SDL2.lib SDL2.dll .
     runs-on: ${{ matrix.os }}
     name: Build for ${{ matrix.os }} (${{ matrix.target }})
     
@@ -91,10 +91,14 @@ jobs:
           rustup default --force-non-host stable-${{ matrix.target }}
 
     - name: install dependencies
-      run: ${{ matrix.package_manager_cmd }}
+      run: |
+        cargo install cargo-vcpkg
+        ${{ matrix.package_manager_cmd }}
 
     - name: Build binaries in mode "${{ matrix.cargo_target }}" for os "${{ matrix.os }}"
-      run: cargo build --profile ${{ matrix.cargo_target }} --target ${{ matrix.target }}
+      run: |
+        cargo vcpkg build
+        cargo build --profile ${{ matrix.cargo_target }} --target ${{ matrix.target }}
       
     # - name: Run tests
     #   run: cargo test --profile ${{ matrix.BUILD_TARGET }}
