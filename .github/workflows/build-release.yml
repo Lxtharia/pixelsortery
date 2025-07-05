@@ -99,7 +99,7 @@ jobs:
 
     - name: Build binaries in mode "${{ matrix.cargo_target }}" for os "${{ matrix.os }}"
       run: |
-        cargo vcpkg build --verbose
+        cargo vcpkg --verbose build
         cargo build --profile ${{ matrix.cargo_target }} --target ${{ matrix.target }}
       
     # - name: Run tests
