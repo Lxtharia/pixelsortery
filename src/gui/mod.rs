@@ -5,6 +5,7 @@ use eframe::egui::{
 };
 use egui::{scroll_area::ScrollBarVisibility, style::ScrollStyle, ColorImage, Modal, Rgba};
 use egui_flex::{item, Flex, FlexAlign, FlexAlignContent, FlexJustify};
+use egui_video::PlayerState;
 use image::{Pixel, Rgb, RgbImage, RgbaImage};
 use inflections::case::to_title_case;
 use layers::LayeredSorter;
@@ -604,14 +605,6 @@ impl eframe::App for PixelsorterGui {
                     });
             });
 
-        egui::CentralPanel::default().show(ctx, |ui| {
-            use egui_video;
-            if self.video_player.is_some() {
-                self.video_panel(ui);
-            } else {
-                self.show_img(ui);
-            }
-        });
         if let Some(ls) = &mut self.layered_sorter {
             // info!("Setting values for current: {}", self.values.to_pixelsorter().to_compact_string());
             // Write any changes back to the layered sorter
@@ -639,6 +632,12 @@ impl eframe::App for PixelsorterGui {
                     *frame = newimg;
                     *time_last_sort_arc.lock().unwrap() = timer.elapsed();
                 }));
+                if player.player_state.get() != PlayerState::Playing {
+                    let current_frame = player.video_streamer.lock().current_frame();
+                    if let Some(current_frame) = current_frame {
+                        player.set_current_frame(current_frame);
+                    }
+                }
             }
         }
 
@@ -671,6 +670,15 @@ impl eframe::App for PixelsorterGui {
                 }
             }
         }
+        // Display the image or video!
+        egui::CentralPanel::default().show(ctx, |ui| {
+            use egui_video;
+            if self.video_player.is_some() {
+                self.video_panel(ui);
+            } else {
+                self.show_img(ui);
+            }
+        });
     }
 }
 
