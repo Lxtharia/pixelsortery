@@ -380,6 +380,7 @@ impl PixelsorterGui {
     fn video_mode(&self) -> bool {
         self.img.is_none() && self.video_player.is_some()
     }
+
 }
 
 impl eframe::App for PixelsorterGui {
@@ -620,18 +621,7 @@ impl eframe::App for PixelsorterGui {
             if let Some(player) = &mut self.video_player {
                 let sorter = self.values.to_pixelsorter();
                 let time_last_sort_arc = self.time_last_sort.clone();
-                player.video_streamer.lock().filter_video_frame_fn = Some(Box::new(move |frame|{
-                    let timer = Instant::now();
-                    let mut img = colimg_to_rgbaimg(frame);
-                    let (w, h) = (img.width().into(), img.height().into());
-                    let pixels: Vec<&mut Rgb<u8>> = img.pixels_mut().map(|p|{
-                        Rgb::from_slice_mut(&mut p.0[0..3])
-                    }).collect();
-                    sorter.sort_pixels(pixels, w, h);
-                    let newimg = ColorImage::from_rgba_unmultiplied(frame.size, img.as_raw());
-                    *frame = newimg;
-                    *time_last_sort_arc.lock().unwrap() = timer.elapsed();
-                }));
+                player.video_streamer.lock().filter_video_frame_fn = Some(create_frame_filter(sorter, time_last_sort_arc));
                 if player.player_state.get() != PlayerState::Playing {
                     let current_frame = player.video_streamer.lock().current_frame();
                     if let Some(current_frame) = current_frame {
@@ -768,6 +758,23 @@ pub fn save_image(img: &RgbImage, path: &PathBuf) -> Result<PathBuf, String> {
         return Err(e.to_string());
     }
     Ok(new_path)
+}
+
+pub fn create_frame_filter(sorter: Pixelsorter, time_last_sort_arc: Arc<Mutex<Duration>> )
+    -> Box<dyn FnMut(&mut ColorImage) + Send>
+{
+    Box::new(move |frame| {
+        let timer = Instant::now();
+        let mut img = colimg_to_rgbaimg(frame);
+        let (w, h) = (img.width().into(), img.height().into());
+        let pixels: Vec<&mut Rgb<u8>> = img.pixels_mut().map(|p|{
+            Rgb::from_slice_mut(&mut p.0[0..3])
+        }).collect();
+        sorter.sort_pixels(pixels, w, h);
+        let newimg = ColorImage::from_rgba_unmultiplied(frame.size, img.as_raw());
+        *frame = newimg;
+        *time_last_sort_arc.lock().unwrap() = timer.elapsed();
+    })
 }
 
 fn colimg_to_rgbimg(cimg: &ColorImage) -> RgbImage  {
