@@ -33,7 +33,7 @@ jobs:
             cargo_target: release
             package_manager_cmd: |
               sudo apt-get update && \
-              sudo apt-get install -y ffmpeg libavutil-dev libavcodec-dev libavdevice-dev libpostproc-dev libavformat-dev pkg-config
+              sudo apt-get install -y ffmpeg libtool intltool automake autoconf-archive gettext libavutil-dev libavcodec-dev libavdevice-dev libpostproc-dev libavformat-dev pkg-config
           - os: macos-13
             target: x86_64-apple-darwin
             bin_name: pixelsortery-darwin-x86
