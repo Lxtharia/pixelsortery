@@ -340,8 +340,7 @@ impl Pixelsorter {
         let cmd_output: Output = Command::new("ffprobe")
             .arg("-v").arg("error")
             .arg("-select_streams").arg("v:0")
-            .arg("-count_packets")
-            .arg("-show_entries").arg("stream=width,height,nb_read_packets,r_frame_rate")
+            .arg("-show_entries").arg("stream=width,height,r_frame_rate")
             .arg("-of").arg("csv=p=0:s=x")
             .arg(input)
             .output().expect("Could not run ffprobe command.");
@@ -354,7 +353,6 @@ impl Pixelsorter {
         let h: u32 = words.next().expect("Could not parse ffprobe output").parse()?;
         let bytes: u32 = w*h*3;
         let mut frame_rate = words.next().expect("Could not parse ffprobe output").split('/');
-        let packet_count: u32 = words.next().expect("Could not parse ffprobe output").parse()?;
         let fps: f64 = frame_rate.next()
             .expect("Could not parse ffprobe output: frame rate")
             .parse::<u32>()? as f64
@@ -394,7 +392,7 @@ impl Pixelsorter {
         let mut frame_counter = 1;
         loop {
             // Read exactly that amount of bytes that make one frame
-            print!("\r[VIDEO] Reading Frame [{frame_counter:_>5} / {packet_count}]"); io::stdout().flush();
+            print!("\r[VIDEO] Reading Frame [{frame_counter:_>5}]"); io::stdout().flush();
             let timestart = Instant::now();
             match in_pipe.read_exact(&mut buffer) {
                 Ok(_) => {},
