@@ -30,22 +30,22 @@ jobs:
             target: x86_64-unknown-linux-gnu
             bin_name: pixelsortery-linux
             cargo_target: release
-            package_manager_cmd: sudo apt-get update && sudo apt-get install -y
+            package_manager_cmd: sudo apt-get update && sudo apt-get install -y ffmpeg libsdl2-dev
           - os: macos-latest
             target: x86_64-apple-darwin
             bin_name: pixelsortery-darwin-x86
             cargo_target: release
-            package_manager_cmd: brew update && brew install
+            package_manager_cmd: brew update && brew install ffmpeg sdl2
           - os: macos-latest
             target: aarch64-apple-darwin
             bin_name: pixelsortery-darwin-aarch
             cargo_target: release
-            package_manager_cmd: brew update && brew install
+            package_manager_cmd: brew update && brew install sdl2
           - os: windows-latest
             target: x86_64-pc-windows-msvc
             bin_name: pixelsortery-windows
             cargo_target: release
-            package_manager_cmd: choco install
+            package_manager_cmd: choco install ffmpeg-full
     runs-on: ${{ matrix.os }}
     name: Build for ${{ matrix.os }} (${{ matrix.target }})
     
@@ -76,8 +76,7 @@ jobs:
           rustup default --force-non-host stable-${{ matrix.target }}
 
     - name: install dependencies
-      run: |
-        ${{ matrix.package_manager_cmd }} ffmpeg
+      run: ${{ matrix.package_manager_cmd }}
 
     - name: Build binaries in mode "${{ matrix.cargo_target }}" for os "${{ matrix.os }}"
       run: cargo build --profile ${{ matrix.cargo_target }} --target ${{ matrix.target }}
