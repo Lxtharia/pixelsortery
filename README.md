@@ -30,34 +30,89 @@ cd pixelsortery
 cargo install
 ```
 
-## Usage (GUI)
-To start the gui double-click it or run the binary from the command line without any arguments.
+## Usage
+### GUI Usage
+To start the gui, double-click it or run the binary from the command line without any arguments:
+```bash
+/path/to/pixelsortery.exe
+```
 
 You can also pass the --gui flag on the command line to apply other options when opening the GUI.
 ```bash
 pixelsortery --gui --input image.png --diagonal 30
 ```
-This would for example open the gui with the image already loaded and the direction set to diagonal with a 30° angle
+This would for example open the gui with the image loaded and the direction set to `diagonal` with a 30° angle
 
-## Usage (CLI)
-The `--help` output is probably more up-to-date than this README will ever be and is nicely formatted.
-1. Simply run
+### CLI Usage
+You can also sort images via the command line.\
+This is useful if want to sort many images at once or create animations by manipulating a parameter via code.\
+There are a bunch of different options available which I will not add to the README, as the `--help` output is way more up-to-date and nicely formatted, so go look at that.
+
+1. Look at the examples to understand how to use it
+2. Look at the help to see all available options
 ```bash
 pixelsortery --help
 ```
-2. Read the explanation below to understand what's going on
-3. And start experimenting with it!
+2. Read the explanation below to understand what pixelsorting actually is (if you want to)
+4. Start playing around with different parameters!
 
+Some examples:
 ```bash
-# Very simple usage example
-pixelsortery -i input.png -o output.png --right --random 200 --mapsort 
+# Sorts pixels downwards
+pixelsortery -i input.png -o output.png --down
 
-# Usage example 
+# Sort diagonally (in a 30° angle), only sort orange pixels (hue:10:40) and use the glitchsort algorithm 
 pixelsortery -i image.png --diagonal 30 --thres hue:10:40 --glitchsort --output sortedimg.png
 
 # You can also chain commands by reading and writing to stdin/stdout (by setting the filename to `-`)
 pixelsortery -i image.png --diagonal 30 --output - | pixelsortery --input - --hilbert --glitchsort --output doublesortedimg.png
+
+# Sort the same image a hundred times, creating animation frames
+for i in $(seq 1 100); do
+    echo "Sorting $i"
+    pixelsortery -i input.png -o "output-$i.png" --thres "bright:0:$i" --down
+done
 ```
+
+### Video Sorting
+Pixelsortery has the ability to sort videos!
+In the **GUI**, just open a video and the videoplayer will be shown.
+The video will be autosorted by default, this can lead to a slow playback with bigger videos.
+You can also pause the video and adjust the sorting parameters with less lag.
+Note that this is only a preview. When you click on "Start export", a separate process will start and sort the video with the last set parameters.
+
+On the **CLI**, you simply need to specify the path to the input file and the output file with a video extension.
+You can also open a video input and sort the video *live*. You need to set the output path to `-` to display the sorted live feed.
+For example:
+```bash
+pixelsortery --input /dev/video0 --diagonal 30 --output - 
+```
+
+## Features
+
+- [x] Choose to sort lines in all 4 directions
+- [x] Sort pixels _diagonally_, in rectangular shape, in circles, 
+- [x] Sort pixels in the shape of the space filling hilbert curve (very sweet)
+- [x] Choose to select spans of random or fixed length
+- [x] Choose to select spans based on their hue/brightness/saturation
+- [x] Sorts pixel with MAPSORT (HELL YEAH!!)
+- [x] Also allows to use a COMPLETELY BROKEN sorting algorithm, creating a super rad glitch effect (try it out)
+- [x] A super cool CLI interface!
+- [x] Read input from stdin and write to stdout, allowing easy chaining
+- [x] a GUI (holy damn)
+- [x] a really good GUI (damn holy)
+- [x] Sort _multiple_ times with layers (wowie)
+- [x] Sort VIDEOS (this is getting crazy!)
+
+### Planned Features
+
+- [ ] a godlike GUI where you can edit masks in real time
+- [ ] Add more pattern patterns to sort by (sin waves, star shape, ...)
+- [ ] Allow to read custom pathing data from file
+- [ ] Allow to use MASKS to control which areas should be sorted and which shouldn't
+- [ ] Allow to logically combine selectors (sort pixels that are bright _and_ red)
+- [ ] Built-in animation (someday maybe)
+- [ ] Animation for sorting videos (another someday maybe)
 
 ## Explanation (How it works)
 
@@ -97,29 +152,6 @@ it will get better hopefully, maybe, eventually
 
 </details>
 
-## Features
-
-- [x] Choose to sort lines in all 4 directions
-- [x] Sort pixels _diagonally_, in rectangular shape, in circles, 
-- [x] Sort pixels in the shape of the space filling hilbert curve (very sweet)
-- [x] Choose to select spans of random or fixed length
-- [x] Choose to select spans based on their hue/brightness/saturation
-- [x] Sorts pixel with MAPSORT (HELL YEAH!!)
-- [x] Also allows to use a COMPLETELY BROKEN sorting algorithm, creating a super rad glitch effect (try out)
-- [x] A super cool CLI interface!
-- [x] Read input from stdin and write to stdout, allowing easy chaining
-- [x] a GUI (holy damn)
-- [x] a really good GUI (damn holy)
-- [x] Sort _multiple_ times with layers
-
-## Planned Features
-
-- [ ] a godlike GUI where you can edit masks in real time (holy cow!)
-- [ ] Add more pattern patterns to sort by (sin waves, star shape, ...)
-- [ ] Allow to read custom pathing data from file
-- [ ] Allow to use MASKS to control which areas should be sorted and which shouldn't
-- [ ] Allow to logically combine selectors (sort pixels that are bright _and_ red)
-- [ ] Built-in animation (low prio)
 
 ## Cool!
 
