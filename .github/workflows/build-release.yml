@@ -31,8 +31,8 @@ jobs:
             target: x86_64-unknown-linux-gnu
             bin_name: pixelsortery-linux
             cargo_target: release
-            package_manager_cmd: sudo apt-get update && sudo apt-get install -y ffmpeg libavutil-dev libavcodec-dev libavformat-dev pkg-config
-          - os: macos-14
+            package_manager_cmd: sudo apt-get update && sudo apt-get install -y ffmpeg libavutil-dev libavcodec-dev libavdevice-dev libavpostproc-dev libavformat-dev pkg-config
+          - os: macos-13
             target: x86_64-apple-darwin
             bin_name: pixelsortery-darwin-x86
             cargo_target: release
@@ -52,7 +52,7 @@ jobs:
             target: x86_64-pc-windows-msvc
             bin_name: pixelsortery-windows
             cargo_target: release
-            package_manager_cmd: choco install ffmpeg-full
+            package_manager_cmd: choco install pkgconfiglite ffmpeg-full
     runs-on: ${{ matrix.os }}
     name: Build for ${{ matrix.os }} (${{ matrix.target }})
     
