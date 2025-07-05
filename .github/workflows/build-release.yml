@@ -99,8 +99,7 @@ jobs:
 
     - name: Build binaries in mode "${{ matrix.cargo_target }}" for os "${{ matrix.os }}"
       run: |
-        cd target/vcpkg && ./vcpkg install sdl2
-        cargo vcpkg build
+        cargo vcpkg build --verbose
         cargo build --profile ${{ matrix.cargo_target }} --target ${{ matrix.target }}
       
     # - name: Run tests
