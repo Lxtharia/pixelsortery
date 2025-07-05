@@ -65,8 +65,10 @@ const HELP_STRING: &str = "
 
    -i | --input  <FILE> : Set input file explicitly
    -o | --output <FILE> : Set output file explicitly
-   If <infile>  is '-' , read from stdin
-   If <outfile> is '-' , write to stdout
+   If <infile>  is '-' then read from stdin
+   If <outfile> is '-' then write to stdout
+   If <outfile> is '-' AND the input file is a video, play the sorted video with ffplay. 
+                       Can be used to live-sort video from a input stream
 
 ===================== Options ====================
 
@@ -87,13 +89,15 @@ const HELP_STRING: &str = "
    --down       : Sort vertical lines of pixels downwards
    --up         : Sort vertical lines of pixels upwards
    --circles          : Sort in circles
+   --spiral           : Sort in a continuous spiral
    --spiral-square    : Sort in a squared spiral
    --spiral-rect      : Sort in a rectangular spiral
    --diagonal <angle> : Sort lines tilted by an angle
    --hilbert          : Sort along the hilbert curve pattern
+   --rays             : Sort from the center in all directions
    --reverse          : Sort in the opposite direction
 
-============= Span-Selection  Options ===========
+============= Span-Selection Options ============
   [Choose which pixels are valid to form a span]
 
    --random <max>                        : Sort spans of random length between 0 and <max>
