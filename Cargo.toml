@@ -15,7 +15,6 @@ egui_flex = "0.3.0"
 env_logger = "0.11.5"
 egui-video = { version = "0.9.0" }
 ffmpeg-the-third = "3.0.2"
-# ffmpeg-the-third = "2.0.1"
 image = { version = "0.24.6", features = ["jpeg", "png", "webp"] }
 inflections = "1.1.1"
 log = "0.4.22"
@@ -33,7 +32,7 @@ default-features = false
 features = ["static-link", "use-vcpkg"]
 
 [package.metadata.vcpkg]
-dependencies = ["sdl2" ]
+dependencies = ["sdl2", "ffmpeg"]
 git = "https://github.com/microsoft/vcpkg"
 rev = "2024.05.24"
 
