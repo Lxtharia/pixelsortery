@@ -322,20 +322,22 @@ impl PixelsorterGui {
                 ui.checkbox(&mut self.save_into_parent_dir, "Same directory");
             }
         });
-        ui.add_space(5.0);
-        ui.horizontal_wrapped(|ui| {
-            ui.label("Saving into: ");
-            let text = if self.save_into_parent_dir {
-                let mut parent_dir = self.path.as_ref().unwrap().clone();
-                parent_dir.pop();
-                RichText::new(parent_dir.to_string_lossy()).monospace()
-            } else if let Some(output_dir) = &self.output_directory {
-                RichText::new(output_dir.to_string_lossy()).monospace()
-            } else {
-                RichText::new("No output directory set").italics()
-            };
-            ui.label(text);
-        });
+        #[cfg(not(target_arch = "wasm32"))]{
+            ui.add_space(5.0);
+            ui.horizontal_wrapped(|ui| {
+                ui.label("Saving into: ");
+                let text = if self.save_into_parent_dir {
+                    let mut parent_dir = self.path.as_ref().unwrap().clone();
+                    parent_dir.pop();
+                    RichText::new(parent_dir.to_string_lossy()).monospace()
+                } else if let Some(output_dir) = &self.output_directory {
+                    RichText::new(output_dir.to_string_lossy()).monospace()
+                } else {
+                    RichText::new("No output directory set").italics()
+                };
+                ui.label(text);
+            });
+        }
     }
 
     pub(super) fn layering_panel(&mut self, flex: &mut FlexInstance) {
