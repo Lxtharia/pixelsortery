@@ -300,25 +300,27 @@ impl PixelsorterGui {
                 self.save_file_as();
             }
 
-            // Enable Save button, if a dir is set, or if we are saving into the parent directory
-            ui.add_enabled_ui(
-                self.output_directory.is_some() || self.save_into_parent_dir,
-                |ui| {
-                    if ui.button("Save").clicked() {
-                        info!("Saving image...");
-                        self.save_file_to_out_dir();
+            #[cfg(not(target_arch = "wasm32"))]{
+                // Enable Save button, if a dir is set, or if we are saving into the parent directory
+                ui.add_enabled_ui(
+                    self.output_directory.is_some() || self.save_into_parent_dir,
+                    |ui| {
+                        if ui.button("Save").clicked() {
+                            info!("Saving image...");
+                            self.save_file_to_out_dir();
+                        }
+                    },
+                );
+                if ui.button("Choose destination...").clicked() {
+                    // TODO filepick
+                    if let Some(dir) = rfd::FileDialog::new().pick_folder() {
+                        self.output_directory = Some(dir);
+                        self.save_into_parent_dir = false;
+                    } else {
                     }
-                },
-            );
-            if ui.button("Choose destination...").clicked() {
-                // TODO filepick
-                if let Some(dir) = rfd::FileDialog::new().pick_folder() {
-                    self.output_directory = Some(dir);
-                    self.save_into_parent_dir = false;
-                } else {
                 }
+                ui.checkbox(&mut self.save_into_parent_dir, "Same directory");
             }
-            ui.checkbox(&mut self.save_into_parent_dir, "Same directory");
         });
         ui.add_space(5.0);
         ui.horizontal_wrapped(|ui| {

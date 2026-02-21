@@ -23,6 +23,7 @@ use std::{
     path::PathBuf,
     time::{Duration, Instant},
 };
+use tokio;
 
 use crate::{AUTHORS, PACKAGE_NAME, VERSION};
 mod layers;
@@ -34,11 +35,6 @@ const INITIAL_WINDOW_SIZE: Vec2 = egui::vec2(1000.0, 700.0);
 mod components;
 
 pub fn init(ps: Option<&Pixelsorter>, img: Option<(RgbImage, PathBuf)>) -> eframe::Result {
-    let options = eframe::NativeOptions {
-        viewport: egui::ViewportBuilder::default().with_inner_size(INITIAL_WINDOW_SIZE),
-        ..Default::default()
-    };
-
     let mut psgui = PixelsorterGui::default();
     if let Some(ps) = ps {
         psgui = psgui.with_values(ps);
@@ -47,16 +43,61 @@ pub fn init(ps: Option<&Pixelsorter>, img: Option<(RgbImage, PathBuf)>) -> efram
         psgui = psgui.with_image(img, img_path);
     }
 
-    eframe::run_native(
-        "Pixelsortery",
-        options,
-        Box::new(|cc| {
-            // This gives us image support
-            egui_extras::install_image_loaders(&cc.egui_ctx);
-            Ok(Box::new(psgui))
-        }),
-    )
+    // When compiling natively:
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let options = eframe::NativeOptions {
+            viewport: egui::ViewportBuilder::default().with_inner_size(INITIAL_WINDOW_SIZE),
+            ..Default::default()
+        };
+        eframe::run_native(
+            "Pixelsortery",
+            options,
+            Box::new(|cc| {
+                // This gives us image support
+                egui_extras::install_image_loaders(&cc.egui_ctx);
+                Ok(Box::new(psgui))
+            }),
+        )?
+    }
+    // When compiling to web using trunk:
+    #[cfg(target_arch = "wasm32")]
+    {
+        use eframe::wasm_bindgen::JsCast as _;
+
+        // Redirect `log` message to `console.log` and friends:
+        eframe::WebLogger::init(log::LevelFilter::Debug).ok();
+
+        let web_options = eframe::WebOptions::default();
+
+        wasm_bindgen_futures::spawn_local(async {
+            let document = web_sys::window()
+                .expect("No window")
+                .document()
+                .expect("No document");
+
+            let canvas = document
+                .get_element_by_id("egui_canvas")
+                .expect("Failed to find egui_canvas html element")
+                .dyn_into::<web_sys::HtmlCanvasElement>()
+                .expect("egui_canvas was not a HtmlCanvasElement");
+
+            let start_result = eframe::WebRunner::new()
+                .start(
+                    canvas,
+                    web_options,
+                    Box::new(|cc| {
+                        // This gives us image support
+                        egui_extras::install_image_loaders(&cc.egui_ctx);
+                        Ok(Box::new(psgui))
+                    }),
+                )
+            .await;
+        });
+    }
+    Ok(())
 }
+
 
 /// Struct holding all the states of the gui and values of sliders etc.
 struct PixelsorterGui {
@@ -250,6 +291,7 @@ impl PixelsorterGui {
 
     fn open_file(&mut self, ctx: &egui::Context) -> () {
         // Opening image until cancled or until valid image loaded
+        #[cfg(not(target_arch = "wasm32"))]
         loop {
             let file = rfd::FileDialog::new()
                 .add_filter("Images", &["png", "jpg", "jpeg", "webp"])
@@ -272,6 +314,32 @@ impl PixelsorterGui {
                 },
             }
         }
+        #[cfg(target_arch = "wasm32")]
+        let future = async {
+        loop {
+            let file = rfd::AsyncFileDialog::new()
+                .add_filter("Images", &["png", "jpg", "jpeg", "webp"])
+                .pick_file()
+                .await;
+            match file {
+                None => break,
+                Some(f) => match image::load_from_memory(&f.read().await) {
+                    Ok(i) => {
+                        let img = i.into_rgb8();
+                        if let Some(ls) = &mut self.layered_sorter {
+                            ls.set_base_img(img.clone());
+                        }
+                        // I want to make layered_sorter mandatory and remove the possibility of it being None
+                        self.img = Some(img);
+                        self.update_texture(ctx);
+                        self.path = Some(f.file_name().into());
+                        break;
+                    }
+                    Err(_) => {}
+                },
+            }
+        }
+        };
     }
 
     /// Sorts and saves the image to the current output directory with a given filename
@@ -336,23 +404,58 @@ impl PixelsorterGui {
             } else {
                 String::from("")
             };
-            let file = rfd::FileDialog::new()
-                .add_filter("Images", &["png", "jpg", "jpeg", "webp"])
-                .set_file_name(suggested_filename)
-                .save_file();
-            if let Some(f) = file {
-                if let Some(sorted) = &self.img {
-                    if let Err(err_msg) = sorted.save(&f) {
-                        warn!(
-                            "Saving image to {} failed: {}",
-                            f.to_string_lossy(),
-                            err_msg
-                        );
-                    } else {
-                        info!("Saved file to '{}' ...", f.to_string_lossy());
-                        self.saving_success_timeout = Some(Instant::now());
-                    };
+            #[cfg(not(target_arch = "wasm32"))]
+            {
+                let file = rfd::FileDialog::new()
+                    .add_filter("Images", &["png", "jpg", "jpeg", "webp"])
+                    .set_file_name(&suggested_filename)
+                    .save_file();
+                if let Some(f) = file {
+                    if let Some(sorted) = &self.img {
+                        if let Err(err_msg) = sorted.save(&f) {
+                            warn!(
+                                "Saving image to {} failed: {}",
+                                f.to_string_lossy(),
+                                err_msg
+                            );
+                        } else {
+                            info!("Saved file to '{}' ...", f.to_string_lossy());
+                            self.saving_success_timeout = Some(Instant::now());
+                        };
+                    }
                 }
+            }
+            // Source - https://stackoverflow.com/a/71116729␍
+            // Posted by t56k␍
+            // Retrieved 2026-02-21, License - CC BY-SA 4.0␍
+            #[cfg(target_arch = "wasm32")] 
+            {
+                let rt = tokio::runtime::Builder::new_current_thread()
+                    .enable_all()
+                    .build()
+                    .unwrap();
+
+                let res = rt.block_on(async {
+                    let file = rfd::AsyncFileDialog::new()
+                        .add_filter("Images", &["png", "jpg", "jpeg", "webp"])
+                        .set_file_name(&suggested_filename)
+                        .save_file()
+                        .await;
+                    if let Some(f) = file {
+                        if let Some(sorted) = &self.img {
+                            if let Err(err_msg) = f.write(&sorted.to_vec()).await {
+                                warn!(
+                                    "Saving image to {} failed: {}",
+                                    f.file_name(),
+                                    err_msg
+                                );
+                            } else {
+                                info!("Saved file to '{}' ...", f.file_name());
+                                self.saving_success_timeout = Some(Instant::now());
+                            };
+                        }
+                    }
+                });
             }
         }
     }
