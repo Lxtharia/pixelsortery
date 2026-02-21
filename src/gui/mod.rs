@@ -319,32 +319,38 @@ impl PixelsorterGui {
                 },
             }
         }
-        #[cfg(target_arch = "wasm32")]
-        let future = async {
-        loop {
-            let file = rfd::AsyncFileDialog::new()
-                .add_filter("Images", &["png", "jpg", "jpeg", "webp"])
-                .pick_file()
-                .await;
-            match file {
-                None => break,
-                Some(f) => match image::load_from_memory(&f.read().await) {
-                    Ok(i) => {
-                        let img = i.into_rgb8();
-                        if let Some(ls) = &mut self.layered_sorter {
-                            ls.set_base_img(img.clone());
-                        }
-                        // I want to make layered_sorter mandatory and remove the possibility of it being None
-                        self.img = Some(img);
-                        self.update_texture(ctx);
-                        self.path = Some(f.file_name().into());
-                        break;
+        #[cfg(target_arch = "wasm32")] {
+            let rt = tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .unwrap();
+
+            let res = rt.block_on(async {
+                loop {
+                    let file = rfd::AsyncFileDialog::new()
+                        .add_filter("Images", &["png", "jpg", "jpeg", "webp"])
+                        .pick_file()
+                    .await;
+                    match file {
+                        None => break,
+                        Some(f) => match image::load_from_memory(&f.read().await) {
+                            Ok(i) => {
+                                let img = i.into_rgb8();
+                                if let Some(ls) = &mut self.layered_sorter {
+                                    ls.set_base_img(img.clone());
+                                }
+                                // I want to make layered_sorter mandatory and remove the possibility of it being None
+                                self.img = Some(img);
+                                self.update_texture(ctx);
+                                self.path = Some(f.file_name().into());
+                                break;
+                            }
+                            Err(_) => {}
+                        },
                     }
-                    Err(_) => {}
-                },
-            }
+                }
+            });
         }
-        };
     }
 
     /// Sorts and saves the image to the current output directory with a given filename
