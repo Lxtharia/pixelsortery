@@ -63,6 +63,11 @@ pub fn init(ps: Option<&Pixelsorter>, img: Option<(RgbImage, PathBuf)>) -> efram
     // When compiling to web using trunk:
     #[cfg(target_arch = "wasm32")]
     {
+        extern crate console_error_panic_hook;
+        use std::panic;
+
+        panic::set_hook(Box::new(console_error_panic_hook::hook));
+
         use eframe::wasm_bindgen::JsCast as _;
 
         // Redirect `log` message to `console.log` and friends:
@@ -77,10 +82,10 @@ pub fn init(ps: Option<&Pixelsorter>, img: Option<(RgbImage, PathBuf)>) -> efram
                 .expect("No document");
 
             let canvas = document
-                .get_element_by_id("egui_canvas")
-                .expect("Failed to find egui_canvas html element")
+                .get_element_by_id("egui-canvas")
+                .expect("Failed to find egui-canvas html element")
                 .dyn_into::<web_sys::HtmlCanvasElement>()
-                .expect("egui_canvas was not a HtmlCanvasElement");
+                .expect("egui-canvas was not a HtmlCanvasElement");
 
             let start_result = eframe::WebRunner::new()
                 .start(
