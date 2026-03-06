@@ -1,9 +1,18 @@
 # Ignore rust target directory
 /target
+
 # Ignore Session.vim
 *.vim
+
 # Ignore images
 *.png
 *.jpeg
 *.jpg
+
+# Ignore other directories
+.zed/
+/dist/
+/deps/
 /out
+/images/
+/videos/
