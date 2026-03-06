@@ -5,7 +5,7 @@ use eframe::egui::{
 };
 use egui::{scroll_area::ScrollBarVisibility, style::ScrollStyle};
 use egui_flex::{item, Flex, FlexAlign, FlexAlignContent, FlexJustify};
-use image::RgbImage;
+use image::{EncodableLayout, ImageEncoder, RgbImage, codecs::png::PngEncoder};
 use inflections::case::to_title_case;
 use layers::LayeredSorter;
 use log::{info, warn};
@@ -435,37 +435,27 @@ impl PixelsorterGui {
                     }
                 }
             }
-            // Source - https://stackoverflow.com/a/71116729␍
-            // Posted by t56k␍
-            // Retrieved 2026-02-21, License - CC BY-SA 4.0␍
-            #[cfg(target_arch = "wasm32")] 
-            {
-                let rt = tokio::runtime::Builder::new_current_thread()
-                    .enable_all()
-                    .build()
-                    .unwrap();
+        }
+        #[cfg(target_arch = "wasm32")]
+        {
+            use base64::{Engine as _, engine::{self, general_purpose}};
+            use std::io::Cursor;
+            use web_sys;
+            use eframe::wasm_bindgen::JsCast;
+            if let Some(sorted) = &self.img {
 
-                let res = rt.block_on(async {
-                    let file = rfd::AsyncFileDialog::new()
-                        .add_filter("Images", &["png", "jpg", "jpeg", "webp"])
-                        .set_file_name(&suggested_filename)
-                        .save_file()
-                        .await;
-                    if let Some(f) = file {
-                        if let Some(sorted) = &self.img {
-                            if let Err(err_msg) = f.write(&sorted.to_vec()).await {
-                                warn!(
-                                    "Saving image to {} failed: {}",
-                                    f.file_name(),
-                                    err_msg
-                                );
-                            } else {
-                                info!("Saved file to '{}' ...", f.file_name());
-                                self.saving_success_timeout = Some(Instant::now());
-                            };
-                        }
-                    }
-                });
+                let win = web_sys::window().unwrap();
+                let doc = win.document().unwrap();
+
+                let mut bytes: Vec<u8> = Vec::new();
+                sorted.write_to(&mut Cursor::new(&mut bytes), image::ImageFormat::Png).unwrap();
+
+                let link = doc.create_element("a").unwrap();
+                link.set_attribute("href", format!("data:image/png;base64,{}", general_purpose::STANDARD.encode(bytes)).as_str());
+                link.set_attribute("download", "sorted.png");
+
+                let link: web_sys::HtmlAnchorElement = web_sys::HtmlAnchorElement::unchecked_from_js(link.into());
+                link.click();
             }
         }
     }
