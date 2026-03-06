@@ -19,10 +19,9 @@ use pixelsortery::{
     Pixelsorter,
 };
 use std::{
-    ffi::OsString,
-    path::PathBuf,
-    time::{Duration, Instant},
+    ffi::OsString, path::PathBuf, sync::{Arc, Mutex, mpsc::{self, Receiver, Sender}}
 };
+use web_time::{Duration, Instant};
 use tokio;
 
 use crate::{AUTHORS, PACKAGE_NAME, VERSION};
@@ -125,6 +124,8 @@ struct PixelsorterGui {
     saving_success_timeout: Option<Instant>,
     change_layer: SwitchLayerMessage,
     show_base_image: bool,
+    img_tx: Sender<RgbImage>,
+    img_rx: Receiver<RgbImage>,
 }
 
 /// Adjustable components of the pixelsorter, remembers values like diagonal angle
@@ -186,6 +187,7 @@ impl PixelsorterValues {
 
 impl Default for PixelsorterGui {
     fn default() -> Self {
+        let (tx, rx) = mpsc::channel();
         Self {
             path: None,
             layered_sorter: None,
@@ -220,6 +222,8 @@ impl Default for PixelsorterGui {
             change_layer: SwitchLayerMessage::None,
             do_sort: true,
             show_base_image: false,
+            img_tx: tx,
+            img_rx: rx,
         }
     }
 }
@@ -319,35 +323,30 @@ impl PixelsorterGui {
                 },
             }
         }
-        #[cfg(target_arch = "wasm32")] {
-            let rt = tokio::runtime::Builder::new_current_thread()
-                .enable_all()
-                .build()
-                .unwrap();
+        #[cfg(target_arch = "wasm32")]
+        {
+            let i_sx = self.img_tx.clone();
+            wasm_bindgen_futures::spawn_local(async move {
+                let file = rfd::AsyncFileDialog::new()
+                    .add_filter("Images", &["png", "jpg", "jpeg", "webp"])
+                    .pick_file()
+                .await;
 
-            let res = rt.block_on(async {
-                loop {
-                    let file = rfd::AsyncFileDialog::new()
-                        .add_filter("Images", &["png", "jpg", "jpeg", "webp"])
-                        .pick_file()
-                    .await;
-                    match file {
-                        None => break,
-                        Some(f) => match image::load_from_memory(&f.read().await) {
-                            Ok(i) => {
-                                let img = i.into_rgb8();
-                                if let Some(ls) = &mut self.layered_sorter {
-                                    ls.set_base_img(img.clone());
-                                }
-                                // I want to make layered_sorter mandatory and remove the possibility of it being None
-                                self.img = Some(img);
-                                self.update_texture(ctx);
-                                self.path = Some(f.file_name().into());
-                                break;
-                            }
-                            Err(_) => {}
-                        },
+                if let Some(file) = file {
+                    // If you are on native platform you can just get the path
+                    #[cfg(not(target_arch = "wasm32"))]
+                    println!("{:?}", file.path());
+
+                    // If you care about wasm support you just read() the file
+                    let f = file.read().await;
+                    match image::load_from_memory(&file.read().await) {
+                        Ok(i) => {
+                            let img = i.into_rgb8();
+                            i_sx.send(img).expect("Couldnt send image x.x");
+                        }
+                        Err(_) => {}
                     }
+
                 }
             });
         }
@@ -500,6 +499,15 @@ impl eframe::App for PixelsorterGui {
             style.spacing.combo_height = 300.0;
         });
 
+
+        #[cfg(target_arch = "wasm32")] // Receive image from file picker
+        if let Ok(img) = self.img_rx.try_recv() {
+            if let Some(ls) = &mut self.layered_sorter {
+                ls.set_base_img(img.clone());
+            }
+            self.img = Some(img);
+            self.update_texture(ctx);
+        }
         // Open file on startup
         if do_open_file {
             self.open_file(ctx);

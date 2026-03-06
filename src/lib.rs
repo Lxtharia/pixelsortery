@@ -5,7 +5,8 @@ use log::{error, info, warn};
 use path_creator::PathCreator;
 use rayon::prelude::*;
 use span_sorter::{SortingCriteria, SpanSorter};
-use std::{path::Path, time::Instant};
+use std::{path::Path};
+use web_time::Instant;
 
 use crate::pixel_selector::PixelSelector;
 

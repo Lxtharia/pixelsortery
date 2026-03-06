@@ -8,7 +8,7 @@ use pixelsortery::{
     span_sorter::{SortingAlgorithm, SortingCriteria},
 };
 use std::{io::Read, path::PathBuf, str::FromStr};
-use std::time::Instant;
+use web_time::Instant;
 use std::{collections::VecDeque, env, process::exit};
 
 mod gui;
