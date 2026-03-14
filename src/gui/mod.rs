@@ -39,7 +39,7 @@ pub fn init(ps: Option<&Pixelsorter>, img: Option<(RgbImage, PathBuf)>, video: O
     };
 
     let mut psgui = PixelsorterGui::default();
-    psgui.audio_device = egui_video::AudioDevice::new().ok();
+    psgui.audio_device = Some(egui_video::AudioDevice::new());
 
     if let Some(ps) = ps {
         psgui = psgui.with_values(ps);
