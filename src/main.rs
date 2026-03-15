@@ -1,11 +1,9 @@
 use image::RgbImage;
 use log::{error, info, warn};
 use pixelsortery::{
-    path_creator::PathCreator,
-    pixel_selector::{
+    CachedPixelsorter, path_creator::PathCreator, pixel_selector::{
         PixelSelectCriteria, PixelSelector
-    },
-    span_sorter::{SortingAlgorithm, SortingCriteria},
+    }, span_sorter::{SortingAlgorithm, SortingCriteria}
 };
 use std::{io::Read, path::PathBuf, str::FromStr, time::Duration};
 use std::time::Instant;
@@ -157,6 +155,8 @@ fn main() {
     let mut show_mask = false;
     let mut start_gui = false;
 
+    let mut cached = false;
+
     #[cfg(feature = "video")]
     let mut frame_ts = None;
 
@@ -207,6 +207,7 @@ fn main() {
             "--glitchsort"  => ps.sorter.algorithm = SortingAlgorithm::Glitchsort,
             "--shellsort"   => ps.sorter.algorithm = SortingAlgorithm::Shellsort,
             "--mapsort"     => ps.sorter.algorithm = SortingAlgorithm::Mapsort,
+            "--cached"     => cached = true,
 
             _ => {
                 if arg.starts_with("-"){
@@ -313,15 +314,20 @@ fn main() {
 
     let start = Instant::now();
 
-    if show_mask {
-        // Drawing a mask
-        if ! ps.mask(&mut img) {
-            error!("Couldn't create mask. Masking is only possible with the threshold selector.");
-            exit(-1);
-        }
+    if cached {
+        let mut cp = CachedPixelsorter::new(img.clone());
+        img = cp.sort(ps);
     } else {
-        // SORTING
-        ps.sort(&mut img);
+        if show_mask {
+            // Drawing a mask
+            if ! ps.mask(&mut img) {
+                error!("Couldn't create mask. Masking is only possible with the threshold selector.");
+                exit(-1);
+            }
+        } else {
+            // SORTING
+            ps.sort(&mut img);
+        }
     }
 
     let duration = start.elapsed();

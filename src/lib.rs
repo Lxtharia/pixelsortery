@@ -1,11 +1,11 @@
 #![allow(unused_parens, unused)]
 use eframe::egui::TextBuffer;
-use image::{codecs::png::PngEncoder, GenericImageView, ImageResult, Rgb, RgbImage, RgbaImage};
+use image::{GenericImage, GenericImageView, ImageResult, Rgb, RgbImage, RgbaImage, buffer::EnumeratePixels, codecs::png::PngEncoder};
 use log::{debug, error, info, warn};
 use path_creator::PathCreator;
 use rayon::prelude::*;
 use span_sorter::{SortingCriteria, SpanSorter};
-use std::{any::Any, fmt::Debug, fs, io::{self, ErrorKind, Read, Write}, path::{Path, PathBuf}, process::{self, Command, Output, Stdio}, time::Instant};
+use std::{any::Any, collections::VecDeque, fmt::Debug, fs, io::{self, ErrorKind, Read, Write}, path::{Path, PathBuf}, process::{self, Command, Output, Stdio}, time::Instant};
 
 use crate::pixel_selector::PixelSelector;
 
@@ -16,6 +16,10 @@ pub mod span_sorter;
 #[cfg(feature = "video")]
 mod video;
 
+pub type Span = Vec<Rgb<u8>>;
+pub type MutSpan<'a> = Vec<&'a mut Rgb<u8>>;
+pub type MutSpanVec<'a> = Vec<Vec<&'a mut Rgb<u8>>>;
+
 #[derive(Clone)]
 pub struct Pixelsorter {
     pub sorter: span_sorter::SpanSorter,
@@ -24,7 +28,40 @@ pub struct Pixelsorter {
     pub reverse: bool,
 }
 
-pub type Span = Vec<Rgb<u8>>;
+#[derive(Clone)]
+pub(crate) struct PixelInfo {
+    coords: (u32, u32),
+    pixel: Rgb<u8>,
+    select_value: u64,
+    // sort_value: u64, // Probably smarter to calculate this when needed
+}
+
+impl PixelInfo {
+    /// Returns a new PixelInfo with a different color
+    fn with_pixel(&self, px: Rgb<u8> ) -> Self {
+        PixelInfo {
+            coords: self.coords,
+            select_value: self.select_value,
+            pixel: px,
+        }
+    }
+}
+trait ToPixel {
+    #[inline]
+    fn pixel(&self) -> &Rgb<u8>;
+}
+impl ToPixel for &PixelInfo {
+    #[inline]
+    fn pixel(&self) -> &Rgb<u8> {
+        &self.pixel
+    }
+}
+impl ToPixel for &mut Rgb<u8> {
+    #[inline]
+    fn pixel(&self) -> &Rgb<u8> {
+        self
+    }
+}
 
 impl Pixelsorter {
     // constructor
@@ -200,7 +237,7 @@ impl Pixelsorter {
     // sorting without creating spans
     pub fn sort_all_pixels(&self, img: &mut RgbImage) {
         let mut pixels: Vec<&mut Rgb<u8>> = img.pixels_mut().collect();
-        self.sorter.sort(&mut pixels);
+        self.sorter.sort_mut(&mut pixels);
     }
     pub fn sort(&self, img: &mut RgbImage) {
         let (w, h) = (img.width().into(), img.height().into());
@@ -225,7 +262,7 @@ impl Pixelsorter {
         // CUT IMAGE INTO PATHS
         timestart = Instant::now();
         info!("TIME | [Loading pixels]: \t+ {:?}", timestart.elapsed());
-        let ranges = self.path_creator.create_paths(all_pixels, w, h, self.reverse);
+        let ranges: Vec<Vec<&mut Rgb<u8>>> = self.path_creator.create_paths(all_pixels, w, h, self.reverse);
 
         info!("TIME [Creating Paths]:\t{:?}", timestart.elapsed());
         timestart = Instant::now();
@@ -246,7 +283,7 @@ impl Pixelsorter {
 
         // SORT EVERY SPAN
         spans.into_par_iter().for_each(|mut span| {
-            self.sorter.sort(&mut span);
+            self.sorter.sort_mut(&mut span);
         });
 
         let timeend = timestart.elapsed();
@@ -256,9 +293,100 @@ impl Pixelsorter {
     pub fn mask(&self, img: &mut RgbImage) -> bool {
         let mut all_pixels: Vec<&mut Rgb<u8>> = img.pixels_mut().collect();
         if let PixelSelector::Threshold { min, max, criteria } = self.selector {
-            self.selector.mask(&mut all_pixels);
+            self.selector.mask_mut(&mut all_pixels);
             return true;
         }
         return false;
     }
+}
+
+pub struct CachedPixelsorter<'a> {
+    image: RgbImage,
+    pixels: Vec<PixelInfo>,
+    paths: Option<Vec<Vec<&'a PixelInfo>>>,
+    previous_opts: Option<Pixelsorter>,
+}
+
+impl<'a> CachedPixelsorter<'a> {
+    pub fn new(image: RgbImage) -> Self {
+        CachedPixelsorter {
+            pixels: Vec::with_capacity((image.width() * image.height()) as usize),
+            image,
+            paths: None,
+            previous_opts: None,
+        }
+    }
+
+
+    pub fn sort(&'a mut self, options: Pixelsorter) -> RgbImage {
+        let w = self.image.width().into();
+        let h = self.image.height().into();
+        // Caching is difficult with this mutable setup, because we can only keep mutable references
+        // let all_pixels: Vec<PixelInfo> = self.image.enumerate_pixels_mut();
+
+        // FIRST COPY
+        self.pixels = self.image.enumerate_pixels().map(|ep|
+            PixelInfo { coords: (ep.0, ep.1), pixel: *ep.2, select_value: 555 }
+        ).collect();
+
+        let mut timestart = Instant::now();
+        info!("TIME | [Loading pixels]: \t+ {:?}", timestart.elapsed());
+        // CUT IMAGE INTO PATHS
+        if self.paths.is_none() {
+            timestart = Instant::now();
+            self.paths = Some(options.path_creator.create_paths(
+                // COPY REFERENCES
+                self.pixels.iter().collect(),
+                w, h, options.reverse
+            ));
+            info!("TIME [Creating Paths]:\t{:?}", timestart.elapsed());
+        }
+
+        timestart = Instant::now();
+        // CREATE SPANS ON EVERY PATH
+        let mut spans: Vec<Vec<&PixelInfo>> = Vec::new();
+        spans.par_extend(
+            self.paths
+                .as_ref()
+                .unwrap()
+                .par_iter()
+                .map(|r| options.selector.create_spans(&mut r.clone().into())) // CLONE REFERENCES
+                .flatten(),
+        );
+
+        info!("TIME [Selector]:\t{:?}", timestart.elapsed());
+        info!("Amount of spans:\t{}", &spans.len());
+        timestart = Instant::now();
+
+
+        // SORT EVERY SPAN
+        let sorted_spans = spans
+            .into_par_iter()
+            .map(|mut span| {
+                options.sorter.sort(&span)
+            });
+        info!("TIME [Sorting]: \t{:?}", timestart.elapsed());
+        timestart = Instant::now();
+
+        let mut sorted = self.image.clone();
+        sorted_spans.flatten().collect::<Vec<PixelInfo>>().iter().for_each( |pi| {
+            sorted.put_pixel(pi.coords.0, pi.coords.1, pi.pixel);
+        });
+
+        info!("TIME [Writing]: \t{:?}", timestart.elapsed());
+
+
+        sorted
+    }
+
+    // TODO:
+    // pub fn mask(&self, img: &mut RgbImage) -> bool {
+    //     let mut all_pixels: Vec<&mut Rgb<u8>> = img.pixels_mut().collect();
+    //     if let PixelSelector::Threshold { min, max, criteria } = self.selector {
+    //         self.selector.mask_mut(&mut all_pixels);
+    //         return true;
+    //     }
+    //     return false;
+    // }
+
 }

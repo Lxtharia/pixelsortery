@@ -1,4 +1,4 @@
-use crate::color_helpers::*;
+use crate::{PixelInfo, ToPixel, color_helpers::*};
 use image::Rgb;
 use rand::{
     distributions::{Distribution, Uniform},
@@ -36,10 +36,10 @@ pub enum PixelSelectCriteria {
 
 impl PixelSelector {
     /// Returns a list of pixel spans
-    pub fn create_spans<'a>(
+    pub fn create_spans<'a, P: ToPixel>(
         self,
-        pixels: &mut VecDeque<&'a mut Rgb<u8>>,
-    ) -> Vec<Vec<&'a mut Rgb<u8>>> {
+        pixels: &mut VecDeque<P>,
+    ) -> Vec<Vec<P>> {
         match self {
             PixelSelector::Full => full_selector(pixels),
             PixelSelector::Fixed { len } => fixed_selector(pixels, len),
@@ -47,6 +47,7 @@ impl PixelSelector {
             PixelSelector::Threshold { min, max, criteria } => threshold_selector(pixels, criteria, min, max),
         }
     }
+
     pub fn info_string<'a>(self) -> String {
         match self {
             PixelSelector::Full => String::from("Selecing all pixels"),
@@ -58,10 +59,11 @@ impl PixelSelector {
             ),
         }
     }
-    pub fn mask(self, pixels: &mut Vec<&mut Rgb<u8>>) -> Result<(), ()> {
+
+    pub fn mask_mut(self, pixels: &mut Vec<&mut Rgb<u8>>) -> Result<(), ()> {
         if let PixelSelector::Threshold { min, max, criteria } = self {
             let value_function = match criteria {
-                PixelSelectCriteria::Hue => get_hue,
+                PixelSelectCriteria::Hue        => get_hue,
                 PixelSelectCriteria::Brightness => get_brightness,
                 PixelSelectCriteria::Saturation => get_saturation,
             };
@@ -77,12 +79,33 @@ impl PixelSelector {
         }
         Err(())
     }
+
+    pub fn mask(self, pixels: &[&PixelInfo]) -> Result<Vec<PixelInfo>, ()> {
+        if let PixelSelector::Threshold { min, max, criteria } = self {
+            let value_function = match criteria {
+                PixelSelectCriteria::Hue        => get_hue,
+                PixelSelectCriteria::Brightness => get_brightness,
+                PixelSelectCriteria::Saturation => get_saturation,
+            };
+            let valid = |val| (val as u64) >= min && (val as u64) <= max;
+            return Ok(pixels.iter().map(|pi| 
+                pi.with_pixel(
+                    if valid(value_function(&pi.pixel)) {
+                        Rgb { 0: [255, 255, 255] }
+                    } else {
+                        Rgb { 0: [0, 0, 0] }
+                    }
+                )
+            ).collect());
+        }
+        Err(())
+    }
 }
 
-fn full_selector<'a>(pixels: &mut VecDeque<&'a mut Rgb<u8>>) -> Vec<Vec<&'a mut Rgb<u8>>> {
-    let mut spans: Vec<Vec<&'a mut Rgb<u8>>> = Vec::new();
+fn full_selector<'a, P: ToPixel>(pixels: &mut VecDeque<P>) -> Vec<Vec<P>> {
+    let mut spans: Vec<Vec<P>> = Vec::new();
 
-    let mut span: Vec<&mut Rgb<u8>> = Vec::new();
+    let mut span: Vec<P> = Vec::new();
     while !pixels.is_empty() {
         span.push(pixels.pop_front().unwrap());
     }
@@ -90,11 +113,11 @@ fn full_selector<'a>(pixels: &mut VecDeque<&'a mut Rgb<u8>>) -> Vec<Vec<&'a mut 
     spans
 }
 
-fn fixed_selector<'a>(
-    pixels: &mut VecDeque<&'a mut Rgb<u8>>,
+fn fixed_selector<'a, P: ToPixel>(
+    pixels: &mut VecDeque<P>,
     len: u64,
-) -> Vec<Vec<&'a mut Rgb<u8>>> {
-    let mut spans: Vec<Vec<&'a mut Rgb<u8>>> = Vec::new();
+) -> Vec<Vec<P>> {
+    let mut spans: Vec<Vec<P>> = Vec::new();
 
     // Prevent an endless loop
     if len == 0 {
@@ -111,11 +134,11 @@ fn fixed_selector<'a>(
     spans
 }
 
-fn random_selector<'a>(
-    pixels: &mut VecDeque<&'a mut Rgb<u8>>,
+fn random_selector<'a, P: ToPixel>(
+    pixels: &mut VecDeque<P>,
     max: u32,
-) -> Vec<Vec<&'a mut Rgb<u8>>> {
-    let mut spans: Vec<Vec<&'a mut Rgb<u8>>> = Vec::new();
+) -> Vec<Vec<P>> {
+    let mut spans: Vec<Vec<P>> = Vec::new();
     // rng_range cannot be 1..1
     if max <= 1 {
         return spans;
@@ -137,13 +160,13 @@ fn random_selector<'a>(
     spans
 }
 
-fn threshold_selector<'a>(
-    pixels: &mut VecDeque<&'a mut Rgb<u8>>,
+fn threshold_selector<'a, P: ToPixel>(
+    pixels: &mut VecDeque<P>,
     criteria: PixelSelectCriteria,
     min: u64,
     max: u64,
-) -> Vec<Vec<&'a mut Rgb<u8>>> {
-    let mut spans: Vec<Vec<&'a mut Rgb<u8>>> = Vec::new();
+) -> Vec<Vec<P>> {
+    let mut spans: Vec<Vec<P>> = Vec::new();
 
     let value_function = match criteria {
         PixelSelectCriteria::Hue => get_hue,
@@ -154,9 +177,9 @@ fn threshold_selector<'a>(
     // Function that checks if a value is valid
     let valid = |val| (val as u64) >= min && (val as u64) <= max;
 
-    let mut span: Vec<&mut Rgb<u8>> = Vec::new();
+    let mut span: Vec<P> = Vec::new();
     for _ in 0..pixels.len() {
-        let value = value_function(pixels.get(0).unwrap());
+        let value = value_function(pixels.front().unwrap().pixel());
         let px = pixels.pop_front().unwrap();
 
         if valid(value) {

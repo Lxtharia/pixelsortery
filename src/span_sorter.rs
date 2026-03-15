@@ -1,6 +1,8 @@
+use crate::PixelInfo;
 use image::Rgb;
 
 use crate::color_helpers;
+type CriteriaFunction = for<'a> fn(&'a Rgb<u8>) -> u16;
 mod glitchsort;
 mod mapsort;
 mod random_color;
@@ -66,12 +68,12 @@ impl SpanSorter {
     }
 
     /// Sort a slice of pixels using set criteria and algorithm
-    pub fn sort(&self, pixels: &mut [&mut Rgb<u8>]) {
+    pub fn sort_mut(&self, pixels: &mut [&mut Rgb<u8>]) {
         // Select function per algorithm
         let sorting_function = match self.algorithm {
-            SortingAlgorithm::DebugColor => random_color::set_random_color,
-            SortingAlgorithm::Mapsort => mapsort::mapsort_mut,
-            SortingAlgorithm::Shellsort => shellsort::shellsort_mut,
+            SortingAlgorithm::DebugColor => random_color::set_random_color_mut,
+            SortingAlgorithm::Mapsort    => mapsort::mapsort_mut,
+            SortingAlgorithm::Shellsort  => shellsort::shellsort_mut,
             SortingAlgorithm::Glitchsort => glitchsort::glitchsort_mut,
         };
         // Use a special, flawed brightness function for glitchsorting
@@ -81,11 +83,34 @@ impl SpanSorter {
         };
         match self.algorithm {
             // Apply debug color even on every span
-            SortingAlgorithm::DebugColor => sorting_function(pixels, criteria_function),
+            SortingAlgorithm::DebugColor => {},
             // Skip sorting a span if it contains less than 2 pixels
             _ => if pixels.len() < 2 {return;},
         }
         // call sorting function
         sorting_function(pixels, criteria_function);
+    }
+
+    pub fn sort(&self, pixels: &[&PixelInfo]) -> Vec<PixelInfo> {
+        // Select function per algorithm
+        let sorting_function = match self.algorithm {
+            SortingAlgorithm::DebugColor => random_color::set_random_color,
+            _ => mapsort::mapsort,
+            // SortingAlgorithm::Shellsort => shellsort::shellsort_mut,
+            // SortingAlgorithm::Glitchsort => glitchsort::glitchsort_mut,
+        };
+        // Use a special, flawed brightness function for glitchsorting
+        let criteria_function = match (self.algorithm, self.criteria) {
+            (SortingAlgorithm::Glitchsort, SortingCriteria::Brightness) => color_helpers::get_brightness_flawed,
+            _ => SpanSorter::get_value_function(self.criteria),
+        };
+        match self.algorithm {
+            // Apply debug color on every span
+            SortingAlgorithm::DebugColor => {},
+            // Skip sorting a span if it contains less than 2 pixels
+            _ => if pixels.len() < 2 {return pixels.iter().map(|pi| (*pi).clone()).collect();},
+        }
+        // call sorting function
+        sorting_function(pixels, criteria_function)
     }
 }

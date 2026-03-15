@@ -4,6 +4,8 @@ use log::{error, info, warn};
 use rayon::prelude::*;
 use std::{f64::consts::PI, fmt::Display, time::Instant};
 
+use crate::PixelInfo;
+
 mod gilbert;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -42,12 +44,70 @@ impl std::fmt::Display for PathCreator {
         )
     }
 }
+trait PixelPicker {
+    fn pick_pixels(all_pixels: Self, indices: Vec<Vec<u64>>) -> Vec<Self>
+    where Self: IntoIterator, Self:Sized;
+}
+
+impl PixelPicker for Vec<&PixelInfo> {
+    fn pick_pixels(all_pixels: Self, indices: Vec<Vec<u64>>) -> Vec<Self>
+    {
+        let mut paths: Vec<Vec<&PixelInfo>> = Vec::new();
+        let mut all_pixels: Vec<Option<&PixelInfo>> =
+            all_pixels.into_iter().map(|p| Some(p)).collect();
+
+        for mut li in indices {
+            li.dedup();
+            let mut path = Vec::new();
+            for i in li {
+                // Check if the index is valid
+                if all_pixels.get(i as usize).is_some() {
+                    all_pixels.push(None);
+                    // Check if the pixel at index i is still available (not None)
+                    if let Some(px) = all_pixels.swap_remove(i as usize) {
+                        path.push(px);
+                    }
+                }
+            }
+            paths.push(path);
+        }
+        return paths;
+    }
+}
+
+impl PixelPicker for Vec<&mut Rgb<u8>> {
+    /// Creates and returns ranges of mutable Pixels.
+    /// The picked pixels and their order are determined by the given vector of indices
+    fn pick_pixels(all_pixels: Vec<&mut Rgb<u8>>, indices: Vec<Vec<u64>>) -> Vec<Vec<&mut Rgb<u8>>>
+    {
+        let mut paths: Vec<Vec<&mut Rgb<u8>>> = Vec::new();
+        let mut all_pixels: Vec<Option<&mut Rgb<u8>>> =
+            all_pixels.into_iter().map(|p| Some(p)).collect();
+
+        for mut li in indices {
+            li.dedup();
+            let mut path = Vec::new();
+            for i in li {
+                // Check if the index is valid
+                if all_pixels.get(i as usize).is_some() {
+                    all_pixels.push(None);
+                    // Check if the pixel at index i is still available (not None)
+                    if let Some(px) = all_pixels.swap_remove(i as usize) {
+                        path.push(px);
+                    }
+                }
+            }
+            paths.push(path);
+        }
+        return paths;
+    }
+}
 
 impl PathCreator {
     pub fn info_string(self) -> String {
         format!("Direction/Order: [{:?}]", self)
     }
-    pub fn create_paths(self, all_pixels: Vec<&mut Rgb<u8>>, w: u64, h: u64, reverse: bool) -> Vec<Vec<&mut Rgb<u8>>> {
+    pub fn create_paths<P: PixelPicker + IntoIterator>(self, all_pixels: P, w: u64, h: u64, reverse: bool) -> Vec<P> {
 
         let mut total_timestart = Instant::now();
         let mut timestart = Instant::now();
@@ -82,7 +142,7 @@ impl PathCreator {
         timestart = Instant::now();
 
         // Turn indexed paths into arrays of pixels
-        let pixels = pick_pixels(all_pixels, all_paths_indices);
+        let pixels = PixelPicker::pick_pixels(all_pixels, all_paths_indices);
         let timeend_picking = timestart.elapsed();
 
         info!("TIME | [Index Pathing]:  \t+ {:?}", timeend_pathing);
@@ -95,31 +155,6 @@ impl PathCreator {
 
         return pixels;
     }
-}
-
-/// Creates and returns ranges of mutable Pixels.
-/// The picked pixels and their order are determined by the given vector of indices
-fn pick_pixels(all_pixels: Vec<&mut Rgb<u8>>, indices: Vec<Vec<u64>>) -> Vec<Vec<&mut Rgb<u8>>> {
-    let mut paths: Vec<Vec<&mut Rgb<u8>>> = Vec::new();
-    let mut all_pixels: Vec<Option<&mut Rgb<u8>>> =
-        all_pixels.into_iter().map(|p| Some(p)).collect();
-
-    for mut li in indices {
-        li.dedup();
-        let mut path = Vec::new();
-        for i in li {
-            // Check if the index is valid
-            if all_pixels.get(i as usize).is_some() {
-                all_pixels.push(None);
-                // Check if the pixel at index i is still available (not None)
-                if let Some(px) = all_pixels.swap_remove(i as usize) {
-                    path.push(px);
-                }
-            }
-        }
-        paths.push(path);
-    }
-    return paths;
 }
 
 fn is_in_bounds(x: u64, y: u64, w: u64, h: u64) -> bool {
