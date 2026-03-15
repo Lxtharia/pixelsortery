@@ -337,6 +337,7 @@ impl PixelsorterGui {
         });
     }
 
+    #[cfg(feature = "video")]
     pub(super) fn video_panel(&mut self, ui: &mut Ui) {
         let mut current_frame = None;
         let mut do_export = false;

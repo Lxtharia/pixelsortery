@@ -9,13 +9,12 @@ use std::{any::Any, fmt::Debug, fs, io::{self, ErrorKind, Read, Write}, path::{P
 
 use crate::pixel_selector::PixelSelector;
 
-pub use video::{extract_video_frame, Progress, ThreadPhone};
-
 mod color_helpers;
-mod video;
 pub mod path_creator;
 pub mod pixel_selector;
 pub mod span_sorter;
+#[cfg(feature = "video")]
+mod video;
 
 #[derive(Clone)]
 pub struct Pixelsorter {

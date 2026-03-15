@@ -5,6 +5,7 @@ use eframe::egui::{
 };
 use egui::{scroll_area::ScrollBarVisibility, style::ScrollStyle, ColorImage, Hyperlink, Modal, Rgba};
 use egui_flex::{item, Flex, FlexAlign, FlexAlignContent, FlexJustify};
+#[cfg(feature = "video")]
 use egui_video::PlayerState;
 use image::{Pixel, Rgb, RgbImage, RgbaImage};
 use inflections::case::to_title_case;
@@ -17,8 +18,10 @@ use pixelsortery::{
         PixelSelector::{self, *},
     },
     span_sorter::{SortingAlgorithm, SortingCriteria},
-    Pixelsorter, Progress, ThreadPhone,
+    Pixelsorter,
 };
+#[cfg(feature = "video")]
+use pixelsortery::{Progress, ThreadPhone,};
 use std::{
     ffi::OsString, path::{Path, PathBuf}, sync::{atomic::{AtomicBool, Ordering}, mpsc::Receiver, Arc, Mutex}, thread::JoinHandle, time::{Duration, Instant}
 };
@@ -39,14 +42,22 @@ pub fn init(ps: Option<&Pixelsorter>, img: Option<(RgbImage, PathBuf)>, video: O
     };
 
     let mut psgui = PixelsorterGui::default();
-    psgui.audio_device = Some(egui_video::AudioDevice::new());
+    #[cfg(feature = "video")] {
+        psgui.audio_device = Some(egui_video::AudioDevice::new());
+    }
 
     if let Some(ps) = ps {
         psgui = psgui.with_values(ps);
     }
+    #[cfg(not(feature = "video"))]
     if let Some((img, img_path)) = img {
         psgui = psgui.with_image(img, img_path);
-    } else if let Some(video_path) = video {
+    }
+    #[cfg(feature = "video")]
+    if let Some((img, img_path)) = img {
+        psgui = psgui.with_image(img, img_path);
+    }
+    else if let Some(video_path) = video {
         psgui.path = Some(video_path);
         psgui.do_open_video = true;
     }
@@ -54,7 +65,7 @@ pub fn init(ps: Option<&Pixelsorter>, img: Option<(RgbImage, PathBuf)>, video: O
         "Pixelsortery",
         options,
         Box::new(|cc| {
- // This gives us image support
+             // This gives us image support
             egui_extras::install_image_loaders(&cc.egui_ctx);
             Ok(Box::new(psgui))
         }),
@@ -82,10 +93,14 @@ struct PixelsorterGui {
     saving_success_timeout: Option<Instant>,
     change_layer: SwitchLayerMessage,
     show_base_image: bool,
+    #[cfg(feature = "video")]
     audio_device: Option<egui_video::AudioDevice>,
+    #[cfg(feature = "video")]
     video_player: Option<egui_video::Player>,
+    #[cfg(feature = "video")]
     do_open_video: bool,
     /// A tuple for communicating with the current sorting thread
+    #[cfg(feature = "video")]
     video_thread_phone: Option<ThreadPhone>,
 }
 
@@ -182,9 +197,13 @@ impl Default for PixelsorterGui {
             change_layer: SwitchLayerMessage::None,
             do_sort: true,
             show_base_image: false,
+            #[cfg(feature = "video")]
             audio_device: None,
+            #[cfg(feature = "video")]
             video_player: None,
+            #[cfg(feature = "video")]
             do_open_video: false,
+            #[cfg(feature = "video")]
             video_thread_phone: None,
         }
     }
@@ -265,11 +284,12 @@ impl PixelsorterGui {
     fn open_file_dialog(&mut self, ctx: &egui::Context) -> () {
         // Opening image until cancled or until valid image loaded
         loop {
-            let file = rfd::FileDialog::new()
-                .add_filter("Images and Videos", &["png", "jpg", "jpeg", "webp", "mp4", "mov", "webm", "avi", "mkv", "m4v", "mpg"])
-                .add_filter("Images", &["png", "jpg", "jpeg", "webp"])
-                .add_filter("Videos", &["mp4", "mov", "webm", "avi", "mkv", "m4v", "mpg"])
-                .pick_file();
+            let mut filedialog = rfd::FileDialog::new()
+                .add_filter("Images", &["png", "jpg", "jpeg", "webp"]);
+            #[cfg(feature = "video")]
+            filedialog.add_filter("Images and Videos", &["png", "jpg", "jpeg", "webp", "mp4", "mov", "webm", "avi", "mkv", "m4v", "mpg"])
+                .add_filter("Videos", &["mp4", "mov", "webm", "avi", "mkv", "m4v", "mpg"]);
+            let file = filedialog.pick_file();
             match file {
                 None => break,
                 Some(f) => match image::open(f.as_path()) {
@@ -279,13 +299,16 @@ impl PixelsorterGui {
                             ls.set_base_img(img.clone());
                         }
                         // I want to make layered_sorter mandatory and remove the possibility of it being None
-                        self.video_player = None;
+                        #[cfg(feature = "video")] {
+                            self.video_player = None;
+                        }
                         self.img = Some(img);
                         self.update_texture(ctx);
                         self.path = Some(f);
                         break;
                     }
                     Err(_) => {
+                        #[cfg(feature = "video")]
                         if self.init_video(ctx, &f).is_ok() {
                             // TODO: Either use layered sorter or save it for the next loaded image
                             self.layered_sorter = None;
@@ -358,6 +381,7 @@ impl PixelsorterGui {
         }
     }
 
+    #[cfg(feature = "video")]
     fn init_video(&mut self, ctx: &egui::Context, video_path: &Path) -> Result<(), Box<dyn std::error::Error>> {
         /* called once (creating a player) */
 
@@ -377,6 +401,7 @@ impl PixelsorterGui {
         Ok(())
     }
 
+    #[cfg(feature = "video")]
     fn video_mode(&self) -> bool {
         self.img.is_none() && self.video_player.is_some()
     }
@@ -420,6 +445,7 @@ impl eframe::App for PixelsorterGui {
         }
 
         // Load video if no image is set
+        #[cfg(feature = "video")]
         if self.do_open_video {
             if let Some(video_path) = &self.path.clone() {
                 self.init_video(ctx, video_path);
@@ -438,6 +464,7 @@ impl eframe::App for PixelsorterGui {
 
         // UI //
 
+        #[cfg(feature = "video")]
         // Show modal if a video is currently being exported
         if let Some(phone) = &mut self.video_thread_phone {
             if phone.join_handle.is_finished() {
@@ -507,6 +534,7 @@ impl eframe::App for PixelsorterGui {
                         ui.label(format!("{} x {} ({} pixels)", w, h, w * h));
                         ui.separator();
                     }
+                    #[cfg(feature = "video")]
                     if let Some(player) = &self.video_player {
                         let (fps, (w, h)) = (player.framerate, player.size.into());
                         ui.label(format!("{fps} fps | {} x {} ({} pixels)", w, h, w * h));
@@ -621,6 +649,7 @@ impl eframe::App for PixelsorterGui {
         if (self.do_sort || (self.auto_sort && values_changed)) {
             self.do_sort = false;
             self.sort_img(&ctx, true);
+            #[cfg(feature = "video")]
             // Update the video filter function to use the new values
             if let Some(player) = &mut self.video_player {
                 let sorter = self.values.to_pixelsorter();
@@ -664,6 +693,11 @@ impl eframe::App for PixelsorterGui {
                 }
             }
         }
+        #[cfg(not(feature = "video"))]
+        egui::CentralPanel::default().show(ctx, |ui| {
+                self.show_img(ui);
+        });
+        #[cfg(feature = "video")]
         // Display the image or video!
         egui::CentralPanel::default().show(ctx, |ui| {
             use egui_video;
