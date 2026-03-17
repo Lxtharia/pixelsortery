@@ -2,7 +2,7 @@ use ::array_init::array_init;
 use image::{Rgb, RgbImage};
 use crate::PixelInfo;
 
-use super::CriteriaFunction;
+use crate::CriteriaFunction;
 
 /// Sorts a slice of Pixels by either Hue, Brightness or Saturation.
 /// It uses an array with 360 elements to map the values.

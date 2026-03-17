@@ -1,4 +1,5 @@
 use image::Rgb;
+use crate::CriteriaFunction;
 
 #[derive(Debug)]
 struct PixelWrapper {
@@ -32,7 +33,7 @@ fn glitch_swap(
     // But they still point to their initial index
 }
 
-pub fn glitchsort_mut(pixels: &mut [&mut Rgb<u8>], value_function: for<'a> fn(&'a Rgb<u8>) -> u16) {
+pub fn glitchsort_mut(pixels: &mut [&mut Rgb<u8>], value_function: CriteriaFunction) {
     let span_len = pixels.len() - 1;
     let mut wrappers = Vec::new();
 

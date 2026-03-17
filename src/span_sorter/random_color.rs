@@ -1,6 +1,6 @@
 use image::Rgb;
 use rand::{rngs::*, Rng, SeedableRng};
-use super::CriteriaFunction;
+use crate::CriteriaFunction;
 
 use crate::PixelInfo;
 

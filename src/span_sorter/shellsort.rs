@@ -1,4 +1,5 @@
 use image::Rgb;
+use crate::CriteriaFunction;
 
 #[derive(Debug)]
 struct PixelWrapper{
@@ -6,7 +7,7 @@ struct PixelWrapper{
     val: u16,
 }
 
-pub fn shellsort_mut(pixels: &mut [&mut Rgb<u8>], value_function: for<'a> fn(&'a Rgb<u8>) -> u16){
+pub fn shellsort_mut(pixels: &mut [&mut Rgb<u8>], value_function: CriteriaFunction) {
     // Stolen from some Stackoverflow Thread
 
     let span_len = pixels.len();

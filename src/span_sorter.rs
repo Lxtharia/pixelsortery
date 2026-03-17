@@ -2,7 +2,6 @@ use crate::PixelInfo;
 use image::Rgb;
 
 use crate::color_helpers;
-type CriteriaFunction = for<'a> fn(&'a Rgb<u8>) -> u16;
 mod glitchsort;
 mod mapsort;
 mod random_color;

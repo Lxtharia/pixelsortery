@@ -1,4 +1,4 @@
-use crate::{PixelInfo, ToPixel, color_helpers::*};
+use crate::{color_helpers::*, CriteriaFunction, PixelInfo, ToPixel};
 use image::Rgb;
 use rand::{
     distributions::{Distribution, Uniform},
@@ -160,6 +160,14 @@ fn random_selector<'a, P: ToPixel>(
     spans
 }
 
+pub fn get_criteria_function (criteria: PixelSelectCriteria) -> CriteriaFunction {
+    match criteria {
+        PixelSelectCriteria::Hue => get_hue,
+        PixelSelectCriteria::Brightness => get_brightness,
+        PixelSelectCriteria::Saturation => get_saturation,
+    }
+}
+
 fn threshold_selector<'a, P: ToPixel>(
     pixels: &mut VecDeque<P>,
     criteria: PixelSelectCriteria,
@@ -168,11 +176,7 @@ fn threshold_selector<'a, P: ToPixel>(
 ) -> Vec<Vec<P>> {
     let mut spans: Vec<Vec<P>> = Vec::new();
 
-    let value_function = match criteria {
-        PixelSelectCriteria::Hue => get_hue,
-        PixelSelectCriteria::Brightness => get_brightness,
-        PixelSelectCriteria::Saturation => get_saturation,
-    };
+    let value_function = get_criteria_function(criteria);
 
     // Function that checks if a value is valid
     let valid = |val| (val as u64) >= min && (val as u64) <= max;
