@@ -12,13 +12,10 @@ use inflections::case::to_title_case;
 use layers::LayeredSorter;
 use log::{info, warn};
 use pixelsortery::{
-    path_creator::PathCreator,
-    pixel_selector::{
+    CachedPixelsorter, Pixelsorter, path_creator::PathCreator, pixel_selector::{
         PixelSelectCriteria,
         PixelSelector::{self, *},
-    },
-    span_sorter::{SortingAlgorithm, SortingCriteria},
-    Pixelsorter,
+    }, span_sorter::{SortingAlgorithm, SortingCriteria}
 };
 #[cfg(feature = "video")]
 use pixelsortery::{Progress, ThreadPhone,};
@@ -78,6 +75,8 @@ struct PixelsorterGui {
     path: Option<PathBuf>,
     /// The Values and sorted Images, layered
     layered_sorter: Option<LayeredSorter>,
+    /// Sorter with improved performance
+    cached_sorter: Option<CachedPixelsorter>,
     /// All the adjustable values for the pixelsorter
     values: PixelsorterValues,
     show_mask: bool,
@@ -166,6 +165,7 @@ impl Default for PixelsorterGui {
         Self {
             path: None,
             layered_sorter: None,
+            cached_sorter: None,
             img: None,
             texture: None,
             show_mask: false,
@@ -221,12 +221,26 @@ impl PixelsorterGui {
     }
     fn with_image(mut self, img: RgbImage, image_path: PathBuf) -> Self {
         self.img = Some(img);
+        self.cached_sorter = Some(CachedPixelsorter::new(self.img.clone().unwrap()));
         self.path = Some(image_path);
         self
     }
 
     /// Calls sort_current_layer, sets the image and texture
     fn sort_img(&mut self, ctx: &egui::Context, force: bool) {
+        let ps = self.values.to_pixelsorter();
+        if self.cached_sorter.is_none() && self.img.is_some() {
+            self.cached_sorter = Some(CachedPixelsorter::new(self.img.clone().unwrap()));
+        }
+        if let Some(cached) = &mut self.cached_sorter {
+            let timestart = Instant::now();
+            self.img = Some(cached.sort(&ps));
+            *self.time_last_sort.lock().unwrap() = timestart.elapsed();
+        }
+
+        // TOOD: Make layered sorter use cache
+        self.layered_sorter = None;
+
         if let Some(ls) = &mut self.layered_sorter {
             // values.selector is not up-to-date with the current layer as it seems
             if selector_is_threshold(ls.get_current_layer().get_sorting_values().selector)
@@ -303,6 +317,7 @@ impl PixelsorterGui {
                             self.video_player = None;
                         }
                         self.img = Some(img);
+                        self.cached_sorter = Some(CachedPixelsorter::new(self.img.clone().unwrap()));
                         self.update_texture(ctx);
                         self.path = Some(f);
                         break;
@@ -325,13 +340,6 @@ impl PixelsorterGui {
     /// Sorts and saves the image to the current output directory with a given filename
     fn save_file_to_out_dir(&mut self) -> () {
         if let Some(path) = &self.path {
-            let mut ps = Pixelsorter::new();
-            ps.path_creator = self.values.path;
-            ps.sorter.criteria = self.values.criteria;
-            ps.sorter.algorithm = self.values.algorithm;
-            ps.reverse = self.values.reverse;
-            ps.selector = self.values.selector;
-
             let (basename, ext) = (
                 path.file_stem()
                     .map(|s| s.to_os_string())
@@ -340,6 +348,8 @@ impl PixelsorterGui {
                     .map(|s| s.to_os_string())
                     .unwrap_or(OsString::from("png")),
             );
+
+            let mut ps = &self.values.to_pixelsorter();
             let filename = format!(
                 "{}_sorted_[{}].{}",
                 basename.to_string_lossy(),
