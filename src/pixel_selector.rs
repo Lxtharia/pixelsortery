@@ -164,14 +164,6 @@ fn random_selector<'a, P: ToPixel>(
     spans
 }
 
-pub fn get_criteria_function (criteria: PixelSelectCriteria) -> CriteriaFunction {
-    match criteria {
-        PixelSelectCriteria::Hue => get_hue,
-        PixelSelectCriteria::Brightness => get_brightness,
-        PixelSelectCriteria::Saturation => get_saturation,
-    }
-}
-
 fn threshold_selector<'a, P: ToPixel>(
     pixels: &mut VecDeque<P>,
     criteria: PixelSelectCriteria,
@@ -180,15 +172,19 @@ fn threshold_selector<'a, P: ToPixel>(
 ) -> Vec<Vec<P>> {
     let mut spans: Vec<Vec<P>> = Vec::new();
 
-    let value_function = get_criteria_function(criteria);
+    let value_function: fn(&P) -> u16 = match criteria {
+        PixelSelectCriteria::Hue => |p| p.hue(),
+        PixelSelectCriteria::Brightness => |p| p.brightness(),
+        PixelSelectCriteria::Saturation => |p| p.saturation(),
+    };
 
     // Function that checks if a value is valid
     let valid = |val| (val as u64) >= min && (val as u64) <= max;
 
     let mut span: Vec<P> = Vec::new();
     for _ in 0..pixels.len() {
-        let value = value_function(pixels.front().unwrap().pixel());
         let px = pixels.pop_front().unwrap();
+        let value = value_function(&px);
 
         if valid(value) {
             // A valid pixel. Add to span

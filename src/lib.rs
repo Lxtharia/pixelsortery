@@ -3,12 +3,11 @@ use eframe::egui::TextBuffer;
 use image::{GenericImage, GenericImageView, ImageResult, Rgb, RgbImage, RgbaImage, buffer::EnumeratePixels, codecs::png::PngEncoder};
 use log::{debug, error, info, warn};
 use path_creator::PathCreator;
-use pixel_selector::get_criteria_function;
 use rayon::prelude::*;
 use span_sorter::{SortingCriteria, SpanSorter};
 use std::{any::Any, collections::VecDeque, fmt::Debug, fs, io::{self, ErrorKind, Read, Write}, path::{Path, PathBuf}, process::{self, Command, Output, Stdio}, time::Instant};
 
-use crate::pixel_selector::PixelSelector;
+use crate::{color_helpers::{get_brightness, get_hue, get_saturation}, pixel_selector::PixelSelector};
 
 mod color_helpers;
 pub mod path_creator;
@@ -34,7 +33,9 @@ pub struct Pixelsorter {
 pub(crate) struct PixelInfo {
     coords: (u32, u32),
     pixel: Rgb<u8>,
-    select_value: u16,
+    hue: u16,
+    brightness: u8,
+    saturation: u8,
     // sort_value: u64, // Probably smarter to calculate this when needed
 }
 
@@ -43,32 +44,33 @@ impl PixelInfo {
     fn with_pixel(&self, px: Rgb<u8> ) -> Self {
         PixelInfo {
             coords: self.coords,
-            select_value: self.select_value,
             pixel: px,
+            hue: self.hue,
+            brightness: self.brightness,
+            saturation: self.saturation,
         }
     }
 }
 trait ToPixel {
     #[inline]
     fn pixel(&self) -> &Rgb<u8>;
+    fn hue(&self) -> u16;
+    fn brightness(&self) -> u16;
+    fn saturation(&self) -> u16;
 }
 impl ToPixel for &PixelInfo {
     #[inline]
-    fn pixel(&self) -> &Rgb<u8> {
-        &self.pixel
-    }
-}
-impl ToPixel for PixelInfo {
-    #[inline]
-    fn pixel(&self) -> &Rgb<u8> {
-        &self.pixel
-    }
+    fn pixel(&self) -> &Rgb<u8> { &self.pixel }
+    fn hue(&self) -> u16 { self.hue }
+    fn brightness(&self) -> u16 { self.brightness.into() }
+    fn saturation(&self) -> u16 { self.saturation.into() }
 }
 impl ToPixel for &mut Rgb<u8> {
     #[inline]
-    fn pixel(&self) -> &Rgb<u8> {
-        self
-    }
+    fn pixel(&self) -> &Rgb<u8> { self }
+    fn hue(&self) -> u16 { color_helpers::get_hue(self) }
+    fn brightness(&self) -> u16 { color_helpers::get_brightness(self) }
+    fn saturation(&self) -> u16 { color_helpers::get_saturation(self) }
 }
 
 impl Pixelsorter {
@@ -333,6 +335,10 @@ impl CachedPixelsorter {
         let w = self.image.width().into();
         let h = self.image.height().into();
         let pixelcount = w * h;
+        // Caching is difficult with this mutable setup, because we can only keep mutable references
+        // let all_pixels: Vec<PixelInfo> = self.image.enumerate_pixels_mut();
+
+
         let mut timestart = Instant::now();
         info!("Image information: {} x {} ({} pixels)", w, h, pixelcount);
         info!(
@@ -343,8 +349,14 @@ impl CachedPixelsorter {
             options.sorter.info_string(),
         );
 
-        let pixels = self.image.enumerate_pixels()
-            .map(|ep| PixelInfo { coords: (ep.0, ep.1), pixel: *ep.2, select_value: 555 })
+        let pixels = self.image
+            .enumerate_pixels()
+            .map(|ep| {
+                let p = ep.2;
+                PixelInfo {
+                    coords: (ep.0, ep.1), pixel: *p, hue: get_hue(p), brightness: get_brightness(p) as u8, saturation: get_saturation(p) as u8,
+                }}
+            )
             .collect();
         info!("TIME | [Loading pixels]: \t+ {:?}", timestart.elapsed());
 
