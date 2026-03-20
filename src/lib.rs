@@ -58,6 +58,12 @@ impl ToPixel for &PixelInfo {
         &self.pixel
     }
 }
+impl ToPixel for PixelInfo {
+    #[inline]
+    fn pixel(&self) -> &Rgb<u8> {
+        &self.pixel
+    }
+}
 impl ToPixel for &mut Rgb<u8> {
     #[inline]
     fn pixel(&self) -> &Rgb<u8> {
@@ -274,7 +280,7 @@ impl Pixelsorter {
         spans.par_extend(
             ranges
                 .into_par_iter()
-                .map(|r| self.selector.create_spans(&mut r.into()))
+                .map(|r| self.selector.create_spans_mut(&mut r.into()))
                 .flatten(),
         );
 
@@ -302,57 +308,61 @@ impl Pixelsorter {
     }
 }
 
-pub struct CachedPixelsorter<'a> {
+pub struct CachedPixelsorter {
     image: RgbImage,
-    pixels: Vec<PixelInfo>,
-    paths: Option<Vec<Vec<&'a PixelInfo>>>,
+    // pixels: Vec<PixelInfo>,
+    paths: Option<Vec<Vec<PixelInfo>>>,
     previous_opts: Option<Pixelsorter>,
 }
 
-impl<'a> CachedPixelsorter<'a> {
+
+struct RawPtrMut<T>(*mut T);
+unsafe impl<T> Sync for RawPtrMut<T> {}
+
+impl CachedPixelsorter {
+
     pub fn new(image: RgbImage) -> Self {
         CachedPixelsorter {
-            pixels: Vec::with_capacity((image.width() * image.height()) as usize),
             image,
             paths: None,
             previous_opts: None,
         }
     }
 
-
-    pub fn sort(&'a mut self, options: &Pixelsorter) -> RgbImage {
+    pub fn sort(&mut self, options: &Pixelsorter) -> RgbImage {
         let w = self.image.width().into();
         let h = self.image.height().into();
-        // Caching is difficult with this mutable setup, because we can only keep mutable references
-        // let all_pixels: Vec<PixelInfo> = self.image.enumerate_pixels_mut();
-
-        // FIRST COPY
-        if self.pixels.is_empty() {
-            self.pixels = self.image.enumerate_pixels().map(|ep|
-                // match options.selector {
-                //     PixelSelector::Threshold { min, max, criteria } => {
-                //         let crit = get_criteria_function(criteria);
-                //         PixelInfo { coords: (ep.0, ep.1), pixel: *ep.2, select_value: crit(ep.2) }
-                //     }
-                    // _ =>
-                PixelInfo { coords: (ep.0, ep.1), pixel: *ep.2, select_value: 555 }
-                // }
-            ).collect();
-        }
-        // TODO: Cache the criteria value when the criteria changes
-
+        let pixelcount = w * h;
         let mut timestart = Instant::now();
+        info!("Image information: {} x {} ({} pixels)", w, h, pixelcount);
+        info!(
+            "Sorting with:\n    - {}{}\n    - {}\n    - {}",
+            options.path_creator.info_string(),
+            if options.reverse { " [Reversed]" } else { "" },
+            options.selector.info_string(),
+            options.sorter.info_string(),
+        );
+
+        let pixels = self.image.enumerate_pixels()
+            .map(|ep| PixelInfo { coords: (ep.0, ep.1), pixel: *ep.2, select_value: 555 })
+            .collect();
         info!("TIME | [Loading pixels]: \t+ {:?}", timestart.elapsed());
+
         // CUT IMAGE INTO PATHS
-        if self.paths.is_none() {
-            timestart = Instant::now();
-            self.paths = Some(options.path_creator.create_paths(
-                // COPY REFERENCES
-                self.pixels.iter().collect(),
-                w, h, options.reverse
-            ));
-            info!("TIME [Creating Paths]:\t{:?}", timestart.elapsed());
+        let mut need_create_paths = self.paths.is_none();
+        if let Some(prev) = &self.previous_opts {
+            need_create_paths = need_create_paths || prev.path_creator != options.path_creator;
         }
+        if need_create_paths {
+            self.previous_opts = Some(options.clone());
+            timestart = Instant::now();
+            self.paths = Some(options.path_creator.create_paths(pixels, w, h, options.reverse));
+            info!("TIME [Creating Paths]:\t{:?}", timestart.elapsed());
+        } else {
+            info!("     [Using cached paths]");
+        }
+
+        info!("     -> Amount of paths:\t{}", self.paths.as_ref().unwrap().len());
 
         timestart = Instant::now();
         // CREATE SPANS ON EVERY PATH
@@ -362,31 +372,39 @@ impl<'a> CachedPixelsorter<'a> {
                 .as_ref()
                 .unwrap()
                 .par_iter()
-                .map(|r| options.selector.create_spans(&mut r.clone().into())) // CLONE REFERENCES
+                .map(|r| {
+                    let mut v = Vec::with_capacity(r.len());
+                    r.par_iter().map(|p| & *p).collect_into_vec(&mut v);
+                    options.selector.create_spans(v.into())
+                })
                 .flatten(),
         );
 
         info!("TIME [Selector]:\t{:?}", timestart.elapsed());
-        info!("Amount of spans:\t{}", &spans.len());
+        info!("     -> Amount of spans:\t{}", &spans.len());
+
+        let mut sorted = self.image.clone(); // Clones the image because we need the untouched pixels.
+        let ptr = RawPtrMut(&raw mut sorted);
+
         timestart = Instant::now();
 
-
-        // SORT EVERY SPAN
-        let sorted_spans = spans
-            .into_par_iter()
-            .map(|mut span| {
-                options.sorter.sort(&span)
+        // SORT EVERY SPAN and write the pixels into the image in the correct order
+        spans.into_par_iter()
+            .for_each(|span| {
+                // Trick closure capturing. See https://users.rust-lang.org/t/how-to-share-a-raw-pointer-between-threads/77596/2
+                let _ = &ptr;
+                let sorted_span = options.sorter.sort(&span);
+                for i in 0..(sorted_span.len()) {
+                    let target = span[i].coords;
+                    let color = sorted_span[i].pixel;
+                    unsafe {
+                        (*ptr.0).put_pixel(target.0, target.1, color);
+                    }
+                }
             });
-        info!("TIME [Sorting]: \t{:?}", timestart.elapsed());
+
+        info!("TIME [Sorting + Writing]: \t{:?}", timestart.elapsed());
         timestart = Instant::now();
-
-        let mut sorted = self.image.clone();
-        sorted_spans.flatten().collect::<Vec<PixelInfo>>().iter().for_each( |pi| {
-            sorted.put_pixel(pi.coords.0, pi.coords.1, pi.pixel);
-        });
-
-        info!("TIME [Writing]: \t{:?}", timestart.elapsed());
-
 
         sorted
     }

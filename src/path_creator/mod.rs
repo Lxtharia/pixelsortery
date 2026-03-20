@@ -44,16 +44,17 @@ impl std::fmt::Display for PathCreator {
         )
     }
 }
+
 trait PixelPicker {
     fn pick_pixels(all_pixels: Self, indices: Vec<Vec<u64>>) -> Vec<Self>
     where Self: IntoIterator, Self:Sized;
 }
 
-impl PixelPicker for Vec<&PixelInfo> {
+impl PixelPicker for Vec<PixelInfo> {
     fn pick_pixels(all_pixels: Self, indices: Vec<Vec<u64>>) -> Vec<Self>
     {
-        let mut paths: Vec<Vec<&PixelInfo>> = Vec::new();
-        let mut all_pixels: Vec<Option<&PixelInfo>> =
+        let mut paths: Vec<Vec<PixelInfo>> = Vec::with_capacity(indices.len());
+        let mut all_pixels: Vec<Option<PixelInfo>> =
             all_pixels.into_iter().map(|p| Some(p)).collect();
 
         for mut li in indices {

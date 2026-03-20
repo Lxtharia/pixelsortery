@@ -26,6 +26,25 @@ pub fn mapsort_mut(pixels: &mut [&mut Rgb<u8>], get_pixel_value: CriteriaFunctio
     }
 }
 
+pub fn mapsort<'a>(pixels: &[&'a PixelInfo], get_pixel_value: CriteriaFunction) -> Vec<&'a PixelInfo> {
+    let mut map_array: [Vec<&PixelInfo>; 360] = array_init(|_| Vec::new());
+
+    for pi in pixels {
+        map_array[get_pixel_value(&pi.pixel) as usize].push(&pi);
+    }
+
+    // We copy the pixels back in the correct order
+    let mut ind = 0;
+    let mut sorted = Vec::with_capacity(pixels.len());
+    for h in map_array {
+        for pi in h {
+            sorted.push(pi);
+        }
+    }
+    sorted
+}
+
+
 /// Sorts all pixels of an image by either Hue, Brightness or Saturation.
 /// It uses an array with 360 elements to map the values.
 /// Probably panics if a compare function returns a value above 360
@@ -48,22 +67,3 @@ pub fn mapsort_full(img: &RgbImage, width: u32, height: u32, get_pixel_value: Cr
 
     return sorted;
 }
-
-pub fn mapsort(pixels: &[&PixelInfo], get_pixel_value: CriteriaFunction) -> Vec<PixelInfo> {
-    let mut map_array: [Vec<&PixelInfo>; 360] = array_init(|_| Vec::new());
-
-    for pi in pixels {
-        map_array[get_pixel_value(&pi.pixel) as usize].push(&pi);
-    }
-
-    // We copy the pixels back in the correct order
-    let mut ind = 0;
-    let mut sorted = Vec::with_capacity(pixels.len());
-    for h in map_array {
-        for pi in h {
-            sorted.push(pi.clone());
-        }
-    }
-    sorted
-}
-

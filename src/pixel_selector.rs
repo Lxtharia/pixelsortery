@@ -36,7 +36,7 @@ pub enum PixelSelectCriteria {
 
 impl PixelSelector {
     /// Returns a list of pixel spans
-    pub fn create_spans<'a, P: ToPixel>(
+    pub fn create_spans_mut<'a, P: ToPixel>(
         self,
         pixels: &mut VecDeque<P>,
     ) -> Vec<Vec<P>> {
@@ -45,6 +45,17 @@ impl PixelSelector {
             PixelSelector::Fixed { len } => fixed_selector(pixels, len),
             PixelSelector::Random { max } => random_selector(pixels, max),
             PixelSelector::Threshold { min, max, criteria } => threshold_selector(pixels, criteria, min, max),
+        }
+    }
+    pub fn create_spans<'a, P: ToPixel>(
+        self,
+        mut pixels: VecDeque<P>,
+    ) -> Vec<Vec<P>> {
+        match self {
+            PixelSelector::Full => full_selector(&mut pixels),
+            PixelSelector::Fixed { len } => fixed_selector(&mut pixels, len),
+            PixelSelector::Random { max } => random_selector(&mut pixels, max),
+            PixelSelector::Threshold { min, max, criteria } => threshold_selector(&mut pixels, criteria, min, max),
         }
     }
 
@@ -103,14 +114,7 @@ impl PixelSelector {
 }
 
 fn full_selector<'a, P: ToPixel>(pixels: &mut VecDeque<P>) -> Vec<Vec<P>> {
-    let mut spans: Vec<Vec<P>> = Vec::new();
-
-    let mut span: Vec<P> = Vec::new();
-    while !pixels.is_empty() {
-        span.push(pixels.pop_front().unwrap());
-    }
-    spans.push(span);
-    spans
+    vec![pixels.drain(..).collect()]
 }
 
 fn fixed_selector<'a, P: ToPixel>(

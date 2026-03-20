@@ -90,10 +90,10 @@ impl SpanSorter {
         sorting_function(pixels, criteria_function);
     }
 
-    pub fn sort(&self, pixels: &[&PixelInfo]) -> Vec<PixelInfo> {
+    pub fn sort<'a>(&self, pixels: &[&'a PixelInfo]) -> Vec<&'a PixelInfo> {
         // Select function per algorithm
         let sorting_function = match self.algorithm {
-            SortingAlgorithm::DebugColor => random_color::set_random_color,
+            // SortingAlgorithm::DebugColor => random_color::set_random_color,
             _ => mapsort::mapsort,
             // SortingAlgorithm::Shellsort => shellsort::shellsort_mut,
             // SortingAlgorithm::Glitchsort => glitchsort::glitchsort_mut,
@@ -107,7 +107,7 @@ impl SpanSorter {
             // Apply debug color on every span
             SortingAlgorithm::DebugColor => {},
             // Skip sorting a span if it contains less than 2 pixels
-            _ => if pixels.len() < 2 {return pixels.iter().map(|pi| (*pi).clone()).collect();},
+            _ => if pixels.len() < 2 { return pixels.iter().map(|pi| *pi).collect(); },
         }
         // call sorting function
         sorting_function(pixels, criteria_function)
