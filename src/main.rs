@@ -5,9 +5,8 @@ use pixelsortery::{
         PixelSelectCriteria, PixelSelector
     }, span_sorter::{SortingAlgorithm, SortingCriteria}
 };
-use std::{io::Read, path::PathBuf, str::FromStr, time::Duration};
-use std::time::Instant;
-use std::{collections::VecDeque, env, process::exit};
+use std::{collections::VecDeque, env, io::Read, path::PathBuf, process::exit, str::FromStr, time::Duration};
+use web_time::Instant;
 
 mod gui;
 

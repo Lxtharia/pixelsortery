@@ -2,7 +2,8 @@ use egui::TextBuffer;
 use image::{Rgb, RgbImage};
 use log::{error, info, warn};
 use rayon::prelude::*;
-use std::{f64::consts::PI, fmt::Display, time::Instant};
+use std::{f64::consts::PI, fmt::Display};
+use web_time::Instant;
 
 use crate::PixelInfo;
 

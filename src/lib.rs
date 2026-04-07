@@ -6,7 +6,8 @@ use path_creator::PathCreator;
 use pixel_selector::get_criteria_function;
 use rayon::prelude::*;
 use span_sorter::{SortingCriteria, SpanSorter};
-use std::{any::Any, collections::VecDeque, fmt::Debug, fs, io::{self, ErrorKind, Read, Write}, path::{Path, PathBuf}, process::{self, Command, Output, Stdio}, time::Instant};
+use std::{any::Any, collections::VecDeque, fmt::Debug, fs, io::{self, ErrorKind, Read, Write}, path::{Path, PathBuf}, process::{self, Command, Output, Stdio}};
+use web_time::Instant;
 
 use crate::pixel_selector::PixelSelector;
 

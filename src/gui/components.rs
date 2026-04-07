@@ -303,38 +303,44 @@ impl PixelsorterGui {
                 }
             }
 
-            // Enable Save button, if a dir is set, or if we are saving into the parent directory
-            ui.add_enabled_ui(
-                self.output_directory.is_some() || self.save_into_parent_dir,
-                |ui| {
-                    if ui.button("Save").clicked() {
-                        info!("Saving image...");
-                        self.save_file_to_out_dir();
+            #[cfg(not(target_arch = "wasm32"))]{
+                // Enable Save button, if a dir is set, or if we are saving into the parent directory
+                ui.add_enabled_ui(
+                    self.output_directory.is_some() || self.save_into_parent_dir,
+                    |ui| {
+                        if ui.button("Save").clicked() {
+                            info!("Saving image...");
+                            self.save_file_to_out_dir();
+                        }
+                    },
+                );
+                if ui.button("Choose destination...").clicked() {
+                    // TODO filepick
+                    if let Some(dir) = rfd::FileDialog::new().pick_folder() {
+                        self.output_directory = Some(dir);
+                        self.save_into_parent_dir = false;
+                    } else {
                     }
-                },
-            );
-            if ui.button("Choose destination...").clicked() {
-                if let Some(dir) = rfd::FileDialog::new().pick_folder() {
-                    self.output_directory = Some(dir);
-                    self.save_into_parent_dir = false;
                 }
+                ui.checkbox(&mut self.save_into_parent_dir, "Same directory");
             }
-            ui.checkbox(&mut self.save_into_parent_dir, "Same directory");
         });
-        ui.add_space(5.0);
-        ui.horizontal_wrapped(|ui| {
-            ui.label("Saving into: ");
-            let text = if self.save_into_parent_dir {
-                let mut parent_dir = self.path.as_ref().unwrap().clone();
-                parent_dir.pop();
-                RichText::new(parent_dir.to_string_lossy()).monospace()
-            } else if let Some(output_dir) = &self.output_directory {
-                RichText::new(output_dir.to_string_lossy()).monospace()
-            } else {
-                RichText::new("No output directory set").italics()
-            };
-            ui.label(text);
-        });
+        #[cfg(not(target_arch = "wasm32"))]{
+            ui.add_space(5.0);
+            ui.horizontal_wrapped(|ui| {
+                ui.label("Saving into: ");
+                let text = if self.save_into_parent_dir {
+                    let mut parent_dir = self.path.as_ref().unwrap().clone();
+                    parent_dir.pop();
+                    RichText::new(parent_dir.to_string_lossy()).monospace()
+                } else if let Some(output_dir) = &self.output_directory {
+                    RichText::new(output_dir.to_string_lossy()).monospace()
+                } else {
+                    RichText::new("No output directory set").italics()
+                };
+                ui.label(text);
+            });
+        }
     }
 
     #[cfg(feature = "video")]

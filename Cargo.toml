@@ -23,7 +23,15 @@ inflections = "1.1.1"
 log = "0.4.22"
 rand = "0.8.5"
 rayon = "1.10.0"
-rfd = "0.14.1"
+rfd = "0.17.2"
+tokio = { version = "1.49.0", features = ["rt"] }
+web-sys = "0.3.87"
+web-time = "1.1.0"
+
+[target.'cfg(all(target_arch = "wasm32", any(target_os = "unknown", target_os = "none")))'.dependencies]
+getrandom = { version = "0.2.15", features = ["js"] }
+wasm-bindgen-futures = "0.4.60"
+base64 = "0.22.1"
 
 [patch.crates-io]
 egui-video = { git = "https://github.com/Lxtharia/egui-video", rev = "741420318475" }

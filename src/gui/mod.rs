@@ -7,7 +7,7 @@ use egui::{ColorImage, Hyperlink, Modal, Rgba, Spinner, scroll_area::ScrollBarVi
 use egui_flex::{item, Flex, FlexAlign, FlexAlignContent, FlexJustify};
 #[cfg(feature = "video")]
 use egui_video::PlayerState;
-use image::{Pixel, Rgb, RgbImage, RgbaImage};
+use image::{Pixel, Rgb, RgbImage, RgbaImage, EncodableLayout, ImageEncoder, codecs::png::PngEncoder};
 use inflections::case::to_title_case;
 use layers::LayeredSorter;
 use log::{info, warn};
@@ -20,8 +20,10 @@ use pixelsortery::{
 #[cfg(feature = "video")]
 use pixelsortery::{Progress, ThreadPhone,};
 use std::{
-    ffi::OsString, path::{Path, PathBuf}, sync::{Arc, Mutex, atomic::{AtomicBool, Ordering}, mpsc::{Receiver, Sender, channel}}, thread::{self, JoinHandle}, time::{Duration, Instant}
+    path::{Path, PathBuf}, sync::{Arc, Mutex, atomic::{AtomicBool, Ordering}, mpsc::{self, Receiver, Sender, channel}}, thread::{self, JoinHandle}, time::{Duration, Instant}
 };
+use web_time::{Duration, Instant};
+use tokio;
 
 
 use crate::{AUTHORS, PACKAGE_NAME, VERSION};
@@ -83,15 +85,64 @@ pub fn init(ps: Option<&Pixelsorter>, img: Option<(RgbImage, PathBuf)>, video: O
         }
     });
 
-    eframe::run_native(
-        "Pixelsortery",
-        options,
-        Box::new(|cc| {
-             // This gives us image support
-            egui_extras::install_image_loaders(&cc.egui_ctx);
-            Ok(Box::new(psgui))
-        }),
-    )
+    // When compiling natively:
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let options = eframe::NativeOptions {
+            viewport: egui::ViewportBuilder::default().with_inner_size(INITIAL_WINDOW_SIZE),
+            ..Default::default()
+        };
+        eframe::run_native(
+            "Pixelsortery",
+            options,
+            Box::new(|cc| {
+                // This gives us image support
+                egui_extras::install_image_loaders(&cc.egui_ctx);
+                Ok(Box::new(psgui))
+            }),
+        )?
+    }
+    // When compiling to web using trunk:
+    #[cfg(target_arch = "wasm32")]
+    {
+        extern crate console_error_panic_hook;
+        use std::panic;
+
+        panic::set_hook(Box::new(console_error_panic_hook::hook));
+
+        use eframe::wasm_bindgen::JsCast as _;
+
+        // Redirect `log` message to `console.log` and friends:
+        eframe::WebLogger::init(log::LevelFilter::Debug).ok();
+
+        let web_options = eframe::WebOptions::default();
+
+        wasm_bindgen_futures::spawn_local(async {
+            let document = web_sys::window()
+                .expect("No window")
+                .document()
+                .expect("No document");
+
+            let canvas = document
+                .get_element_by_id("egui-canvas")
+                .expect("Failed to find egui-canvas html element")
+                .dyn_into::<web_sys::HtmlCanvasElement>()
+                .expect("egui-canvas was not a HtmlCanvasElement");
+
+            let start_result = eframe::WebRunner::new()
+                .start(
+                    canvas,
+                    web_options,
+                    Box::new(|cc| {
+                        // This gives us image support
+                        egui_extras::install_image_loaders(&cc.egui_ctx);
+                        Ok(Box::new(psgui))
+                    }),
+                )
+            .await;
+        });
+    }
+    Ok(())
 }
 
 struct TwoWayChannel<A, B> {
@@ -136,6 +187,8 @@ struct PixelsorterGui {
     /// A tuple for communicating with the current sorting thread
     #[cfg(feature = "video")]
     video_thread_phone: Option<ThreadPhone>,
+    img_tx: Sender<RgbImage>,
+    img_rx: Receiver<RgbImage>,
 }
 
 /// Adjustable components of the pixelsorter, remembers values like diagonal angle
@@ -199,6 +252,7 @@ impl Default for PixelsorterGui {
     fn default() -> Self {
         let (send_a, recv_a) = channel();
         let (send_b, recv_b) = channel();
+        let (tx, rx)         = channel();
         Self {
             path: None,
             layered_sorter: None,
@@ -244,6 +298,8 @@ impl Default for PixelsorterGui {
             do_open_video: false,
             #[cfg(feature = "video")]
             video_thread_phone: None,
+            img_tx: tx,
+            img_rx: rx,
         }
     }
 }
@@ -351,6 +407,7 @@ impl PixelsorterGui {
 
     fn open_file_dialog(&mut self, ctx: &egui::Context) -> () {
         // Opening image until cancled or until valid image loaded
+        #[cfg(not(target_arch = "wasm32"))]
         loop {
             let mut filedialog = rfd::FileDialog::new()
                 .add_filter("Images", &["png", "jpg", "jpeg", "webp"]);
@@ -388,6 +445,33 @@ impl PixelsorterGui {
                     }
                 },
             }
+        }
+        #[cfg(target_arch = "wasm32")]
+        {
+            let i_sx = self.img_tx.clone();
+            wasm_bindgen_futures::spawn_local(async move {
+                let file = rfd::AsyncFileDialog::new()
+                    .add_filter("Images", &["png", "jpg", "jpeg", "webp"])
+                    .pick_file()
+                .await;
+
+                if let Some(file) = file {
+                    // If you are on native platform you can just get the path
+                    #[cfg(not(target_arch = "wasm32"))]
+                    println!("{:?}", file.path());
+
+                    // If you care about wasm support you just read() the file
+                    let f = file.read().await;
+                    match image::load_from_memory(&file.read().await) {
+                        Ok(i) => {
+                            let img = i.into_rgb8();
+                            i_sx.send(img).expect("Couldnt send image x.x");
+                        }
+                        Err(_) => {}
+                    }
+
+                }
+            });
         }
     }
 
@@ -442,6 +526,49 @@ impl PixelsorterGui {
             if save_image_as(img, path.as_deref()).is_ok(){
                 self.saving_success_timeout = Some(Instant::now());
             };
+            #[cfg(not(target_arch = "wasm32"))]
+            {
+                let file = rfd::FileDialog::new()
+                    .add_filter("Images", &["png", "jpg", "jpeg", "webp"])
+                    .set_file_name(&suggested_filename)
+                    .save_file();
+                if let Some(f) = file {
+                    if let Some(sorted) = &self.img {
+                        if let Err(err_msg) = sorted.save(&f) {
+                            warn!(
+                                "Saving image to {} failed: {}",
+                                f.to_string_lossy(),
+                                err_msg
+                            );
+                        } else {
+                            info!("Saved file to '{}' ...", f.to_string_lossy());
+                            self.saving_success_timeout = Some(Instant::now());
+                        };
+                    }
+                }
+            }
+        }
+        #[cfg(target_arch = "wasm32")]
+        {
+            use base64::{Engine as _, engine::{self, general_purpose}};
+            use std::io::Cursor;
+            use web_sys;
+            use eframe::wasm_bindgen::JsCast;
+            if let Some(sorted) = &self.img {
+
+                let win = web_sys::window().unwrap();
+                let doc = win.document().unwrap();
+
+                let mut bytes: Vec<u8> = Vec::new();
+                sorted.write_to(&mut Cursor::new(&mut bytes), image::ImageFormat::Png).unwrap();
+
+                let link = doc.create_element("a").unwrap();
+                link.set_attribute("href", format!("data:image/png;base64,{}", general_purpose::STANDARD.encode(bytes)).as_str());
+                link.set_attribute("download", "sorted.png");
+
+                let link: web_sys::HtmlAnchorElement = web_sys::HtmlAnchorElement::unchecked_from_js(link.into());
+                link.click();
+            }
         }
     }
 
@@ -503,6 +630,15 @@ impl eframe::App for PixelsorterGui {
             // style.debug.debug_on_hover_with_all_modifiers = true;
         });
 
+
+        #[cfg(target_arch = "wasm32")] // Receive image from file picker
+        if let Ok(img) = self.img_rx.try_recv() {
+            if let Some(ls) = &mut self.layered_sorter {
+                ls.set_base_img(img.clone());
+            }
+            self.img = Some(img);
+            self.update_texture(ctx);
+        }
         // Open file on startup
         if do_open_file {
             self.open_file_dialog(ctx);
