@@ -20,8 +20,9 @@ use pixelsortery::{
 #[cfg(feature = "video")]
 use pixelsortery::{Progress, ThreadPhone,};
 use std::{
-    ffi::OsString, path::{Path, PathBuf}, sync::{atomic::{AtomicBool, Ordering}, mpsc::Receiver, Arc, Mutex}, thread::JoinHandle, time::{Duration, Instant}
+    ffi::OsString, path::{Path, PathBuf}, sync::{Arc, Mutex, atomic::{AtomicBool, Ordering}, mpsc::{Receiver, Sender, channel}}, thread::{self, JoinHandle}, time::{Duration, Instant}
 };
+
 
 use crate::{AUTHORS, PACKAGE_NAME, VERSION};
 mod layers;
@@ -58,6 +59,27 @@ pub fn init(ps: Option<&Pixelsorter>, img: Option<(RgbImage, PathBuf)>, video: O
         psgui.path = Some(video_path);
         psgui.do_open_video = true;
     }
+
+    // Create a thread that receives sorting values, then locks the cache with the original image
+    // Sorts the image and sends it back to the gui thread
+    let (ra, sb) = (psgui.sort_channel.recv_a.take().unwrap(), psgui.sort_channel.send_b.clone());
+    let sorter_arc = psgui.cached_sorter.clone();
+    let time_arc = psgui.time_last_sort.clone();
+    let handle = thread::spawn(move || {
+        while let Ok(mut psv) = ra.recv() {
+            let mut counter = 1;
+            // Get full 
+            while let Ok(newer_psv) = ra.try_recv() { counter += 1; psv = newer_psv }
+            info!("[THREAD] Received {counter} values. Sorting...");
+            if let Ok(Some(ps)) = sorter_arc.lock().as_deref_mut() {
+                let timestart = Instant::now();
+                let sorted = ps.sort(&psv.to_pixelsorter());
+                *time_arc.lock().unwrap() = timestart.elapsed();
+                sb.send(sorted);
+            }
+        }
+    });
+
     eframe::run_native(
         "Pixelsortery",
         options,
@@ -69,6 +91,13 @@ pub fn init(ps: Option<&Pixelsorter>, img: Option<(RgbImage, PathBuf)>, video: O
     )
 }
 
+struct TwoWayChannel<A, B> {
+    send_a: Sender<A>,
+    recv_a: Option<Receiver<A>>, // Option until msmc is stable
+    send_b: Sender<B>,
+    recv_b: Receiver<B>,
+}
+
 /// Struct holding all the states of the gui and values of sliders etc.
 struct PixelsorterGui {
     /// The path of the loaded image
@@ -76,7 +105,9 @@ struct PixelsorterGui {
     /// The Values and sorted Images, layered
     layered_sorter: Option<LayeredSorter>,
     /// Sorter with improved performance
-    cached_sorter: Option<CachedPixelsorter>,
+    cached_sorter: Arc<Mutex<Option<CachedPixelsorter>>>,
+    /// Channels to communicate to the sorting thread
+    sort_channel: TwoWayChannel<PixelsorterValues, RgbImage>,
     /// All the adjustable values for the pixelsorter
     values: PixelsorterValues,
     show_mask: bool,
@@ -162,13 +193,16 @@ impl PixelsorterValues {
 
 impl Default for PixelsorterGui {
     fn default() -> Self {
+        let (send_a, recv_a) = channel();
+        let (send_b, recv_b) = channel();
         Self {
             path: None,
             layered_sorter: None,
-            cached_sorter: None,
+            cached_sorter: Arc::new(Mutex::new(None)),
             img: None,
             texture: None,
             show_mask: false,
+            sort_channel: TwoWayChannel { send_a, recv_a: Some(recv_a), send_b, recv_b },
             values: PixelsorterValues {
                 reverse: false,
                 path: PathCreator::VerticalLines,
@@ -221,7 +255,7 @@ impl PixelsorterGui {
     }
     fn with_image(mut self, img: RgbImage, image_path: PathBuf) -> Self {
         self.img = Some(img);
-        self.cached_sorter = Some(CachedPixelsorter::new(self.img.clone().unwrap()));
+        *self.cached_sorter.lock().unwrap() = Some(CachedPixelsorter::new(self.img.clone().unwrap()));
         self.path = Some(image_path);
         self
     }
@@ -229,10 +263,10 @@ impl PixelsorterGui {
     /// Calls sort_current_layer, sets the image and texture
     fn sort_img(&mut self, ctx: &egui::Context, force: bool) {
         let ps = self.values.to_pixelsorter();
-        if self.cached_sorter.is_none() && self.img.is_some() {
-            self.cached_sorter = Some(CachedPixelsorter::new(self.img.clone().unwrap()));
+        if self.cached_sorter.lock().unwrap().is_none() && self.img.is_some() {
+            *self.cached_sorter.lock().unwrap() = Some(CachedPixelsorter::new(self.img.clone().unwrap()));
         }
-        if let Some(cached) = &mut self.cached_sorter {
+        if let Ok(Some(cached)) = self.cached_sorter.lock().as_deref_mut() {
             let timestart = Instant::now();
             self.img = Some(cached.sort(&ps));
             *self.time_last_sort.lock().unwrap() = timestart.elapsed();
@@ -265,6 +299,12 @@ impl PixelsorterGui {
         }
         // Display sorted image
         self.update_texture(ctx);
+    }
+
+    fn queue_sort(&self, force: bool) {
+        // Add to queue
+        info!("[UI] Sending values to thread!");
+        self.sort_channel.send_a.send(self.values);
     }
 
     /// Update texture
@@ -317,7 +357,7 @@ impl PixelsorterGui {
                             self.video_player = None;
                         }
                         self.img = Some(img);
-                        self.cached_sorter = Some(CachedPixelsorter::new(self.img.clone().unwrap()));
+                        *self.cached_sorter.lock().unwrap() = Some(CachedPixelsorter::new(self.img.clone().unwrap()));
                         self.update_texture(ctx);
                         self.path = Some(f);
                         break;
@@ -462,6 +502,14 @@ impl eframe::App for PixelsorterGui {
             }
             self.do_open_video = false;
         }
+
+        // Receive sorted image
+        if let Ok(sorted_img) = self.sort_channel.recv_b.try_recv() {
+            self.img = Some(sorted_img);
+            self.update_texture(ctx);
+        }
+
+        // stuff
         if let Some(ls) = &self.layered_sorter {
             // Load current values
             self.values = ls.get_current_layer().get_sorting_values().clone();
@@ -658,7 +706,7 @@ impl eframe::App for PixelsorterGui {
         let values_changed = self.values != prev_values.0 || self.show_mask != prev_values.1;
         if (self.do_sort || (self.auto_sort && values_changed)) {
             self.do_sort = false;
-            self.sort_img(&ctx, true);
+            self.queue_sort(true);
             #[cfg(feature = "video")]
             // Update the video filter function to use the new values
             if let Some(player) = &mut self.video_player {
