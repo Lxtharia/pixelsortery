@@ -3,7 +3,7 @@ use eframe::egui::{
     self, Align, Button, Color32, Image, Key, Layout, Modifiers, RichText, ScrollArea,
     TextureFilter, TextureHandle, TextureOptions, Ui, Vec2,
 };
-use egui::{scroll_area::ScrollBarVisibility, style::ScrollStyle, ColorImage, Hyperlink, Modal, Rgba};
+use egui::{ColorImage, Hyperlink, Modal, Rgba, Spinner, scroll_area::ScrollBarVisibility, style::ScrollStyle};
 use egui_flex::{item, Flex, FlexAlign, FlexAlignContent, FlexJustify};
 #[cfg(feature = "video")]
 use egui_video::PlayerState;
@@ -65,17 +65,20 @@ pub fn init(ps: Option<&Pixelsorter>, img: Option<(RgbImage, PathBuf)>, video: O
     let (ra, sb) = (psgui.sort_channel.recv_a.take().unwrap(), psgui.sort_channel.send_b.clone());
     let sorter_arc = psgui.cached_sorter.clone();
     let time_arc = psgui.time_last_sort.clone();
+    let prog_arc = psgui.in_progress.clone();
     let handle = thread::spawn(move || {
         while let Ok(mut psv) = ra.recv() {
             let mut counter = 1;
             // Get full 
             while let Ok(newer_psv) = ra.try_recv() { counter += 1; psv = newer_psv }
-            info!("[THREAD] Received {counter} values. Sorting...");
+            info!("[THREAD] Received {counter} requests. Sorting the last one...");
             if let Ok(Some(ps)) = sorter_arc.lock().as_deref_mut() {
                 let timestart = Instant::now();
+                *prog_arc.lock().unwrap() = true;
                 let sorted = ps.sort(&psv.to_pixelsorter());
                 *time_arc.lock().unwrap() = timestart.elapsed();
                 sb.send(sorted);
+                *prog_arc.lock().unwrap() = false;
             }
         }
     });
@@ -108,6 +111,7 @@ struct PixelsorterGui {
     cached_sorter: Arc<Mutex<Option<CachedPixelsorter>>>,
     /// Channels to communicate to the sorting thread
     sort_channel: TwoWayChannel<PixelsorterValues, RgbImage>,
+    in_progress: Arc<Mutex<bool>>,
     /// All the adjustable values for the pixelsorter
     values: PixelsorterValues,
     show_mask: bool,
@@ -203,6 +207,7 @@ impl Default for PixelsorterGui {
             texture: None,
             show_mask: false,
             sort_channel: TwoWayChannel { send_a, recv_a: Some(recv_a), send_b, recv_b },
+            in_progress: Arc::new(Mutex::new(false)),
             values: PixelsorterValues {
                 reverse: false,
                 path: PathCreator::VerticalLines,
@@ -327,11 +332,20 @@ impl PixelsorterGui {
     /// Tries to show the image if it exists
     fn show_img(&self, ui: &mut Ui) {
         if let Some(tex) = &self.texture {
+            let sized_img = Image::new((tex.id(), tex.size_vec2())).shrink_to_fit();
+            let rect = egui::Rect {
+                min: ui.cursor().min,
+                max: ui.cursor().min + sized_img.calc_size(ui.available_size(), Some(tex.size_vec2())),
+            };
             egui::Frame::group(ui.style_mut())
                 .inner_margin(0)
                 .show(ui, |ui| {
-                    ui.add(Image::new((tex.id(), tex.size_vec2())).shrink_to_fit());
-            });
+                    ui.add(sized_img);
+                });
+            // TODO: show only after a small timeout
+            if self.in_progress.lock().is_ok_and(|it| *it) {
+                ui.put(rect, Spinner::new());
+            }
         }
     }
 
