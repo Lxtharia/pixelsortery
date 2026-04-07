@@ -11,6 +11,7 @@ video = ["dep:ffmpeg-the-third", "dep:egui-video"]
 
 [dependencies]
 array-init = "2.1.0"
+console_error_panic_hook = "0.1.7"
 eframe = "0.31.1"
 egui = "0.31.1"
 egui_extras = { version = "0.31.1", features = ["file", "image"] }

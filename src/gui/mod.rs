@@ -20,7 +20,7 @@ use pixelsortery::{
 #[cfg(feature = "video")]
 use pixelsortery::{Progress, ThreadPhone,};
 use std::{
-    path::{Path, PathBuf}, sync::{Arc, Mutex, atomic::{AtomicBool, Ordering}, mpsc::{self, Receiver, Sender, channel}}, thread::{self, JoinHandle}, time::{Duration, Instant}
+    ffi::OsString, path::{Path, PathBuf}, sync::{Arc, Mutex, atomic::{AtomicBool, Ordering}, mpsc::{self, Receiver, Sender, channel}}, thread::{self, JoinHandle}
 };
 use web_time::{Duration, Instant};
 use tokio;
@@ -36,11 +36,6 @@ const INITIAL_WINDOW_SIZE: Vec2 = egui::vec2(1000.0, 700.0);
 mod components;
 
 pub fn init(ps: Option<&Pixelsorter>, img: Option<(RgbImage, PathBuf)>, video: Option<PathBuf>) -> eframe::Result {
-    let options = eframe::NativeOptions {
-        viewport: egui::ViewportBuilder::default().with_inner_size(INITIAL_WINDOW_SIZE),
-        ..Default::default()
-    };
-
     let mut psgui = PixelsorterGui::default();
     #[cfg(feature = "video")] {
         psgui.audio_device = Some(egui_video::AudioDevice::new());
@@ -526,49 +521,6 @@ impl PixelsorterGui {
             if save_image_as(img, path.as_deref()).is_ok(){
                 self.saving_success_timeout = Some(Instant::now());
             };
-            #[cfg(not(target_arch = "wasm32"))]
-            {
-                let file = rfd::FileDialog::new()
-                    .add_filter("Images", &["png", "jpg", "jpeg", "webp"])
-                    .set_file_name(&suggested_filename)
-                    .save_file();
-                if let Some(f) = file {
-                    if let Some(sorted) = &self.img {
-                        if let Err(err_msg) = sorted.save(&f) {
-                            warn!(
-                                "Saving image to {} failed: {}",
-                                f.to_string_lossy(),
-                                err_msg
-                            );
-                        } else {
-                            info!("Saved file to '{}' ...", f.to_string_lossy());
-                            self.saving_success_timeout = Some(Instant::now());
-                        };
-                    }
-                }
-            }
-        }
-        #[cfg(target_arch = "wasm32")]
-        {
-            use base64::{Engine as _, engine::{self, general_purpose}};
-            use std::io::Cursor;
-            use web_sys;
-            use eframe::wasm_bindgen::JsCast;
-            if let Some(sorted) = &self.img {
-
-                let win = web_sys::window().unwrap();
-                let doc = win.document().unwrap();
-
-                let mut bytes: Vec<u8> = Vec::new();
-                sorted.write_to(&mut Cursor::new(&mut bytes), image::ImageFormat::Png).unwrap();
-
-                let link = doc.create_element("a").unwrap();
-                link.set_attribute("href", format!("data:image/png;base64,{}", general_purpose::STANDARD.encode(bytes)).as_str());
-                link.set_attribute("download", "sorted.png");
-
-                let link: web_sys::HtmlAnchorElement = web_sys::HtmlAnchorElement::unchecked_from_js(link.into());
-                link.click();
-            }
         }
     }
 
@@ -943,19 +895,21 @@ fn selector_is_threshold(sel: PixelSelector) -> bool {
 /// opens a file dialog to let the user choose a destination for a file
 /// an optional path can be provided that is used to suggest a new filename
 pub fn save_image_as(img: &RgbImage, original_path: Option<&Path>) -> Result<(), image::ImageError> {
-        let mut suggested_filename = String::from("");
-        if let Some(p) = original_path {
-            if let (Some(stem), Some(ext)) = (p.file_stem(), p.extension()) {
-                suggested_filename = format!(
-                    "{}-sorted.{}",
-                    stem.to_string_lossy(),
-                    ext.to_string_lossy()
-                );
-            };
+    let mut suggested_filename = String::from("");
+    if let Some(p) = original_path {
+        if let (Some(stem), Some(ext)) = (p.file_stem(), p.extension()) {
+            suggested_filename = format!(
+                "{}-sorted.{}",
+                stem.to_string_lossy(),
+                ext.to_string_lossy()
+            );
         };
+    };
+    #[cfg(not(target_arch = "wasm32"))]
+    {
         let file = rfd::FileDialog::new()
             .add_filter("Images", &["png", "jpg", "jpeg", "webp"])
-            .set_file_name(suggested_filename)
+            .set_file_name(&suggested_filename)
             .save_file();
         if let Some(f) = file {
             let res = img.save(&f);
@@ -972,6 +926,28 @@ pub fn save_image_as(img: &RgbImage, original_path: Option<&Path>) -> Result<(),
         } else {
             Ok(())
         }
+    }
+    #[cfg(target_arch = "wasm32")]
+    {
+        use base64::{Engine as _, engine::{self, general_purpose}};
+        use std::io::Cursor;
+        use web_sys;
+        use eframe::wasm_bindgen::JsCast;
+
+        let win = web_sys::window().unwrap();
+        let doc = win.document().unwrap();
+
+        let mut bytes: Vec<u8> = Vec::new();
+        img.write_to(&mut Cursor::new(&mut bytes), image::ImageFormat::Png).unwrap();
+
+        let link = doc.create_element("a").unwrap();
+        link.set_attribute("href", format!("data:image/png;base64,{}", general_purpose::STANDARD.encode(bytes)).as_str());
+        link.set_attribute("download", "sorted.png");
+
+        let link: web_sys::HtmlAnchorElement = web_sys::HtmlAnchorElement::unchecked_from_js(link.into());
+        link.click();
+        Ok(())
+    }
 }
 
 

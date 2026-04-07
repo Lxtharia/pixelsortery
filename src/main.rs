@@ -5,7 +5,7 @@ use pixelsortery::{
         PixelSelectCriteria, PixelSelector
     }, span_sorter::{SortingAlgorithm, SortingCriteria}
 };
-use std::{collections::VecDeque, env, io::Read, path::PathBuf, process::exit, str::FromStr, time::Duration};
+use std::{collections::VecDeque, env, io::Read, path::PathBuf, process::exit, str::FromStr};
 use web_time::Instant;
 
 mod gui;
@@ -315,7 +315,7 @@ fn main() {
 
     if cached {
         let mut cp = CachedPixelsorter::new(img.clone());
-        img = cp.sort(ps);
+        img = cp.sort(&ps);
     } else {
         if show_mask {
             // Drawing a mask
