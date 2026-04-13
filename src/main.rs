@@ -99,6 +99,7 @@ const HELP_STRING: &str = "
    --hilbert          : Sort along the hilbert curve pattern
    --rays             : Sort from the center in all directions
    --reverse          : Sort in the opposite direction
+   --x3               : Sort in a curve
 
 ============= Span-Selection Options ============
   [Choose which pixels are valid to form a span]
@@ -196,7 +197,8 @@ fn main() {
             "--spiral-square"     =>   ps.path_creator = PathCreator::SquareSpiral,
             "--spiral-rect"       =>   ps.path_creator = PathCreator::RectSpiral,
             "--diagonal"   => ps.path_creator = PathCreator::Diagonally(parse_parameter(args.pop_front(), "--diagonal <angle>")),
-            "--hilbert"    =>   ps.path_creator = PathCreator::Hilbert,
+            "--hilbert"    => ps.path_creator = PathCreator::Hilbert,
+            "--x3"         => ps.path_creator = PathCreator::X3(0, 200, 10.0),
             "--reverse"    => do_reverse = true,
 
             "--hue"         => ps.sorter.criteria = SortingCriteria::Hue,

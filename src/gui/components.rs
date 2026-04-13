@@ -36,6 +36,7 @@ impl PixelsorterGui {
             PathCreator::RectSpiral,
             PathCreator::Diagonally(self.values.path_diagonally_val),
             PathCreator::Hilbert,
+            self.values.path_x3.clone(),
         ];
         let selected_text = self.values.path.to_string();
 
@@ -58,6 +59,8 @@ impl PixelsorterGui {
 
         // Path specific tweaks for some pathings
         // Nested Grid for sub-options
+        let current_path = self.values.path.clone();
+        let h2 = self.img.as_ref().and_then(|i| Some(i.height())).unwrap_or(200) as i32 / 2;
         match self.values.path {
             PathCreator::Diagonally(ref mut angle) => {
                 ui.label("");
@@ -76,6 +79,38 @@ impl PixelsorterGui {
                         ui.end_row();
                         // Save for when we reselect diagonally
                         self.values.path_diagonally_val = angle.clone();
+                    });
+                ui.end_row();
+            },
+            PathCreator::X3(ref mut offset_y, ref mut scalar_w, ref mut scalar_l) => {
+                ui.label("");
+                egui::Grid::new(format!("path_options_grid_{}", id))
+                    .num_columns(2)
+                    .min_row_height(25.0)
+                    .show(ui, |ui| {
+                        let slider_a = egui::Slider::new(offset_y, -h2..=h2)
+                            .clamping(SliderClamping::Never)
+                            .drag_value_speed(0.2)
+                            .max_decimals(1);
+                            let slider_w = egui::Slider::new(scalar_w, -500..=500)
+                            .clamping(SliderClamping::Never)
+                            .drag_value_speed(0.2)
+                            .max_decimals(1);
+                        let slider_l = egui::Slider::new(scalar_l, 0.0..=20.0)
+                            .clamping(SliderClamping::Never)
+                            .drag_value_speed(0.2)
+                            .max_decimals(1);
+                        ui.label(important_text("Y-Offset"));
+                        ui.add(slider_a);
+                        ui.end_row();
+                        ui.label(important_text("Width"));
+                        ui.add(slider_w);
+                        ui.end_row();
+                        ui.label(important_text("Slope"));
+                        ui.add(slider_l);
+                        ui.end_row();
+                        // Save for when we reselect diagonally
+                        self.values.path_x3 = current_path;
                     });
                 ui.end_row();
             }

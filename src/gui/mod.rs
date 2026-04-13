@@ -115,6 +115,7 @@ struct PixelsorterValues {
     // Values that may not be set right now, but the values should be remembered
     /// We can select these with the real structs tbh
     path_diagonally_val: f32,
+    path_x3: PathCreator,
     selector_random: PixelSelector,
     selector_fixed: PixelSelector,
     selector_thres: PixelSelector,
@@ -181,6 +182,7 @@ impl Default for PixelsorterGui {
                 algorithm: SortingAlgorithm::Shellsort,
 
                 path_diagonally_val: 45.0,
+                path_x3: PathCreator::X3(0, 300, 10.0),
                 selector_random: PixelSelector::Random { max: 30 },
                 selector_fixed: PixelSelector::Fixed { len: 100 },
                 selector_thres: PixelSelector::Threshold {
