@@ -316,7 +316,7 @@ fn main() {
 
     if cached {
         let mut cp = CachedPixelsorter::new(img.clone());
-        img = cp.sort(ps);
+        img = cp.sort(&ps);
     } else {
         if show_mask {
             // Drawing a mask
