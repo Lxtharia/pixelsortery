@@ -10,7 +10,7 @@ use egui_video::PlayerState;
 use image::{Pixel, Rgb, RgbImage, RgbaImage, EncodableLayout, ImageEncoder, codecs::png::PngEncoder};
 use inflections::case::to_title_case;
 use layers::LayeredSorter;
-use log::{info, warn};
+use log::{debug, info, warn};
 use pixelsortery::{
     CachedPixelsorter, Pixelsorter, path_creator::PathCreator, pixel_selector::{
         PixelSelectCriteria,
@@ -63,7 +63,11 @@ pub fn init(ps: Option<&Pixelsorter>, img: Option<(RgbImage, PathBuf)>, video: O
     let sorter_arc = psgui.cached_sorter.clone();
     let time_arc = psgui.time_last_sort.clone();
     let prog_arc = psgui.in_progress.clone();
-    let handle = rayon::spawn(move || {
+
+    psgui.sort_channel.send_a.send(psgui.values);
+    debug!("Initializing Gui...");
+    let sort_async = move || {
+        debug!("Code inside the thread");
         while let Ok(mut psv) = ra.recv() {
             let mut counter = 1;
             // Get full 
@@ -78,7 +82,7 @@ pub fn init(ps: Option<&Pixelsorter>, img: Option<(RgbImage, PathBuf)>, video: O
                 *prog_arc.lock().unwrap() = false;
             }
         }
-    });
+    };
 
     // When compiling natively:
     #[cfg(not(target_arch = "wasm32"))]
@@ -100,10 +104,6 @@ pub fn init(ps: Option<&Pixelsorter>, img: Option<(RgbImage, PathBuf)>, video: O
     // When compiling to web using trunk:
     #[cfg(target_arch = "wasm32")]
     {
-        extern crate console_error_panic_hook;
-        use std::panic;
-
-        panic::set_hook(Box::new(console_error_panic_hook::hook));
 
         use eframe::wasm_bindgen::JsCast as _;
 
@@ -112,7 +112,12 @@ pub fn init(ps: Option<&Pixelsorter>, img: Option<(RgbImage, PathBuf)>, video: O
 
         let web_options = eframe::WebOptions::default();
 
+        rayon::spawn(|| {panic!("If this gets executed, it's good.")});
+
+        rayon::spawn(sort_async);
+
         wasm_bindgen_futures::spawn_local(async {
+            debug!("Started sorting thread");
             let document = web_sys::window()
                 .expect("No window")
                 .document()

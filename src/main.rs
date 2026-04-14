@@ -122,20 +122,27 @@ const HELP_STRING: &str = "
 
 
 fn main() {
+    #[cfg(target_arch = "wasm32")]
+    {
+        _ = console_log::init_with_level(log::Level::Debug);
+        console_error_panic_hook::set_once();
+    }
 
     let mut args: VecDeque<String> = env::args().collect();
     // shift $0
     args.pop_front();
 
     // ENABLE LOGGING WITH A LOGGING LEVEL
-    let mut log_builder = env_logger::builder();
-    log_builder.format_timestamp(None);
-    log_builder.format_target(false);
-    // Disable logging when --quiet is given
-    if args.contains(&String::from("--quiet")){
-        log_builder.filter_level(log::LevelFilter::Off);
+    #[cfg(not(target_arch = "wasm32"))] {
+        let mut log_builder = env_logger::builder();
+        log_builder.format_timestamp(None);
+        log_builder.format_target(false);
+        // Disable logging when --quiet is given
+        if args.contains(&String::from("--quiet")){
+            log_builder.filter_level(log::LevelFilter::Off);
+        }
+        log_builder.init();
     }
-    log_builder.init();
 
 
     if args.is_empty() {
@@ -158,6 +165,7 @@ fn main() {
 
     #[cfg(feature = "video")]
     let mut frame_ts = None;
+
 
     // I should just use some argument library tbh
     while let Some(arg) = args.pop_front() {

@@ -1,9 +1,11 @@
+<!DOCTYPE html>
 <html>
     <head>
         <!-- <link data-trunk rel="scss" href="path/to/index.scss"/> -->
-        <link data-trunk rel="rust"/>
-        <link rel="alternate icon" type="image/x-icon" href="favicon.ico">
+		<link data-trunk rel="rust" data-keep-debug="true" data-wasm-opt="z"/>
         <link data-trunk rel="copy-file" href="assets/favicon.ico" data-target-path="./"/>
+        <link rel="alternate icon" type="image/x-icon" href="favicon.ico">
+        <!-- <script src="https://cdn.jsdelivr.net/npm/@membrane/wasm-stack-trace@0.1.1/dist/index.js" integrity="sha256-4ven6yDmBLbFNTJ3e+BT6LHZgVL9XbXNKYDUhAa/S0Y=" crossorigin="anonymous"></script> -->
     </head>
     <style>
     :root {

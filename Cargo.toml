@@ -11,7 +11,6 @@ video = ["dep:ffmpeg-the-third", "dep:egui-video"]
 
 [dependencies]
 array-init = "2.1.0"
-console_error_panic_hook = "0.1.7"
 eframe = "0.31.1"
 egui = "0.31.1"
 egui_extras = { version = "0.31.1", features = ["file", "image"] }
@@ -30,9 +29,17 @@ web-sys = "0.3.87"
 web-time = "1.1.0"
 
 [target.'cfg(all(target_arch = "wasm32", any(target_os = "unknown", target_os = "none")))'.dependencies]
+console_error_panic_hook = "0.1.7"
+console_log = "1.0.0"
 getrandom = { version = "0.2.15", features = ["js"] }
 wasm-bindgen-futures = "0.4.60"
+# wasm-bindgen-rayon = "1.2"
 base64 = "0.22.1"
+[target.'cfg(all(target_arch = "wasm32", any(target_os = "unknown", target_os = "none")))']
+rustflags = '-Ctarget-feature=+atomics'
+
+[profile.dev]
+debug = "line-tables-only"     # Recommended. Everything you need for proper stack traces.
 
 [patch.crates-io]
 egui-video = { git = "https://github.com/Lxtharia/egui-video", rev = "741420318475" }
