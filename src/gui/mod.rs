@@ -20,7 +20,7 @@ use pixelsortery::{
 #[cfg(feature = "video")]
 use pixelsortery::{Progress, ThreadPhone,};
 use std::{
-    ffi::OsString, path::{Path, PathBuf}, sync::{Arc, Mutex, atomic::{AtomicBool, Ordering}, mpsc::{Receiver, Sender, channel}}, thread::{self, JoinHandle}, time::{Duration, Instant}
+    ffi::OsString, path::{Path, PathBuf}, sync::{Arc, Mutex, atomic::{AtomicBool, Ordering}, mpsc::{Receiver, Sender, channel}}, time::{Duration, Instant}
 };
 
 
@@ -66,7 +66,7 @@ pub fn init(ps: Option<&Pixelsorter>, img: Option<(RgbImage, PathBuf)>, video: O
     let sorter_arc = psgui.cached_sorter.clone();
     let time_arc = psgui.time_last_sort.clone();
     let prog_arc = psgui.in_progress.clone();
-    let handle = thread::spawn(move || {
+    let handle = rayon::spawn(move || {
         while let Ok(mut psv) = ra.recv() {
             let mut counter = 1;
             // Get full 
