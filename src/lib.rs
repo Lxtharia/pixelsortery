@@ -352,7 +352,7 @@ impl CachedPixelsorter {
         // CUT IMAGE INTO PATHS
         let mut need_create_paths = self.paths.is_none();
         if let Some(prev) = &self.previous_opts {
-            need_create_paths = need_create_paths || prev.path_creator != options.path_creator;
+            need_create_paths = need_create_paths || prev.path_creator != options.path_creator || prev.reverse != options.reverse;
         }
         if need_create_paths {
             self.previous_opts = Some(options.clone());
