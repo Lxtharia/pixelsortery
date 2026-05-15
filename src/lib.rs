@@ -15,6 +15,8 @@ pub mod pixel_selector;
 pub mod span_sorter;
 #[cfg(feature = "video")]
 mod video;
+#[cfg(feature = "video")]
+pub use video::{ThreadPhone, Progress, extract_video_frame};
 
 #[derive(Clone)]
 pub struct Pixelsorter {

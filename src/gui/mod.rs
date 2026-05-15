@@ -21,7 +21,7 @@ use pixelsortery::{
     Pixelsorter,
 };
 #[cfg(feature = "video")]
-use pixelsortery::{Progress, ThreadPhone,};
+use pixelsortery::{Progress, ThreadPhone};
 use std::{
     ffi::OsString, path::{Path, PathBuf}, sync::{atomic::{AtomicBool, Ordering}, mpsc::Receiver, Arc, Mutex}, thread::JoinHandle, time::{Duration, Instant}
 };
@@ -286,10 +286,12 @@ impl PixelsorterGui {
     fn open_file_dialog(&mut self, ctx: &egui::Context) -> () {
         // Opening image until cancled or until valid image loaded
         loop {
+            #[cfg(not(feature = "video"))]
             let mut filedialog = rfd::FileDialog::new()
                 .add_filter("Images", &["png", "jpg", "jpeg", "webp"]);
             #[cfg(feature = "video")]
-            filedialog.add_filter("Images and Videos", &["png", "jpg", "jpeg", "webp", "mp4", "mov", "webm", "avi", "mkv", "m4v", "mpg"])
+            let mut filedialog = rfd::FileDialog::new()
+                .add_filter("Images and Videos", &["png", "jpg", "jpeg", "webp", "mp4", "mov", "webm", "avi", "mkv", "m4v", "mpg"])
                 .add_filter("Videos", &["mp4", "mov", "webm", "avi", "mkv", "m4v", "mpg"]);
             let file = filedialog.pick_file();
             match file {

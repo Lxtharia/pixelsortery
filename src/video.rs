@@ -124,7 +124,7 @@ impl Transcoder {
         output_stream.set_rate(fps); // Just for metadata
 
         // Do some internal stuff. This sets time base for the streams
-        octx.set_metadata(ictx.metadata().to_owned());
+        // octx.set_metadata(ictx.metadata().to_owned());
         if log::max_level() >= log::Level::Info { ffmpeg::format::context::output::dump(&octx, 0, Some(&output_path)); }
         octx.write_header().unwrap();
 

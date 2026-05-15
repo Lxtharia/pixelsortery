@@ -566,26 +566,6 @@ checksum = "ace50bade8e6234aa140d9a2f552bbee1db4d353f69b8217bc503490fc1a9f26"
 
 [[package]]
 name = "bindgen"
-version = "0.69.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "271383c67ccabffb7381723dea0672a673f292304fcb45c01cc648c7a8d58088"
-dependencies = [
- "bitflags 2.9.0",
- "cexpr",
- "clang-sys",
- "itertools",
- "lazy_static",
- "lazycell",
- "proc-macro2",
- "quote",
- "regex",
- "rustc-hash 1.1.0",
- "shlex",
- "syn",
-]
-
-[[package]]
-name = "bindgen"
 version = "0.72.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "993776b509cfb49c750f11b8f07a46fa23e0a1386ffc01fb1e7d343efc387895"
@@ -944,7 +924,7 @@ version = "0.2.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ceec7a6067e62d6f931a2baf6f3a751f4a892595bcec1461a3c94ef9949864b6"
 dependencies = [
- "bindgen 0.72.1",
+ "bindgen",
 ]
 
 [[package]]
@@ -1152,7 +1132,7 @@ dependencies = [
 [[package]]
 name = "egui-video"
 version = "0.9.0"
-source = "git+https://github.com/Lxtharia/egui-video?rev=741420318475#7414203184757f86aa40dd55d97833800886ac8c"
+source = "git+https://github.com/Lxtharia/egui-video?rev=05243ff05#05243ff057ffc735e541da081fc3b2523827f7db"
 dependencies = [
  "anyhow",
  "atomic",
@@ -1435,11 +1415,11 @@ dependencies = [
 
 [[package]]
 name = "ffmpeg-sys-the-third"
-version = "4.0.0+ffmpeg-8.0"
+version = "5.0.0+ffmpeg-8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7fc211d0448e9ba775923b7cac39c19d350b47b4994b658f096cd0232d09ef97"
+checksum = "b00c204bb97c2b6c0329104c3e8bcf58d4d13cc88a04233326570672e0c2c5c9"
 dependencies = [
- "bindgen 0.69.5",
+ "bindgen",
  "cc",
  "clang",
  "libc",
@@ -1449,9 +1429,9 @@ dependencies = [
 
 [[package]]
 name = "ffmpeg-the-third"
-version = "4.0.1+ffmpeg-8.0"
+version = "5.0.0+ffmpeg-8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e9a3b90ff7c38b228afb4d1abaf9fce9336acb7c0674f7c99fdb4aee157820bb"
+checksum = "791f0d9315e4f0a0861fa5c8ca8d70a1bd099cce72bff111b4f7ed8d6ebe8ba3"
 dependencies = [
  "bitflags 2.9.0",
  "ffmpeg-sys-the-third",
@@ -2007,18 +1987,6 @@ name = "khronos_api"
 version = "3.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e2db585e1d738fc771bf08a151420d3ed193d9d895a36df7f6f8a9456b911ddc"
-
-[[package]]
-name = "lazy_static"
-version = "1.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bbd2bcb4c963f2ddae06a2efc7e9f3591312473c50c6685e1f298068316e66fe"
-
-[[package]]
-name = "lazycell"
-version = "1.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "830d08ce1d1d941e6b30645f1a0eb5643013d835ce3779a5fc208261dbe10f55"
 
 [[package]]
 name = "lebe"
