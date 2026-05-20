@@ -67,8 +67,9 @@ const HELP_STRING: &str = "
    -o | --output <FILE> : Set output file explicitly
    If <infile>  is '-' then read from stdin
    If <outfile> is '-' then write to stdout
+   [VIDEO]
    If <outfile> is '-' AND the input file is a video, play the sorted video with ffplay. 
-                       Can be used to live-sort video from a input stream
+                       Can be used to live-sort video from a input stream.
 
 ===================== Options ====================
 
@@ -79,6 +80,8 @@ const HELP_STRING: &str = "
    --show-mask    : Outputs a mask showing what areas would be sorted (requires --thres)
    --gui          : Starts the gui;
                     | When using the gui, setting <output> is optional
+   [VIDEO]
+   --at <timestamp>  : Only sort a single video frame at a given timestamp
 
 ================ Direction Options ==============
 
@@ -96,6 +99,7 @@ const HELP_STRING: &str = "
    --hilbert          : Sort along the hilbert curve pattern
    --rays             : Sort from the center in all directions
    --reverse          : Sort in the opposite direction
+   --x3               : Sort in a curve
 
 ============= Span-Selection Options ============
   [Choose which pixels are valid to form a span]
@@ -115,6 +119,9 @@ const HELP_STRING: &str = "
    --hue        : Sort Pixels by Hue
    --saturation : Sort Pixels by Saturation
    --brightness : Sort Pixels by Brightness
+
+==================== Notes ======================
+   Options marked with [VIDEO] only work on builds with video support.
 ";
 
 
@@ -151,6 +158,7 @@ fn main() {
     let mut show_mask = false;
     let mut start_gui = false;
 
+    #[cfg(feature = "video")]
     let mut frame_ts = None;
 
     // I should just use some argument library tbh
@@ -170,6 +178,7 @@ fn main() {
             "--gui" => start_gui = true,
             "--show-mask" => show_mask = true,
 
+            #[cfg(feature = "video")]
             "--at" => frame_ts = Some(parse_parameter::<f32>(args.pop_front(), "--at <frame_timestamp> Timestamp is the frame number in the time base of the stream")),
 
             "--random" => ps.selector = PixelSelector::Random { max: parse_parameter(args.pop_front(), "--random <max>")},
@@ -188,7 +197,8 @@ fn main() {
             "--spiral-square"     =>   ps.path_creator = PathCreator::SquareSpiral,
             "--spiral-rect"       =>   ps.path_creator = PathCreator::RectSpiral,
             "--diagonal"   => ps.path_creator = PathCreator::Diagonally(parse_parameter(args.pop_front(), "--diagonal <angle>")),
-            "--hilbert"    =>   ps.path_creator = PathCreator::Hilbert,
+            "--hilbert"    => ps.path_creator = PathCreator::Hilbert,
+            "--x3"         => ps.path_creator = PathCreator::X3(0, 200, 10.0),
             "--reverse"    => do_reverse = true,
 
             "--hue"         => ps.sorter.criteria = SortingCriteria::Hue,
@@ -274,8 +284,9 @@ fn main() {
 
     let img = load_image(&input_path);
 
+    #[cfg(feature = "video")]
     if img.is_none() {
-
+        // Seek to the timestamp and sort the frame
         if let Some(mut ts) = frame_ts {
             let ts_end = ts+1.0;
             while ts < ts_end {

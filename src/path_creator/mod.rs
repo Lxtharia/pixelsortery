@@ -19,6 +19,7 @@ pub enum PathCreator {
     RectSpiral,
     Diagonally(f32),
     Hilbert,
+    X3(i32, i64, f64),
 }
 
 impl std::fmt::Display for PathCreator {
@@ -38,6 +39,7 @@ impl std::fmt::Display for PathCreator {
                 PathCreator::RectSpiral => "Rectangular Spiral".into(),
                 PathCreator::Diagonally(a) => format!("Diagonally ({}°)", a),
                 PathCreator::Hilbert => "Hilbert Curve".into(),
+                PathCreator::X3(_, _, _) => "x³".into(),
             }
         )
     }
@@ -68,6 +70,7 @@ impl PathCreator {
             PathCreator::Circles => path_circles(w, h),
             PathCreator::Spiral => path_round_spiral(w, h),
             PathCreator::Hilbert => gilbert::path_hilbert(w, h),
+            PathCreator::X3(offset_y, scalar_w, scalar_l) => path_x3(w, h, offset_y, scalar_w as f64, scalar_l as f64),
         };
         let timeend_pathing = timestart.elapsed();
         timestart = Instant::now();
@@ -161,6 +164,23 @@ fn path_vertical_lines(w: u64, h: u64) -> Vec<Vec<u64>> {
     }
 
     return paths;
+}
+
+const TWO_PI: f64 = 2.0 * PI;
+const HALF_PI: f64 = PI * 0.5;
+fn path_x3(w: u64, h: u64, offset_y: i32, scalar_w: f64, scalar_l: f64) -> Vec<Vec<u64>> {
+    let index = |x: i64, y: i64| y * w as i64 + x;
+    (0..w).into_par_iter()
+        .map(|x| {
+            (0..h).into_par_iter().map(|y|{
+                // let y2: f64 = (y - (h / 2)) as f64 / 50.0;
+                let h2: f64 = h as f64/2.0;
+                let y2: f64 = (y as f64 - h2 - offset_y as f64) / (h2 / scalar_l);
+                let res = (y2.atan() * scalar_w / HALF_PI);
+                // Some unsigned/signed stuff
+                index(x as i64 + res as i64 , y as i64) as u64
+            }).collect()
+        }).collect()
 }
 
 fn path_diagonal_lines(w: u64, h: u64, angle: f32) -> Vec<Vec<u64>> {
