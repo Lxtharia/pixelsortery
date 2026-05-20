@@ -26,6 +26,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        os: [ubuntu-latest, macos-13, macos-14, windows-latest]
         cargo_flags: ["--features=video"]
         include:
           - os: ubuntu-latest
@@ -55,13 +56,12 @@ jobs:
             target: x86_64-pc-windows-msvc
             bin_name: pixelsortery-windows
             cargo_target: release
-            package_manager_cmd: |
-              choco install pkgconfiglite ffmpeg-full
+            package_manager_cmd: choco install pkgconfiglite ffmpeg-full
     runs-on: ${{ matrix.os }}
     name: Build for ${{ matrix.os }} (${{ matrix.target }})
     
     steps:
-    # Checkout either the tag or main (on nightly build)
+    ## Checkout either the tag or main (on nightly build)
     - uses: actions/checkout@v4
       if: env.TAG_NAME != 'nightly'
       with: 
@@ -70,7 +70,8 @@ jobs:
       if: env.TAG_NAME == 'nightly'
       with: 
         ref: nightly
-    
+
+    ## Load cached cargo registry 
     - name: Cache
       uses: actions/cache@v4
       with:
@@ -80,7 +81,7 @@ jobs:
           target
         key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
-    # This is mainly for the two different targets on darwin/macos
+    ## Setup rust. This is mainly for the two different targets on darwin/macos
     - name: Set default toolchain to target
       run: |
           rustup update stable
@@ -88,17 +89,17 @@ jobs:
 
     - name: install dependencies
       run: |
-        cargo install cargo-vcpkg
         ${{ matrix.package_manager_cmd }}
 
     - name: Build binaries in mode "${{ matrix.cargo_target }}" for os "${{ matrix.os }}"
       run: |
-        cargo vcpkg --verbose build
         cargo build --profile ${{ matrix.cargo_target }} --target ${{ matrix.target }} ${{ matrix.cargo_flags }}
       
+    ## Tests: (We don't have that)
     # - name: Run tests
     #   run: cargo test --profile ${{ matrix.BUILD_TARGET }}
     
+    ## Modify binary name by adding the tag name
     - name: Add version to binary name
       shell: bash
       run: |
@@ -109,6 +110,7 @@ jobs:
         mv  "$src" "$dst"
         echo "BIN_NAME=$dst" >> $GITHUB_ENV
 
+    ## Upload the artifacts
     - uses: actions/upload-artifact@v4
       with:
         path: ${{ env.BIN_NAME }}
