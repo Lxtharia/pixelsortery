@@ -27,7 +27,7 @@ Ensure rust and cargo are installed, then type this on the command line:
 ```bash
 git clone https://github.com/Lxtharia/pixelsortery
 cd pixelsortery
-cargo install
+cargo install --path .
 ```
 
 ## Usage
